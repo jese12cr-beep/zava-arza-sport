@@ -1,4 +1,5 @@
 import React, { useState, useId } from 'react';
+import ArzaLogo from './brand/ArzaLogo';
 
 export default function Footer({ onOpenShopifyGuide }) {
   const emailId = useId();
@@ -9,11 +10,9 @@ export default function Footer({ onOpenShopifyGuide }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10">
         {/* Identidad Corporativa Zava / ARZA SPORT */}
         <div className="md:col-span-5 flex flex-col gap-4">
-          <div>
-            <span className="font-display-hero font-extrabold text-2xl tracking-wide uppercase block leading-none">
-              ARZA SPORT
-            </span>
-            <span className="text-[10px] tracking-[0.24em] uppercase text-[#757575] mt-1 block">
+          <div className="flex flex-col items-start gap-2">
+            <ArzaLogo theme="dark" className="h-16 sm:h-20 w-auto" />
+            <span className="text-[10px] tracking-[0.24em] uppercase text-neutral-400">
               Una marca de Grupo Zava
             </span>
           </div>

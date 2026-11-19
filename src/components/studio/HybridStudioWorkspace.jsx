@@ -50,6 +50,7 @@ import Interactive2DLab from '../../engine/compositor/Interactive2DLab';
 import LayerStack25DViewer from '../../engine/compositor/LayerStack25DViewer';
 import UserDesignGalleryModal from './UserDesignGalleryModal';
 import UserAuthModal from '../auth/UserAuthModal';
+import ArzaLogo, { buildArzaLogoSvgString } from '../brand/ArzaLogo';
 import { useAuth } from '../../engine/auth/authManager';
 import {
   LIGA_MX_PRESETS,
@@ -3654,6 +3655,52 @@ export default function HybridStudioWorkspace({
                         </div>
                       </div>
                     )}
+
+                    {/* Sello Oficial de Marca ARZA SPORT (1-Clic sobre cualquier prenda) */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <ArzaLogo theme="light" variant="mark" decorative className="w-5 h-3 shrink-0" />
+                          <span>Logo Oficial ARZA SPORT</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-[#C24100] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+                          Vector 1:1
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Inserta el logotipo oficial ARZA SPORT en el panel activo para tela clara u oscura.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const svg = buildArzaLogoSvgString({ swooshColor: '#FA5400', arzaColor: '#111111', sportColor: '#C24100' });
+                            handleFilesSelected([new File([svg], 'ARZA-SPORT-Claro.svg', { type: 'image/svg+xml' })]);
+                          }}
+                          className="p-2 rounded-xl bg-white hover:bg-neutral-50 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <ArzaLogo theme="light" decorative className="w-9 h-7 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 truncate">ARZA Oscuro</div>
+                            <div className="text-[10px] text-slate-500">Para tela clara</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const svg = buildArzaLogoSvgString({ swooshColor: '#FA5400', arzaColor: '#FFFFFF', sportColor: '#FA5400' });
+                            handleFilesSelected([new File([svg], 'ARZA-SPORT-Blanco.svg', { type: 'image/svg+xml' })]);
+                          }}
+                          className="p-2 rounded-xl bg-[#111111] hover:bg-neutral-900 border border-neutral-800 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <ArzaLogo theme="dark" decorative className="w-9 h-7 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-white truncate">ARZA Claro</div>
+                            <div className="text-[10px] text-neutral-400">Para tela oscura</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Parches Oficiales en Mangas (1-Clic) */}
                     <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">

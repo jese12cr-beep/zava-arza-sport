@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  X, 
-  Sparkles, 
-  Check, 
-  Layers, 
-  Shirt, 
-  Scissors, 
+import {
+  X,
+  Check,
+  Layers,
+  Shirt,
+  Scissors,
   ChevronRight,
   Flame,
   Award
 } from 'lucide-react';
+import ArzaLogo from '../brand/ArzaLogo';
 import { ENGINE_PRODUCTS } from '../../engine/core/designStore';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 
@@ -109,7 +109,7 @@ export default function ProductSelectorModal({
         <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-neutral-800 bg-[#111111] text-white flex items-center justify-between">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-wider mb-1.5 border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#FA5400]" />
+              <ArzaLogo theme="dark" variant="mark" decorative className="h-3.5 w-auto" />
               <span>ARZA SPORT Studio · Grupo Zava</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">

@@ -35,6 +35,7 @@ import {
   isShortsProduct,
   snapRotationAngle,
 } from '../core/boundingBoxMath';
+import ArzaLogo from '../../components/brand/ArzaLogo';
 
 // Lente teleobjetivo exacto de retrato Owayo v6 (`CAMERA_STANDARD_FOV = 30` en viewer-CmBNa226.js)
 const CAMERA_STANDARD_FOV = 30;
@@ -1268,12 +1269,10 @@ export default function GarmentCanvas3D({
       />
 
       {/* Insignia superior izquierda: Solo en pantallas medianas y grandes */}
-      <div className="hidden sm:flex absolute top-4 left-4 items-center gap-2 z-10 select-none">
-        <span className="font-display-hero text-base font-extrabold text-neutral-950 tracking-tight uppercase">
-          ARZA SPORT
-        </span>
-        <span className="text-[11px] font-semibold text-neutral-500 tracking-wide">
-          · Studio 3D
+      <div className="hidden sm:flex absolute top-4 left-4 items-center gap-2.5 z-10 select-none">
+        <ArzaLogo theme="light" className="h-8 w-auto" />
+        <span className="text-[11px] font-semibold text-neutral-600 tracking-wide border-l border-neutral-300 pl-2">
+          Studio 3D
         </span>
       </div>
 

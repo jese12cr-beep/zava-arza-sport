@@ -7,6 +7,7 @@ import {
   FileText,
   ArrowUpRight,
 } from 'lucide-react';
+import ArzaLogo from './brand/ArzaLogo';
 
 export default function Navbar({
   cartCount = 0,
@@ -50,12 +51,14 @@ export default function Navbar({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 flex items-center justify-between gap-3">
-        {/* Identidad Minimalista solo tipográfica ARZA SPORT (sin logotipo gráfico aún) */}
-        <a href="#" className="flex flex-col leading-none shrink-0 group rounded-md py-1">
-          <span className="font-display-hero font-extrabold text-2xl sm:text-3xl text-[#111111] tracking-tight uppercase">
-            ARZA SPORT
-          </span>
-          <span className="text-[10px] font-semibold text-[#757575] tracking-[0.24em] uppercase mt-0.5">
+        {/* Logotipo oficial ARZA SPORT */}
+        <a
+          href="#"
+          aria-label="ARZA SPORT by Zava — Ir al inicio"
+          className="inline-flex items-center gap-2.5 sm:gap-3 shrink-0 group rounded-md py-1"
+        >
+          <ArzaLogo theme="light" className="h-10 sm:h-12 w-auto" />
+          <span className="hidden sm:inline-flex items-center pl-2.5 border-l border-neutral-200 text-[10px] font-bold text-[#757575] tracking-[0.22em] uppercase">
             By Zava
           </span>
         </a>

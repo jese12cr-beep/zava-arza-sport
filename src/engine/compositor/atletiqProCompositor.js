@@ -8,6 +8,11 @@
 
 import { ATLETIQ_TEXTURE_SIZE, ATLETIQ_PRO_ANCHORS } from '../../data/atletiqProAnchors';
 import { resolveAssetUrl } from '../../utils/assetUrl';
+import {
+  ARZA_SWOOSH_PATHS,
+  ARZA_WORD_PATHS,
+  ARZA_SPORT_GLYPHS,
+} from '../../components/brand/ArzaLogo';
 
 const svgCache = new Map();
 
@@ -168,25 +173,28 @@ function drawBrandLogo(ctx, anchor, color = '#FFFFFF') {
   ctx.save();
   const cx = anchor.x;
   const cy = anchor.y;
+  const targetWidth = Math.min(82, Math.max(56, anchor.width || 72));
+  const scale = targetWidth / 324;
+  const accentOrange = color.toLowerCase() === '#fa5400' ? '#FFFFFF' : '#FA5400';
+
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.translate(-242, -237);
+
+  ctx.fillStyle = accentOrange;
+  ARZA_SWOOSH_PATHS.forEach((d) => ctx.fill(new Path2D(d)));
 
   ctx.fillStyle = color;
-  ctx.font = '900 24px "Montserrat", "Arial Black", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.letterSpacing = '3px';
+  ARZA_WORD_PATHS.forEach((d) => ctx.fill(new Path2D(d), 'evenodd'));
 
-  // Símbolo vectorial de alas atléticas ATLETIQ
-  ctx.beginPath();
-  ctx.moveTo(cx - 32, cy - 14);
-  ctx.lineTo(cx, cy - 28);
-  ctx.lineTo(cx + 32, cy - 14);
-  ctx.lineTo(cx + 18, cy - 10);
-  ctx.lineTo(cx, cy - 20);
-  ctx.lineTo(cx - 18, cy - 10);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillStyle = accentOrange;
+  ARZA_SPORT_GLYPHS.forEach((g) => {
+    ctx.save();
+    ctx.translate(g.tx, 0);
+    ctx.fill(new Path2D(g.d), 'evenodd');
+    ctx.restore();
+  });
 
-  ctx.fillText('ATLETIQ', cx, cy + 12);
   ctx.restore();
 }
 
