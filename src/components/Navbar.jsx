@@ -39,7 +39,7 @@ export default function Navbar({
   ];
 
   return (
-    <header className="sticky top-0 left-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200 text-neutral-950">
+    <header className="sticky top-0 left-0 w-full z-50 arza-glass-bar border-b text-neutral-950">
       {/* Barra utilitaria superior minimalista */}
       <div className="bg-[#111111] text-white text-[11px] font-semibold py-2 px-4 sm:px-6 text-center tracking-wider uppercase">
         <span className="inline-flex items-center gap-2 max-w-full">

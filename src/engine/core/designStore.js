@@ -301,6 +301,7 @@ export const ZONE_SURFACE_PATTERNS = [
 ];
 
 export const VECTOR_CREST_PRESETS = [
+  { id: 'arza_official', name: 'ARZA SPORT Oficial', category: 'Oficial' },
   { id: 'royal_shield', name: 'Escudo Club Pro', category: 'Escudos' },
   { id: 'eagle_hex', name: 'Emblema Hexagonal', category: 'Escudos' },
   { id: 'circle_badge', name: 'Sello Redondo FC', category: 'Escudos' },
@@ -368,6 +369,39 @@ export const SPORT_FONTS = [
 ];
 
 export const COLOR_HARMONY_SUGGESTIONS = [
+  {
+    name: 'ARZA Flagship (Carbón & Naranja)',
+    zones: {
+      primary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'A' },
+      secondary: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'B' },
+      accents: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'C' },
+      quaternary: { hex: '#757575', pantone: 'PMS Cool Gray 9 C', code: 'Gris Técnico', owayoCode: 'D' },
+      collar: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'K' },
+      sleeves: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'SLL/SLR' },
+    },
+  },
+  {
+    name: 'ARZA Blanco & Naranja Pro',
+    zones: {
+      primary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'A' },
+      secondary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'B' },
+      accents: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'C' },
+      quaternary: { hex: '#757575', pantone: 'PMS Cool Gray 9 C', code: 'Gris Técnico', owayoCode: 'D' },
+      collar: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'K' },
+      sleeves: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'SLL/SLR' },
+    },
+  },
+  {
+    name: 'ARZA Esmeralda & Carbón Glass',
+    zones: {
+      primary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'A' },
+      secondary: { hex: '#059669', pantone: 'PMS 3395 C', code: 'Esmeralda', owayoCode: 'B' },
+      accents: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'C' },
+      quaternary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'D' },
+      collar: { hex: '#059669', pantone: 'PMS 3395 C', code: 'Esmeralda', owayoCode: 'K' },
+      sleeves: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'SLL/SLR' },
+    },
+  },
   {
     name: 'Azul Real & Oro',
     zones: {
@@ -486,43 +520,38 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     ? structuredClone(inheritedColorZones)
     : isBasketJersey || isBasketShorts
     ? {
-        primary: { hex: '#c8102e', pantone: 'PMS 186 C', code: 'Red 4', owayoCode: 'A' },
-        secondary: { hex: '#101820', pantone: 'PMS Black 6 C', code: 'Black 5', owayoCode: 'B' },
-        accents: { hex: '#ffcd00', pantone: 'PMS 116 C', code: 'Yellow 4', owayoCode: 'C' },
-        quaternary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'D' },
-        collar: { hex: '#101820', pantone: 'PMS Black 6 C', code: 'Black 5', owayoCode: 'K' },
-        sleeves: { hex: '#101820', pantone: 'PMS Black 6 C', code: 'Black 5', owayoCode: 'SLL/SLR' },
+        primary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'A' },
+        secondary: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'B' },
+        accents: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'C' },
+        quaternary: { hex: '#757575', pantone: 'PMS Cool Gray 9 C', code: 'Gris Técnico', owayoCode: 'D' },
+        collar: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'K' },
+        sleeves: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'SLL/SLR' },
       }
     : {
-        primary: { hex: '#0033a0', pantone: 'PMS 286 C', code: 'Royal 4', owayoCode: 'A' },
-        secondary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'B' },
-        accents: { hex: '#ffcd00', pantone: 'PMS 116 C', code: 'Yellow 4', owayoCode: 'C' },
-        quaternary: { hex: '#c8102e', pantone: 'PMS 186 C', code: 'Red 4', owayoCode: 'D' },
-        collar: { hex: '#ffcd00', pantone: 'PMS 116 C', code: 'Yellow 4', owayoCode: 'K' },
-        sleeves: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'SLL/SLR' },
+        primary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'A' },
+        secondary: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'B' },
+        accents: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'C' },
+        quaternary: { hex: '#757575', pantone: 'PMS Cool Gray 9 C', code: 'Gris Técnico', owayoCode: 'D' },
+        collar: { hex: '#fa5400', pantone: 'PMS 1655 C', code: 'Naranja ARZA', owayoCode: 'K' },
+        sleeves: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'SLL/SLR' },
       };
 
+  const isAccessory = prod.garmentCategory === 'accessory';
   let decals = [];
   if (isFootballShorts) {
     decals = [
       {
         id: 'decal_short_brand',
-        type: 'STATIC_TEXT',
-        text: 'ARZA SPORT',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
         isFixed: true,
-        fontFamily: "'Chakra Petch', sans-serif",
-        fillHex: '#ffffff',
-        outlineHex: '#0c2340',
-        outlineWidthMm: 1.8,
-        archDeg: 0,
-        letterSpacingMm: 1.0,
-        label: 'Marca Muslo Izq.',
+        label: 'Logo Oficial ARZA SPORT (Muslo)',
         panel: 'left_leg',
         centerMm: {
           x: round1(leftLegSpec.widthMm * (leftLegSpec.snapCenterU ?? 0.251)),
           y: round1(leftLegSpec.heightMm * (leftLegSpec.defaultPlaceV ?? 0.67)),
         },
-        sizeMm: { width: 92, height: 22 },
+        sizeMm: { width: 76, height: 65 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
@@ -541,19 +570,13 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     decals = [
       {
         id: 'decal_bshort_brand',
-        type: 'STATIC_TEXT',
-        text: 'ARZA SPORT',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
         isFixed: true,
-        fontFamily: "'Chakra Petch', sans-serif",
-        fillHex: '#ffffff',
-        outlineHex: '#101820',
-        outlineWidthMm: 1.8,
-        archDeg: 0,
-        letterSpacingMm: 1.0,
-        label: 'Marca Muslo Izq.',
+        label: 'Logo Oficial ARZA SPORT (Muslo)',
         panel: 'left_leg',
         centerMm: { x: crestCenterX, y: crestCenterY },
-        sizeMm: useSeparateLeg ? { width: 88, height: 22 } : { width: 100, height: 24 },
+        sizeMm: useSeparateLeg ? { width: 72, height: 62 } : { width: 82, height: 70 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
@@ -566,24 +589,17 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
       },
     ];
   } else if (isBasketJersey) {
-    const teamWidth = isWomenCut ? 196 : 246;
-    const teamY = isWomenCut ? round1(frontSpec.heightMm * 0.37) : 268;
+    const teamY = isWomenCut ? round1(frontSpec.heightMm * 0.39) : 296;
     decals = [
       {
         id: 'decal_bball_team',
-        type: 'STATIC_TEXT',
-        text: 'ARZA SPORT',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
         isFixed: true,
-        fontFamily: "'Bebas Neue', sans-serif",
-        fillHex: '#ffffff',
-        outlineHex: '#101820',
-        outlineWidthMm: 3.0,
-        archDeg: isWomenCut ? 28 : 38,
-        letterSpacingMm: 1.4,
-        label: 'Nombre Equipo Pecho',
+        label: 'Logo Oficial ARZA SPORT (Pecho)',
         panel: 'front',
         centerMm: { x: round1(frontSpec.widthMm * 0.5), y: teamY },
-        sizeMm: { width: teamWidth, height: isWomenCut ? 52 : 64 },
+        sizeMm: isWomenCut ? { width: 120, height: 103 } : { width: 140, height: 120 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
@@ -601,19 +617,38 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     decals = [
       {
         id: 'decal_main_sponsor',
-        type: 'STATIC_TEXT',
-        text: 'ARZA SPORT',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
         isFixed: true,
-        fontFamily: "'Chakra Petch', sans-serif",
-        fillHex: '#ffffff',
-        outlineHex: '#0c2340',
-        outlineWidthMm: 2.0,
-        archDeg: 0,
-        letterSpacingMm: 1.0,
-        label: 'Marca Pecho Der.',
+        label: 'Logo Oficial ARZA SPORT (Pecho)',
         panel: 'front_right',
         centerMm: { x: frCenterX, y: chestY },
-        sizeMm: { width: 88, height: 22 },
+        sizeMm: { width: 72, height: 62 },
+        scale: 1,
+        rotationDeg: 0,
+        opacity: 1,
+        blendMode: 'source-over',
+        clampToZone: 'ALL',
+        pinned: false,
+        zIndex: 20,
+        isVector: true,
+        widthPx: 3200,
+      },
+    ];
+  } else if (isAccessory) {
+    decals = [
+      {
+        id: 'decal_accessory_brand',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
+        isFixed: true,
+        label: 'Logo Oficial ARZA SPORT',
+        panel: 'front',
+        centerMm: {
+          x: round1((frontSpec?.widthMm ?? 220) * 0.5),
+          y: round1((frontSpec?.heightMm ?? 220) * 0.45),
+        },
+        sizeMm: { width: 76, height: 65 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
@@ -631,19 +666,13 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     decals = [
       {
         id: 'decal_main_sponsor',
-        type: 'STATIC_TEXT',
-        text: 'ARZA SPORT',
+        type: 'PRESET_CREST',
+        presetId: 'arza_official',
         isFixed: true,
-        fontFamily: "'Chakra Petch', sans-serif",
-        fillHex: '#ffffff',
-        outlineHex: '#0c2340',
-        outlineWidthMm: 2.2,
-        archDeg: 0,
-        letterSpacingMm: 1.2,
-        label: 'Sponsor Pecho',
+        label: 'Logo Oficial ARZA SPORT',
         panel: 'front',
         centerMm: { x: fCenterX, y: sponsorY },
-        sizeMm: isWomenCut ? { width: 204, height: 38 } : { width: 230, height: 42 },
+        sizeMm: isWomenCut ? { width: 148, height: 127 } : { width: 168, height: 144 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
@@ -673,7 +702,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     ? frontCenterX
     : round1((frontSpec?.widthMm ?? 519.25) * 0.356);
   const frontNumY = isBasketJersey
-    ? round1((frontSpec?.heightMm ?? 850) * (isWomenCut ? 0.53 : 0.478))
+    ? round1((frontSpec?.heightMm ?? 850) * (isWomenCut ? 0.57 : 0.54))
     : round1((frontSpec?.heightMm ?? 774.8) * 0.243);
   const shortsCenterX = round1((rightLegSpec?.widthMm ?? 778) * (rightLegSpec?.snapCenterU ?? 0.575));
   const shortsCenterY = round1((rightLegSpec?.heightMm ?? 624) * (prod.id === 'basketball_shorts_bp7w_women' ? 0.64 : isBasketShorts ? 0.74 : 0.67));
@@ -704,7 +733,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
         autoCondense: true,
         fontFamily: "'Bebas Neue', sans-serif",
         fillHex: '#ffffff',
-        outlineHex: '#101820',
+        outlineHex: '#111111',
         outlineWidthMm: 3.0,
       },
       playerNumberBack: {
@@ -716,8 +745,8 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
         heightMm: isBasketJersey ? (isWomenCut ? 178 : 210) : isJacket ? 175 : isWomenCut ? 202 : 225,
         fontFamily: "'Bebas Neue', sans-serif",
         fillHex: '#ffffff',
-        outlineHex: '#101820',
-        inlineHex: '#ffcd00',
+        outlineHex: '#111111',
+        inlineHex: '#fa5400',
         outlineWidthMm: 4.8,
       },
       playerNumberFront: {
@@ -728,8 +757,8 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
         centerMm: { x: frontNumX, y: frontNumY },
         heightMm: isBasketJersey ? (isWomenCut ? 114 : 132) : isWomenCut ? 44 : 48,
         fontFamily: "'Bebas Neue', sans-serif",
-        fillHex: isBasketJersey ? '#ffffff' : '#ffcd00',
-        outlineHex: '#101820',
+        fillHex: isBasketJersey ? '#ffffff' : '#fa5400',
+        outlineHex: '#111111',
         outlineWidthMm: isBasketJersey ? 3.8 : 2.2,
       },
       playerNumberSleeve: {
@@ -744,7 +773,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
         heightMm: 44,
         fontFamily: "'Bebas Neue', sans-serif",
         fillHex: '#ffffff',
-        outlineHex: '#101820',
+        outlineHex: '#111111',
       },
       playerNumberShorts: {
         textObjectUUID: 'uuid-slot-num-shorts',
@@ -755,7 +784,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
         heightMm: prod.id === 'basketball_shorts_bp7w_women' ? 58 : 66,
         fontFamily: "'Bebas Neue', sans-serif",
         fillHex: '#ffffff',
-        outlineHex: '#101820',
+        outlineHex: '#111111',
         outlineWidthMm: 2.8,
       },
     },

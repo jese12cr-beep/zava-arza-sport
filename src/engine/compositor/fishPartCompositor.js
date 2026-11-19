@@ -11,12 +11,13 @@
  */
 
 import { getPartSpec, resolveMirlKeyForProduct, computeAutoCondenseScaleX } from '../core/boundingBoxMath';
-import { getDesignsForProduct } from '../core/designStore';
+import { getDesignsForProduct, computeOwayoAutoContrastHex } from '../core/designStore';
 import { getFilteredArtworkDrawable } from '../core/dpiValidator';
 import { drawLigaMxGraphicMm, drawLigaMxCrestMm } from './ligaMxKitsEngine';
 import { drawUclGraphicMm, drawUclCrestMm } from './uclKitsEngine';
 import { drawSponsorLogoMm } from './sponsorLogosEngine';
 import { resolveAssetUrl } from '../../utils/assetUrl';
+import { drawArzaLogoOnCanvas } from '../../components/brand/ArzaLogo';
 
 // Caché de máscaras decodificadas `.fish`: key = `${fishUrl}` -> Promise<Map<partName, { width, height, zones: Uint8Array }>>
 export const decodedFishCache = new Map();
@@ -509,6 +510,20 @@ function drawPresetVectorCrestMm(ctx, presetId, wMm, hMm, design, tintHex = '') 
   const r = Math.min(wMm, hMm) / 2;
 
   ctx.save();
+  if (presetId === 'arza_official') {
+    const primaryHex = design?.colorZones?.primary?.hex || '#111111';
+    const inkOnPrimary = computeOwayoAutoContrastHex(primaryHex);
+    const isLightSurface = inkOnPrimary === '#101820';
+    drawArzaLogoOnCanvas(ctx, 0, 0, wMm, hMm, {
+      swooshColor: tintHex || '#FA5400',
+      arzaColor: isLightSurface ? '#111111' : '#FFFFFF',
+      sportColor: tintHex || (isLightSurface ? '#C24100' : '#FA5400'),
+      outlineColor: isLightSurface ? '#FFFFFF' : '#111111',
+      outlineWidthPx: 5.5,
+    });
+    ctx.restore();
+    return;
+  }
   if (presetId?.startsWith('mx_')) {
     drawLigaMxCrestMm(ctx, presetId, wMm, hMm, design);
     ctx.restore();

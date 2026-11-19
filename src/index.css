@@ -437,3 +437,94 @@ dialog::backdrop {
   }
 }
 
+/* 10. ARZA SPORT Glassmorphism & Translucent Emerald Green Theme */
+.arza-studio-shell {
+  background:
+    radial-gradient(circle at 12% 14%, rgba(16, 185, 129, 0.10) 0%, transparent 42%),
+    radial-gradient(circle at 86% 12%, rgba(250, 84, 0, 0.07) 0%, transparent 38%),
+    radial-gradient(circle at 75% 88%, rgba(5, 150, 105, 0.09) 0%, transparent 44%),
+    #f1f5f3;
+}
+
+.arza-glass-bar {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  border-color: rgba(203, 213, 225, 0.65);
+  box-shadow: 0 8px 28px -12px rgba(17, 17, 17, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.arza-glass-card {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 24px -12px rgba(17, 17, 17, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.arza-glass-dark {
+  background: rgba(17, 17, 17, 0.78);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.arza-btn-glass-green {
+  background: linear-gradient(135deg, rgba(6, 95, 70, 0.86), rgba(4, 120, 87, 0.78));
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid rgba(110, 231, 183, 0.45);
+  box-shadow: 0 10px 24px -8px rgba(5, 150, 105, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.arza-btn-glass-green:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(4, 120, 87, 0.92), rgba(5, 150, 105, 0.84));
+  border-color: rgba(167, 243, 208, 0.65);
+  box-shadow: 0 14px 28px -8px rgba(5, 150, 105, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.arza-pill-glass-green {
+  background: rgba(16, 185, 129, 0.14);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(5, 150, 105, 0.36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  color: #065f46;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.arza-pill-glass-green:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(4, 120, 87, 0.55);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .arza-glass-bar {
+    background: rgba(255, 255, 255, 0.96);
+  }
+  .arza-glass-card {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  .arza-glass-dark {
+    background: rgba(17, 17, 17, 0.96);
+  }
+  .arza-btn-glass-green {
+    background: #065f46;
+  }
+}
+
+@media (forced-colors: active) {
+  .arza-glass-bar,
+  .arza-glass-card,
+  .arza-glass-dark,
+  .arza-btn-glass-green,
+  .arza-pill-glass-green {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 1px solid ButtonText;
+  }
+}
+

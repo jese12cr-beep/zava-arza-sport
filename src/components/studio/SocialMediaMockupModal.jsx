@@ -176,13 +176,13 @@ export default function SocialMediaMockupModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div 
-        className="relative w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+        className="relative w-full max-w-4xl max-h-[92vh] bg-white/88 backdrop-blur-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-white/75"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera */}
-        <div className="shrink-0 px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-sky-950 text-white flex items-center justify-between">
+        <div className="shrink-0 px-6 py-4 border-b border-white/15 bg-gradient-to-r from-[#111111]/95 via-neutral-900/95 to-emerald-950/90 backdrop-blur-md text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-400/30">
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/35 backdrop-blur-xs">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -204,7 +204,7 @@ export default function SocialMediaMockupModal({
           {/* Previsualización del Mockup */}
           <div className="flex-1 flex items-center justify-center bg-slate-950 rounded-2xl p-4 shadow-inner relative overflow-hidden">
             {/* Luces y brillo */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(56,189,248,0.2)_0%,transparent_70%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(16,185,129,0.2)_0%,transparent_70%)] pointer-events-none" />
 
             <div className={`relative max-h-[460px] w-auto ${currentFmt.aspectClass} rounded-xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-900 flex flex-col justify-between p-5 text-center`}>
               <div>
@@ -245,12 +245,12 @@ export default function SocialMediaMockupModal({
                       onClick={() => setSelectedFormat(fmt.id)}
                       className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                         selectedFormat === fmt.id
-                          ? 'border-sky-500 bg-sky-50/70 text-sky-950 font-black shadow-xs'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold'
+                          ? 'arza-pill-glass-green font-black shadow-xs'
+                          : 'arza-glass-card text-slate-700 hover:bg-white font-bold'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        {fmt.id === 'banner' ? <Monitor className="w-4 h-4 text-sky-600" /> : <Smartphone className="w-4 h-4 text-sky-600" />}
+                        {fmt.id === 'banner' ? <Monitor className="w-4 h-4 text-emerald-700" /> : <Smartphone className="w-4 h-4 text-emerald-700" />}
                         <span className="text-xs">{fmt.label}</span>
                       </div>
                       <span className="text-[10px] text-slate-500">{fmt.width}x{fmt.height}</span>
@@ -291,7 +291,7 @@ export default function SocialMediaMockupModal({
               type="button"
               disabled={isGenerating}
               onClick={handleDownloadMockup}
-              className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-sky-600 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-xl arza-btn-glass-green font-black text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
               <span>{isGenerating ? 'Generando imagen HD...' : 'Descargar Mockup en Alta Definición'}</span>

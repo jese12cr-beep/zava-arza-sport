@@ -1277,7 +1277,7 @@ export default function GarmentCanvas3D({
       </div>
 
       {/* Selector rápido de vistas 3D: Barra horizontal centrada en móvil, a la derecha en desktop */}
-      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 flex items-center justify-center sm:justify-end gap-1 z-10 overflow-x-auto no-scrollbar py-0.5">
+      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 flex items-center justify-center sm:justify-end gap-1.5 z-10 overflow-x-auto no-scrollbar py-0.5">
         {quickCameraButtons.map((btn) => (
           <button
             key={btn.id}
@@ -1285,8 +1285,8 @@ export default function GarmentCanvas3D({
             onClick={() => triggerCameraPreset(btn.id)}
             className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all border cursor-pointer shrink-0 ${
               cameraPreset === btn.id
-                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                : 'bg-white/90 text-slate-700 border-slate-300 hover:border-slate-400 hover:text-slate-900'
+                ? 'arza-btn-glass-green'
+                : 'arza-glass-card text-slate-800 hover:border-emerald-500/50 hover:text-emerald-950'
             }`}
           >
             {btn.label}
@@ -1294,17 +1294,17 @@ export default function GarmentCanvas3D({
         ))}
       </div>
 
-      {/* Barra flotante lateral `#toolbox`: Oculta en móviles para dar 100% de área táctil sin interferencias */}
+      {/* Barra flotante lateral `#toolbox`: Cápsula glassmorphism en escritorio */}
       <div
         aria-label="Herramientas de visor 3D"
-        className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 flex-col gap-3 p-1.5 z-10"
+        className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 flex-col gap-2.5 p-2 rounded-2xl arza-glass-card z-10"
       >
         <button
           type="button"
           onClick={() => handleToolboxZoom(0.84)}
           title="Acercar (Zoom +)"
           aria-label="Acercar cámara"
-          className="p-1.5 text-slate-800 hover:text-sky-600 hover:scale-110 transition-all cursor-pointer"
+          className="p-1.5 rounded-xl text-slate-800 hover:text-emerald-700 hover:bg-emerald-500/15 hover:scale-105 transition-all cursor-pointer"
         >
           <ZoomIn className="w-5 h-5 stroke-[2]" />
         </button>
@@ -1313,7 +1313,7 @@ export default function GarmentCanvas3D({
           onClick={() => handleToolboxZoom(1.18)}
           title="Alejar (Zoom -)"
           aria-label="Alejar cámara"
-          className="p-1.5 text-slate-800 hover:text-sky-600 hover:scale-110 transition-all cursor-pointer"
+          className="p-1.5 rounded-xl text-slate-800 hover:text-emerald-700 hover:bg-emerald-500/15 hover:scale-105 transition-all cursor-pointer"
         >
           <ZoomOut className="w-5 h-5 stroke-[2]" />
         </button>
@@ -1325,7 +1325,7 @@ export default function GarmentCanvas3D({
           onPointerCancel={stopHoldOrbitTurn}
           title="Girar prenda (mantener pulsado)"
           aria-label="Girar prenda"
-          className="p-1.5 text-slate-800 hover:text-sky-600 hover:scale-110 transition-all cursor-pointer"
+          className="p-1.5 rounded-xl text-slate-800 hover:text-emerald-700 hover:bg-emerald-500/15 hover:scale-105 transition-all cursor-pointer"
         >
           <RotateCw className="w-5 h-5 stroke-[2]" />
         </button>
@@ -1334,7 +1334,7 @@ export default function GarmentCanvas3D({
           onClick={() => triggerCameraPreset('front')}
           title="Restablecer vista frontal"
           aria-label="Restablecer vista frontal"
-          className="p-1.5 text-slate-800 hover:text-sky-600 hover:scale-110 transition-all cursor-pointer"
+          className="p-1.5 rounded-xl text-slate-800 hover:text-emerald-700 hover:bg-emerald-500/15 hover:scale-105 transition-all cursor-pointer"
         >
           <RotateCcw className="w-5 h-5 stroke-[2]" />
         </button>
@@ -1343,7 +1343,7 @@ export default function GarmentCanvas3D({
           onClick={() => triggerCameraPreset(cameraPreset === 'back' ? 'front' : 'back')}
           title="Girar a vista trasera / frontal"
           aria-label="Girar a vista trasera"
-          className="p-1.5 text-slate-800 hover:text-sky-600 hover:scale-110 transition-all cursor-pointer"
+          className="p-1.5 rounded-xl text-slate-800 hover:text-emerald-700 hover:bg-emerald-500/15 hover:scale-105 transition-all cursor-pointer"
         >
           <StepBack className="w-5 h-5 stroke-[2]" />
         </button>
@@ -1428,7 +1428,7 @@ export default function GarmentCanvas3D({
               );
             }}
             title="Centrar en eje de la pieza"
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 disabled:opacity-35"
+            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-300 disabled:opacity-35"
           >
             <AlignCenterVertical className="w-3.5 h-3.5" />
           </button>

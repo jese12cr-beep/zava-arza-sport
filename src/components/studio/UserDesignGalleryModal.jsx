@@ -137,12 +137,12 @@ export default function UserDesignGalleryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
-      <div className="relative w-full max-w-5xl h-[92vh] bg-slate-900 text-white rounded-3xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-5xl h-[92vh] arza-glass-dark text-white rounded-3xl shadow-2xl border border-white/15 flex flex-col overflow-hidden">
         
         {/* ==================== CABECERA ATLETIC DE LA GALERÍA ==================== */}
-        <div className="px-4 sm:px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20 shrink-0">
+            <div className="w-10 h-10 rounded-2xl arza-btn-glass-green flex items-center justify-center shrink-0">
               <FolderHeart className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
@@ -150,7 +150,7 @@ export default function UserDesignGalleryModal({
                 <h3 className="text-base sm:text-lg font-black tracking-tight text-white uppercase truncate">
                   Mi Galería de Diseños
                 </h3>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/35">
                   {gallery.length} {gallery.length === 1 ? 'Guardado' : 'Guardados'}
                 </span>
               </div>
@@ -164,7 +164,7 @@ export default function UserDesignGalleryModal({
             <button
               type="button"
               onClick={() => setIsSavingCurrent(true)}
-              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-sky-600/20 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl arza-btn-glass-green text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Guardar diseño actual</span>
@@ -201,14 +201,14 @@ export default function UserDesignGalleryModal({
                 value={customNameInput}
                 onChange={(e) => setCustomNameInput(e.target.value)}
                 placeholder="Ej. Kit Titular Torneo 2026..."
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold placeholder-slate-500 focus:outline-hidden focus:border-sky-500"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold placeholder-slate-500 focus:outline-hidden focus:border-emerald-500"
               />
             </div>
             <div className="flex items-center gap-2 pt-2 sm:pt-4">
               <button
                 type="button"
                 onClick={handleSaveLiveKit}
-                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl arza-btn-glass-green text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>Confirmar y Guardar</span>
@@ -239,8 +239,8 @@ export default function UserDesignGalleryModal({
                 onClick={() => setActiveCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   activeCategory === cat.id
-                    ? 'bg-sky-500 text-slate-950 shadow-sm'
-                    : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'
+                    ? 'arza-btn-glass-green'
+                    : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10'
                 }`}
               >
                 {cat.label}
@@ -255,7 +255,7 @@ export default function UserDesignGalleryModal({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar en mis diseños..."
-              className="w-full sm:w-64 pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-sky-500"
+              className="w-full sm:w-64 pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-emerald-500"
             />
           </div>
         </div>
@@ -279,7 +279,7 @@ export default function UserDesignGalleryModal({
               <button
                 type="button"
                 onClick={() => setIsSavingCurrent(true)}
-                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md shadow-sky-600/20"
+                className="px-5 py-2.5 rounded-xl arza-btn-glass-green text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Guardar la prenda actual</span>
@@ -303,7 +303,7 @@ export default function UserDesignGalleryModal({
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-600">
-                        <Shirt className="w-8 h-8 text-sky-400" />
+                        <Shirt className="w-8 h-8 text-emerald-400" />
                       </div>
                     )}
 
@@ -357,7 +357,7 @@ export default function UserDesignGalleryModal({
                           onLoadDesignFromGallery?.(item);
                           onClose();
                         }}
-                        className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md shadow-sky-600/20 cursor-pointer"
+                        className="w-full py-2.5 px-3 rounded-xl arza-btn-glass-green font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Cargar en 3D / 2D</span>
@@ -409,7 +409,7 @@ export default function UserDesignGalleryModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sky-400 hover:underline font-bold cursor-pointer"
+            className="text-emerald-400 hover:underline font-bold cursor-pointer"
           >
             Volver al Estudio
           </button>

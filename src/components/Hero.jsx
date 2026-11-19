@@ -12,7 +12,7 @@ const FEATURED_ZAVA_LINES = [
     subtitle: 'Patronaje anatómico Caballero y Dama • Cuello en V ergonómico',
     fabric: 'TS-Tex™ Micro-Pore 145 g/m²',
     price: '$34.00',
-    colors: ['#111111', '#0033a0', '#ffffff', '#c8102e'],
+    colors: ['#111111', '#fa5400', '#ffffff', '#757575'],
     image: resolveAssetUrl('assets/showcase/futbol_f3_jersey.jpg'),
   },
   {
@@ -24,7 +24,7 @@ const FEATURED_ZAVA_LINES = [
     subtitle: 'Sisa competitiva FIFA / FIBA • 19 cortes gráficos configurables',
     fabric: 'CoolDry™ Micromesh Hex 155 g/m²',
     price: '$32.50',
-    colors: ['#c8102e', '#111111', '#ffcd00', '#ffffff'],
+    colors: ['#111111', '#fa5400', '#ffffff', '#059669'],
     image: resolveAssetUrl('assets/showcase/basket_b6_men.jpg'),
   },
   {
@@ -36,7 +36,7 @@ const FEATURED_ZAVA_LINES = [
     subtitle: 'Cortavientos 3 capas • 11 piezas sublimables de confección',
     fabric: 'K-Tex Windblock 280 g/m²',
     price: '$68.00',
-    colors: ['#111111', '#0033a0', '#e5e5e5', '#15803d'],
+    colors: ['#111111', '#fa5400', '#757575', '#065f46'],
     image: resolveAssetUrl('assets/showcase/jacket_601m_softshell.jpg'),
   },
   {
@@ -48,7 +48,7 @@ const FEATURED_ZAVA_LINES = [
     subtitle: 'Sublimación integral Full HD • Sponsors y Gamertags ilimitados',
     fabric: 'TS-Tex Ultra-Light 140 g/m²',
     price: '$36.00',
-    colors: ['#111111', '#4f46e5', '#ffffff', '#dc2626'],
+    colors: ['#111111', '#fa5400', '#ffffff', '#059669'],
     image: resolveAssetUrl('assets/stitch/ghost_mannequin.png'),
   },
 ];
@@ -173,7 +173,7 @@ export default function Hero({ onStartDesigning }) {
                   aria-hidden="true"
                 />
                 <div className="absolute top-4 left-4">
-                  <span className="inline-block px-3 py-1 rounded-full bg-[#111111] text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
+                  <span className="inline-block px-3 py-1 rounded-full bg-[#111111]/80 backdrop-blur-md border border-white/15 text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
                     {active.code}
                   </span>
                 </div>
@@ -195,7 +195,7 @@ export default function Hero({ onStartDesigning }) {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-neutral-200">
+              <div className="p-5 sm:p-6 bg-white/85 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-neutral-200/80">
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-[#525252]">{active.subtitle}</p>
                   <div className="flex items-center gap-2 pt-1">

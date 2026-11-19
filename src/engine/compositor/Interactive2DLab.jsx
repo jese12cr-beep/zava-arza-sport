@@ -620,12 +620,12 @@ export default function Interactive2DLab({
           ))}
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1 bg-slate-950/80 backdrop-blur-md p-1 rounded-xl border border-white/15">
           <button
             type="button"
             onClick={() => setViewLayout('single')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 ${
-              viewLayout === 'single' ? 'bg-sky-500 text-slate-950' : 'text-slate-300 hover:text-white'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer ${
+              viewLayout === 'single' ? 'arza-btn-glass-green' : 'text-slate-300 hover:text-white'
             }`}
           >
             <Scan className="w-3.5 h-3.5" />
@@ -634,8 +634,8 @@ export default function Interactive2DLab({
           <button
             type="button"
             onClick={() => setViewLayout('all_pieces')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 ${
-              viewLayout === 'all_pieces' ? 'bg-sky-500 text-slate-950' : 'text-slate-300 hover:text-white'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer ${
+              viewLayout === 'all_pieces' ? 'arza-btn-glass-green' : 'text-slate-300 hover:text-white'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
@@ -700,7 +700,7 @@ export default function Interactive2DLab({
                   placementAudit?.isOutOfSafeZone
                     ? 'border-rose-500 shadow-[0_0_0_2px_rgba(244,63,94,0.35)]'
                     : gizmoTarget.pinned
-                    ? 'border-sky-400 border-dashed'
+                    ? 'border-emerald-300 border-dashed'
                     : 'border-emerald-400 shadow-[0_0_0_2px_rgba(74,222,128,0.25)]'
                 }`}
               >
@@ -718,8 +718,8 @@ export default function Interactive2DLab({
                 />
 
                 {/* Etiqueta superior */}
-                <div className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-slate-950/95 border border-emerald-400/60 text-emerald-300 text-[9px] font-bold flex items-center gap-1 whitespace-nowrap shadow">
-                  {gizmoTarget.pinned ? <Pin className="w-2.5 h-2.5 text-sky-300" /> : <Move className="w-2.5 h-2.5" />}
+                <div className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md border border-emerald-400/60 text-emerald-300 text-[9px] font-bold flex items-center gap-1 whitespace-nowrap shadow">
+                  {gizmoTarget.pinned ? <Pin className="w-2.5 h-2.5 text-emerald-300" /> : <Move className="w-2.5 h-2.5" />}
                   <span>{gizmoTarget.label}</span>
                 </div>
 
@@ -762,7 +762,7 @@ export default function Interactive2DLab({
                       onMirrorDecal(activeDecal);
                     }}
                     title="Espejar / Clonar en pieza simétrica"
-                    className="pointer-events-auto absolute -bottom-3 -left-3 w-6 h-6 rounded-full bg-sky-400 hover:bg-sky-300 text-slate-950 shadow-lg flex items-center justify-center"
+                    className="pointer-events-auto absolute -bottom-3 -left-3 w-6 h-6 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg flex items-center justify-center"
                   >
                     <Copy className="w-3 h-3" />
                   </button>

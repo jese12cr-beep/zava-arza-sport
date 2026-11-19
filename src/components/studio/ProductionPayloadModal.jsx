@@ -318,7 +318,7 @@ export default function ProductionPayloadModal({
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copiado' : 'Copiar JSON Maestro'}
               </button>
-              <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-sky-300 overflow-x-auto">
+              <pre className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
                 {JSON.stringify(
                   {
                     masterDesign: bundle.masterDesignRecord,

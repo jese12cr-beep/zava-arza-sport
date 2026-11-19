@@ -60,13 +60,13 @@ export default function OrderQuoteModal({
       ref={dialogRef}
       closedby="any"
       aria-labelledby="quote-modal-title"
-      className="p-0 rounded-3xl bg-white text-slate-900 border border-slate-200 max-w-3xl w-full backdrop:bg-slate-950/40 backdrop:backdrop-blur-xs shadow-2xl m-auto"
+      className="p-0 rounded-3xl bg-white/88 backdrop-blur-xl text-slate-900 border border-white/75 max-w-3xl w-full backdrop:bg-slate-950/50 backdrop:backdrop-blur-xs shadow-2xl m-auto"
     >
       <div className="p-6 sm:p-8 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-slate-200">
+        <div className="flex items-center justify-between pb-5 border-b border-slate-200/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-100">
+            <div className="w-10 h-10 rounded-2xl arza-pill-glass-green flex items-center justify-center">
               <FileText className="w-5 h-5" />
             </div>
             <div>
@@ -98,7 +98,7 @@ export default function OrderQuoteModal({
               <p className="text-slate-500 text-[10px]">contacto@arzasport.mx • Tel: +52 (55) 4160-8800</p>
             </div>
             <div className="text-right">
-              <span className="font-mono text-sky-600 font-bold block">{quoteNumber}</span>
+              <span className="font-mono text-emerald-700 font-bold block">{quoteNumber}</span>
               <span className="text-slate-500 text-[11px]">{currentDate}</span>
               <span className="inline-block mt-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
                 Vigencia: 15 días
@@ -136,7 +136,7 @@ export default function OrderQuoteModal({
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[10px] font-semibold">CANTIDAD:</span>
-                      <span className="font-bold text-sky-600">{item.roster?.length || 1} uds</span>
+                      <span className="font-bold text-emerald-700">{item.roster?.length || 1} uds</span>
                     </div>
                   </div>
 
@@ -180,15 +180,15 @@ export default function OrderQuoteModal({
         <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
           <button
             onClick={() => window.print()}
-            className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            className="px-5 py-2.5 rounded-xl arza-glass-card hover:bg-white text-slate-800 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-sky-600" />
+            <Printer className="w-4 h-4 text-emerald-700" />
             Imprimir / Guardar en PDF
           </button>
 
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-md shadow-sky-600/20"
+            className="px-6 py-2.5 rounded-xl arza-btn-glass-green text-xs font-bold uppercase tracking-wider cursor-pointer"
           >
             Cerrar Ficha
           </button>

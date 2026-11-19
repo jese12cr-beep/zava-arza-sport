@@ -274,7 +274,7 @@ export default function ProductionMoldModal({
                 </button>
               </div>
             ) : isAuthenticated ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-300 text-[10px] font-bold">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 backdrop-blur-xs text-[10px] font-bold">
                 <span>👤 {currentUser?.name || 'Cliente'}</span>
               </div>
             ) : (
@@ -452,7 +452,7 @@ export default function ProductionMoldModal({
                 type="button"
                 id="btn-proceed-from-mold-to-order"
                 onClick={onProceedToOrder}
-                className="flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-blue-600/20 flex items-center justify-center gap-1.5"
+                className="flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl arza-btn-glass-green text-xs font-black uppercase tracking-wider cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <span>✓</span>
                 <span>Confirmar Equipación</span>

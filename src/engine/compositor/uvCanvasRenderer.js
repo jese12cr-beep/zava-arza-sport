@@ -18,6 +18,7 @@ import { computeOwayoAutoContrastHex } from '../core/designStore';
 import { drawLigaMxGraphicMm, drawLigaMxCrestMm } from './ligaMxKitsEngine';
 import { drawUclGraphicMm, drawUclCrestMm } from './uclKitsEngine';
 import { drawSponsorLogoMm } from './sponsorLogosEngine';
+import { drawArzaLogoOnCanvas } from '../../components/brand/ArzaLogo';
 
 export const UV_ATLAS_WIDTH = 2048;
 export const UV_ATLAS_HEIGHT = 1024;
@@ -44,6 +45,20 @@ export function drawPresetCrest(ctx, presetId, w, h, colors) {
   const hw = w / 2;
   const hh = h / 2;
   ctx.save();
+
+  if (presetId === 'arza_official') {
+    const primaryHex = colors?.primary?.hex || '#111111';
+    const isLightSurface = computeOwayoAutoContrastHex(primaryHex) === '#101820';
+    drawArzaLogoOnCanvas(ctx, 0, 0, w, h, {
+      swooshColor: '#FA5400',
+      arzaColor: isLightSurface ? '#111111' : '#FFFFFF',
+      sportColor: isLightSurface ? '#C24100' : '#FA5400',
+      outlineColor: isLightSurface ? '#FFFFFF' : '#111111',
+      outlineWidthPx: 5.5,
+    });
+    ctx.restore();
+    return;
+  }
 
   if (presetId === 'eagle_crest') {
     ctx.beginPath();

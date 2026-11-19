@@ -125,7 +125,7 @@ export default function CustomizerStudio({
 
           <button
             onClick={() => setView(view === 'front' ? 'back' : 'front')}
-            className="px-4 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 text-xs font-bold rounded-lg arza-btn-glass-green flex items-center gap-1.5 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Girar Prenda: {view === 'front' ? 'Ver Dorsal / Espalda' : 'Ver Frente'}

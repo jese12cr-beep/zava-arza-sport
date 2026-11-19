@@ -8,11 +8,7 @@
 
 import { ATLETIQ_TEXTURE_SIZE, ATLETIQ_PRO_ANCHORS } from '../../data/atletiqProAnchors';
 import { resolveAssetUrl } from '../../utils/assetUrl';
-import {
-  ARZA_SWOOSH_PATHS,
-  ARZA_WORD_PATHS,
-  ARZA_SPORT_GLYPHS,
-} from '../../components/brand/ArzaLogo';
+import { drawArzaLogoOnCanvas } from '../../components/brand/ArzaLogo';
 
 const svgCache = new Map();
 
@@ -170,32 +166,16 @@ export async function composeProGarmentTexture({
 }
 
 function drawBrandLogo(ctx, anchor, color = '#FFFFFF') {
-  ctx.save();
-  const cx = anchor.x;
-  const cy = anchor.y;
   const targetWidth = Math.min(82, Math.max(56, anchor.width || 72));
-  const scale = targetWidth / 324;
+  const targetHeight = Math.round(targetWidth * (278 / 324));
   const accentOrange = color.toLowerCase() === '#fa5400' ? '#FFFFFF' : '#FA5400';
-
-  ctx.translate(cx, cy);
-  ctx.scale(scale, scale);
-  ctx.translate(-242, -237);
-
-  ctx.fillStyle = accentOrange;
-  ARZA_SWOOSH_PATHS.forEach((d) => ctx.fill(new Path2D(d)));
-
-  ctx.fillStyle = color;
-  ARZA_WORD_PATHS.forEach((d) => ctx.fill(new Path2D(d), 'evenodd'));
-
-  ctx.fillStyle = accentOrange;
-  ARZA_SPORT_GLYPHS.forEach((g) => {
-    ctx.save();
-    ctx.translate(g.tx, 0);
-    ctx.fill(new Path2D(g.d), 'evenodd');
-    ctx.restore();
+  drawArzaLogoOnCanvas(ctx, anchor.x, anchor.y, targetWidth, targetHeight, {
+    swooshColor: accentOrange,
+    arzaColor: color,
+    sportColor: accentOrange,
+    outlineColor: color.toLowerCase() === '#111111' ? '#FFFFFF' : '#111111',
+    outlineWidthPx: 3.5,
   });
-
-  ctx.restore();
 }
 
 function drawDefaultCrestBadge(ctx, anchor, accentColor = '#FACC15') {

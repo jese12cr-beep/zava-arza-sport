@@ -88,14 +88,14 @@ export default function CartDrawer({
       ref={dialogRef}
       closedby="any"
       aria-labelledby="cart-title"
-      className="p-0 m-0 ml-auto mr-0 h-full max-h-screen w-full sm:max-w-md bg-white text-slate-900 border-l border-slate-200 backdrop:bg-slate-950/40 backdrop:backdrop-blur-xs shadow-2xl open:flex open:flex-col"
+      className="p-0 m-0 ml-auto mr-0 h-full max-h-screen w-full sm:max-w-md bg-white/85 backdrop-blur-xl text-slate-900 border-l border-white/70 backdrop:bg-slate-950/45 backdrop:backdrop-blur-xs shadow-2xl open:flex open:flex-col"
     >
       <div className="p-6 flex flex-col h-full justify-between">
         {/* Header */}
         <div>
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-sky-600" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-700" />
               <h2 id="cart-title" className="text-xl font-black text-slate-900">
                 Tu Pedido ({totalQuantity})
               </h2>
@@ -132,7 +132,7 @@ export default function CartDrawer({
                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 font-medium">
                         <span>{item.roster?.length ? `${item.roster.length} unidades` : '1 unidad'}</span>
                         <span>•</span>
-                        <span className="font-bold text-sky-600">${item.unitPrice} c/u</span>
+                        <span className="font-bold text-emerald-700">${item.unitPrice} c/u</span>
                       </div>
                     </div>
                     <button
@@ -182,7 +182,7 @@ export default function CartDrawer({
 
             <button
               onClick={handleCheckoutSim}
-              className="w-full py-3.5 px-6 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-6 rounded-2xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continuar al Checkout</span>
               <ArrowRight className="w-4 h-4" />
@@ -191,18 +191,18 @@ export default function CartDrawer({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={onOpenQuoteModal}
-                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="py-2.5 px-3 rounded-xl arza-glass-card hover:bg-white/90 text-xs font-bold text-slate-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <FileText className="w-3.5 h-3.5 text-sky-600" />
+                <FileText className="w-3.5 h-3.5 text-emerald-700" />
                 Cotización PDF
               </button>
 
               <button
                 onClick={handleCopyShopifyPayload}
-                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="py-2.5 px-3 rounded-xl arza-glass-card hover:bg-white/90 text-xs font-bold text-slate-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Copiar datos estructurados para Shopify Line Items"
               >
-                <Copy className="w-3.5 h-3.5 text-blue-600" />
+                <Copy className="w-3.5 h-3.5 text-emerald-700" />
                 Payload Shopify
               </button>
             </div>

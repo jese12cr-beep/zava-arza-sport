@@ -102,11 +102,11 @@ export default function ProductSelectorModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div 
-        className="relative w-full max-w-5xl max-h-[92vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+        className="relative w-full max-w-5xl max-h-[92vh] bg-white/88 backdrop-blur-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-white/75"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del Selector */}
-        <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-neutral-800 bg-[#111111] text-white flex items-center justify-between">
+        <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-white/15 arza-glass-dark text-white flex items-center justify-between">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-wider mb-1.5 border border-white/20">
               <ArzaLogo theme="dark" variant="mark" decorative className="h-3.5 w-auto" />
@@ -179,10 +179,10 @@ export default function ProductSelectorModal({
               <div
                 key={prod.id}
                 onClick={() => handleChoose(prod.id)}
-                className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-200 hover:shadow-xl hover:-translate-y-1 flex flex-col cursor-pointer ${
+                className={`group relative bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden border transition-all duration-200 hover:shadow-xl hover:-translate-y-1 flex flex-col cursor-pointer ${
                   isCurrent
                     ? 'ring-2 ring-emerald-500 border-emerald-400 shadow-md'
-                    : 'border-slate-200 hover:border-sky-300'
+                    : 'border-white/80 hover:border-emerald-400'
                 }`}
               >
                 {/* Imagen Preview con contenedor garantizado */}
@@ -200,21 +200,21 @@ export default function ProductSelectorModal({
 
                   {/* Fallback visual estilizado si no carga la imagen */}
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
-                    <Shirt className="w-12 h-12 text-sky-400 mb-2 opacity-80" />
+                    <Shirt className="w-12 h-12 text-emerald-400 mb-2 opacity-80" />
                     <span className="text-xs font-black text-center">{prod.name}</span>
                     <span className="text-[10px] text-slate-400 mt-1">{prod.sport}</span>
                   </div>
 
                   {/* Badges superiores */}
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
-                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
                       {prod.sport}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-xs ${
+                      className={`px-2 py-0.5 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-wider shadow-xs ${
                         isFeminine
-                          ? 'bg-fuchsia-600/90 text-white'
-                          : 'bg-sky-600/90 text-white'
+                          ? 'bg-fuchsia-700/85 text-white border border-fuchsia-300/35'
+                          : 'bg-emerald-800/85 text-white border border-emerald-300/35'
                       }`}
                     >
                       {isFeminine ? '♀ Dama' : '♂ Caballero'}
@@ -228,7 +228,7 @@ export default function ProductSelectorModal({
                     </div>
                   )}
 
-                  <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-white/95 backdrop-blur-xs text-slate-900 text-xs font-black shadow-xs z-10">
+                  <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-white/90 backdrop-blur-md text-slate-900 text-xs font-black shadow-xs z-10">
                     ${prod.basePrice.toFixed(2)} USD
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export default function ProductSelectorModal({
                 {/* Contenido Card */}
                 <div className="p-4 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 tracking-tight leading-snug group-hover:text-sky-700 transition-colors">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight leading-snug group-hover:text-emerald-800 transition-colors">
                       {prod.name}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
@@ -245,11 +245,11 @@ export default function ProductSelectorModal({
 
                     {/* Capacidades duales 3D y 2D */}
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 text-[11px] font-bold text-slate-600">
-                      <span className="inline-flex items-center gap-1 text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                      <span className="inline-flex items-center gap-1 arza-pill-glass-green px-2 py-0.5 rounded-md">
                         <Shirt className="w-3 h-3" />
                         <span>3D Interactivo PBR</span>
                       </span>
-                      <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 arza-pill-glass-green px-2 py-0.5 rounded-md">
                         <Scissors className="w-3 h-3" />
                         <span>Plantilla 2D</span>
                       </span>
@@ -263,10 +263,10 @@ export default function ProductSelectorModal({
                       e.stopPropagation();
                       handleChoose(prod.id);
                     }}
-                    className={`mt-4 w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs ${
+                    className={`mt-4 w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all ${
                       isCurrent
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
-                        : 'bg-slate-900 hover:bg-sky-600 text-white hover:shadow-sky-200'
+                        ? 'arza-btn-glass-green'
+                        : 'arza-btn-glass-green'
                     }`}
                   >
                     <span>{isCurrent ? 'Continuar Editando' : 'Personalizar en 3D & 2D'}</span>

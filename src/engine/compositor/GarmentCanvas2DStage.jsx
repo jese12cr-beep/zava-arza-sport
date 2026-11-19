@@ -149,10 +149,10 @@ export default function GarmentCanvas2DStage({
                 key={p.panelId}
                 type="button"
                 onClick={() => handleSelectPanel(p.panelId)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-xs ${
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
-                    ? 'bg-sky-500 text-slate-950 font-black shadow-md shadow-sky-500/20 scale-102'
-                    : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/80 backdrop-blur-sm'
+                    ? 'arza-btn-glass-green font-black scale-102'
+                    : 'bg-slate-900/70 text-slate-200 hover:bg-slate-800/80 hover:text-white border border-white/15 backdrop-blur-md'
                 }`}
               >
                 {PANEL_LABELS[p.panelId] || p.label || p.panelId}
@@ -237,7 +237,7 @@ export default function GarmentCanvas2DStage({
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-        <span className="px-1.5 text-[11px] font-mono font-bold text-sky-400 min-w-[38px] text-center">
+        <span className="px-1.5 text-[11px] font-mono font-bold text-emerald-400 min-w-[38px] text-center">
           {Math.round(zoomLevel * 100)}%
         </span>
         <button

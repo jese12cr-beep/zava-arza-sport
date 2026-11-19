@@ -32,6 +32,96 @@ export function buildArzaLogoSvgString({
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="80 98 324 278" fill="none"><g fill="${swooshColor}"><path d="${ARZA_SWOOSH_PATHS[0]}" /><path d="${ARZA_SWOOSH_PATHS[1]}" /></g><g fill="${arzaColor}" fill-rule="evenodd">${ARZA_WORD_PATHS.map((d) => `<path d="${d}" />`).join('')}</g><g fill="${sportColor}" fill-rule="evenodd">${sportNodes}</g></svg>`;
 }
 
+/**
+ * Dibuja el logotipo oficial ARZA SPORT centrado en `(cx, cy)` dentro de `(w, h)` sobre Canvas 2D.
+ */
+export function drawArzaLogoOnCanvas(
+  ctx,
+  cx,
+  cy,
+  w,
+  h,
+  {
+    swooshColor = '#FA5400',
+    arzaColor = '#FFFFFF',
+    sportColor = '#FA5400',
+    outlineColor = '#111111',
+    outlineWidthPx = 4.5,
+  } = {}
+) {
+  ctx.save();
+  const scale = Math.min(w / 324, h / 278);
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.translate(-242, -237);
+
+  if (outlineColor && outlineWidthPx > 0) {
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = outlineWidthPx;
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ARZA_SWOOSH_PATHS.forEach((d) => ctx.stroke(new Path2D(d)));
+    ARZA_WORD_PATHS.forEach((d) => ctx.stroke(new Path2D(d)));
+    ARZA_SPORT_GLYPHS.forEach((g) => {
+      ctx.save();
+      ctx.translate(g.tx, 0);
+      ctx.stroke(new Path2D(g.d));
+      ctx.restore();
+    });
+  }
+
+  ctx.fillStyle = swooshColor;
+  ARZA_SWOOSH_PATHS.forEach((d) => ctx.fill(new Path2D(d)));
+
+  ctx.fillStyle = arzaColor;
+  ARZA_WORD_PATHS.forEach((d) => ctx.fill(new Path2D(d), 'evenodd'));
+
+  ctx.fillStyle = sportColor;
+  ARZA_SPORT_GLYPHS.forEach((g) => {
+    ctx.save();
+    ctx.translate(g.tx, 0);
+    ctx.fill(new Path2D(g.d), 'evenodd');
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+/**
+ * Genera el grupo SVG vectorial de ARZA SPORT centrado en `(cx, cy)` dentro de `(w, h)`.
+ */
+export function renderArzaLogoSvgGroup(
+  cx,
+  cy,
+  w,
+  h,
+  {
+    swooshColor = '#FA5400',
+    arzaColor = '#FFFFFF',
+    sportColor = '#FA5400',
+    outlineColor = '#111111',
+    outlineWidth = 4.5,
+  } = {}
+) {
+  const scale = Math.min(w / 324, h / 278);
+  const strokeAttrs = outlineColor
+    ? `stroke="${outlineColor}" stroke-width="${outlineWidth}" stroke-linejoin="round" paint-order="stroke fill"`
+    : '';
+  const swooshMarkup = ARZA_SWOOSH_PATHS.map((d) => `<path d="${d}" />`).join('');
+  const arzaMarkup = ARZA_WORD_PATHS.map((d) => `<path d="${d}" />`).join('');
+  const sportMarkup = ARZA_SPORT_GLYPHS.map(
+    (g) => `<path d="${g.d}" transform="translate(${g.tx}, 0)" />`
+  ).join('');
+
+  return `
+    <g id="crest_arza_official" transform="translate(${cx}, ${cy}) scale(${scale.toFixed(5)}) translate(-242, -237)">
+      <g fill="${swooshColor}" ${strokeAttrs}>${swooshMarkup}</g>
+      <g fill="${arzaColor}" fill-rule="evenodd" ${strokeAttrs}>${arzaMarkup}</g>
+      <g fill="${sportColor}" fill-rule="evenodd" ${strokeAttrs}>${sportMarkup}</g>
+    </g>
+  `;
+}
+
 export default function ArzaLogo({
   theme = 'light',
   variant = 'stacked',

@@ -209,13 +209,13 @@ function LightDismissModal({ isOpen, onClose, titleId, title, subtitle, maxWidth
       ref={dialogRef}
       closedby="any"
       aria-labelledby={titleId}
-      className={`p-0 rounded-3xl bg-white text-slate-900 border border-slate-200 ${maxWidthClass} w-full shadow-2xl m-auto backdrop:bg-slate-950/40 backdrop:backdrop-blur-xs`}
+      className={`p-0 rounded-3xl bg-white/88 backdrop-blur-xl text-slate-900 border border-white/75 ${maxWidthClass} w-full shadow-2xl m-auto backdrop:bg-slate-950/45 backdrop:backdrop-blur-xs`}
     >
       <div className="p-5 sm:p-6 flex flex-col max-h-[90dvh]">
-        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/70">
           <div>
             {subtitle && (
-              <span className="text-[10px] font-mono text-sky-600 uppercase tracking-widest block font-bold">
+              <span className="text-[10px] font-mono text-emerald-700 uppercase tracking-widest block font-bold">
                 {subtitle}
               </span>
             )}
@@ -1364,29 +1364,29 @@ export default function HybridStudioWorkspace({
   }, [genderModule, currentProduct.sport]);
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-50 text-slate-900 overflow-hidden font-sans">
-      {/* 1. CABECERA DESKTOP (PANTALLAS MEDIANAS Y GRANDES) */}
-      <header className="hidden sm:flex shrink-0 px-3 sm:px-5 py-2.5 bg-white border-b border-slate-200 flex-wrap items-center justify-between gap-2 shadow-xs z-30">
+    <div className="h-dvh flex flex-col arza-studio-shell text-slate-900 overflow-hidden font-sans">
+      {/* 1. CABECERA DESKTOP (GLASSMORPHISM ARZA) */}
+      <header className="hidden sm:flex shrink-0 px-3 sm:px-5 py-2.5 arza-glass-bar border-b flex-wrap items-center justify-between gap-2 z-30">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onSwitchToStorefront}
             title="Volver a la tienda principal"
-            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 border border-slate-300 transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-xl arza-glass-card hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Store className="w-4 h-4 text-sky-600" />
+            <Store className="w-4 h-4 text-emerald-700" />
             <span>← Volver a la Tienda</span>
           </button>
 
           {/* Segmentos Independientes: ♂ Caballero vs ♀ Dama */}
-          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+          <div className="flex items-center p-0.5 arza-glass-card rounded-xl">
             <button
               id="btn-nav-caballero"
               type="button"
               onClick={() => handleOpenGarmentMenuForGender('men')}
               className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
                 genderModule === 'men'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'arza-btn-glass-green'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Abrir menú interactivo para Caballero"
@@ -1399,7 +1399,7 @@ export default function HybridStudioWorkspace({
               onClick={() => handleOpenGarmentMenuForGender('women')}
               className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
                 genderModule === 'women'
-                  ? 'bg-fuchsia-600 text-white shadow-xs'
+                  ? 'bg-fuchsia-700/85 backdrop-blur-md text-white border border-fuchsia-300/40 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Abrir menú interactivo para Dama"
@@ -1413,7 +1413,7 @@ export default function HybridStudioWorkspace({
             id="btn-open-garment-menu"
             type="button"
             onClick={() => setIsGarmentMenuOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+            className="px-3.5 py-1.5 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
             title="Abrir catálogo interactivo de deportes"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
@@ -1425,7 +1425,7 @@ export default function HybridStudioWorkspace({
 
           {/* Alternador Rápido de Prendas del Deporte Activo (p. ej. Camiseta ↔ Short) */}
           {currentSportProducts.length > 1 && (
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-1 arza-glass-card p-0.5 rounded-xl">
               {currentSportProducts.map((prod) => {
                 const isActive = design.productModelId === prod.id;
                 const label = prod.garmentCategory === 'shorts' ? 'Short' : 'Camisa';
@@ -1436,8 +1436,8 @@ export default function HybridStudioWorkspace({
                     onClick={() => onSwitchProduct(prod.id)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'text-slate-700 hover:bg-slate-200'
+                        ? 'arza-btn-glass-green'
+                        : 'text-slate-700 hover:bg-white/60'
                     }`}
                   >
                     {label}
@@ -1456,9 +1456,9 @@ export default function HybridStudioWorkspace({
                 showToast(`Colores copiados a ${pairedProduct.shortName}`);
               }}
               title={`Copiar la paleta actual a ${pairedProduct.name}`}
-              className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-[11px] font-bold text-sky-700 flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl arza-pill-glass-green text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
             >
-              <Link2 className="w-3.5 h-3.5 text-sky-600" />
+              <Link2 className="w-3.5 h-3.5 text-emerald-700" />
               <span className="hidden xl:inline">Sincronizar colores en {pairedProduct.shortName}</span>
               <span className="xl:hidden">Sincronizar Kit</span>
             </button>
@@ -1468,20 +1468,20 @@ export default function HybridStudioWorkspace({
         {/* Estado de Privilegios e Identidad: Administrador Master / Cuenta de Club */}
         <div className="flex items-center gap-2">
           {isAdmin ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-900 text-emerald-400 border border-slate-800 text-xs font-black uppercase tracking-wider shadow-2xs">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl arza-glass-dark text-emerald-300 text-xs font-black uppercase tracking-wider">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
               <span>Admin Master</span>
               <button
                 type="button"
                 onClick={() => setAdminMode(false)}
                 title="Probar vista de cliente (requiere crear cuenta para descargar plantillas)"
-                className="ml-1 text-[9px] text-slate-400 hover:text-white underline cursor-pointer"
+                className="ml-1 text-[9px] text-slate-300 hover:text-white underline cursor-pointer"
               >
                 (Modo Cliente)
               </button>
             </div>
           ) : isAuthenticated ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold shadow-2xs">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl arza-pill-glass-green text-xs font-bold">
               <span>👤 {currentUser?.name}</span>
             </div>
           ) : (
@@ -1491,7 +1491,7 @@ export default function HybridStudioWorkspace({
                 pendingAuthActionRef.current = null;
                 setIsAuthModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+              className="px-3 py-1.5 rounded-2xl bg-amber-50/85 backdrop-blur-md hover:bg-amber-100/90 text-amber-800 border border-amber-300/70 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
             >
               <Lock className="w-3.5 h-3.5 text-amber-600" />
               <span>Cuenta de Club</span>
@@ -1500,14 +1500,14 @@ export default function HybridStudioWorkspace({
         </div>
 
         {/* Conmutador Dual Escenario: [ 🌐 3D CAD ] vs [ 📐 Plantilla 2D ] */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300">
+        <div className="flex items-center gap-1 arza-glass-card p-1 rounded-xl">
           <button
             type="button"
             id="toggle-stage-3d"
             onClick={() => setViewportMode('3d')}
             className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
               viewportMode === '3d'
-                ? 'bg-slate-900 text-emerald-400 shadow-xs'
+                ? 'arza-btn-glass-green'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -1520,7 +1520,7 @@ export default function HybridStudioWorkspace({
             onClick={() => setViewportMode('2d_pliego')}
             className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
               viewportMode === '2d_pliego'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'arza-btn-glass-green'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -1534,10 +1534,10 @@ export default function HybridStudioWorkspace({
           <button
             type="button"
             onClick={() => setIsSocialMediaModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-xs font-black text-sky-800 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            className="px-3.5 py-1.5 rounded-xl arza-pill-glass-green text-xs font-black flex items-center gap-1.5 cursor-pointer"
             title="Generar mockup para redes sociales o compartir enlace"
           >
-            <Share2 className="w-4 h-4 text-sky-600" />
+            <Share2 className="w-4 h-4 text-emerald-700" />
             <span>Mockup / Redes</span>
           </button>
 
@@ -1545,17 +1545,17 @@ export default function HybridStudioWorkspace({
             type="button"
             id="btn-header-production-mold"
             onClick={() => setIsProductionMoldModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-xs font-black text-emerald-800 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            className="px-3.5 py-1.5 rounded-xl arza-btn-glass-green text-xs font-black flex items-center gap-1.5 cursor-pointer"
             title="Abrir plantilla técnica de confección y corte a escala real 1:1"
           >
-            <Scissors className="w-4 h-4 text-emerald-600" />
+            <Scissors className="w-4 h-4 text-emerald-100" />
             <span>Descarga RIP</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsGalleryModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="px-3.5 py-1.5 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 flex items-center gap-1.5 cursor-pointer"
             title="Abrir galería de diseños guardados"
           >
             <FolderHeart className="w-4 h-4 text-rose-500" />
@@ -1726,14 +1726,14 @@ export default function HybridStudioWorkspace({
 
         {/* PANEL LATERAL DERECHO OWAYO (`Diseño | Colores | Text | Logo`) */}
         <aside
-          className={`w-full lg:w-[430px] xl:w-[465px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col min-h-0 shadow-md z-20 transition-all duration-300 ${
+          className={`w-full lg:w-[430px] xl:w-[465px] shrink-0 arza-glass-bar border-t lg:border-t-0 lg:border-l flex flex-col min-h-0 shadow-xl z-20 transition-all duration-300 ${
             isMobilePanelCollapsed
               ? 'h-13 overflow-hidden'
               : 'flex-1 lg:flex-initial lg:h-auto lg:max-h-none'
           }`}
         >
-          {/* Cabecera del Panel: Nombre Prenda + Conmutador [ ✨ Recuadros Pro ] / [ 🛠️ Clásico ] */}
-          <div className="shrink-0 px-3.5 py-2.5 sm:p-4 sm:pb-3 border-b border-slate-200 bg-white">
+          {/* Cabecera del Panel */}
+          <div className="shrink-0 px-3.5 py-2.5 sm:p-4 sm:pb-3 border-b border-slate-200/70 bg-white/40 backdrop-blur-md">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -1743,10 +1743,10 @@ export default function HybridStudioWorkspace({
                   <button
                     type="button"
                     onClick={() => setIsGarmentMenuOpen(true)}
-                    className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200 hover:bg-sky-100 flex items-center gap-1 cursor-pointer shrink-0"
+                    className="text-[11px] font-bold arza-pill-glass-green px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     <span>Cambiar</span>
-                    <ChevronDown className="w-3 h-3 text-sky-600" />
+                    <ChevronDown className="w-3 h-3 text-emerald-700" />
                   </button>
                 </div>
               </div>
@@ -1756,12 +1756,12 @@ export default function HybridStudioWorkspace({
                 <button
                   type="button"
                   onClick={() => setIsMobilePanelCollapsed((prev) => !prev)}
-                  className="sm:hidden px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-slate-200"
+                  className="sm:hidden px-2.5 py-1 rounded-xl arza-glass-card hover:bg-white text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   title={isMobilePanelCollapsed ? 'Abrir herramientas de edición' : 'Ver modelo 3D en pantalla completa'}
                 >
                   {isMobilePanelCollapsed ? (
                     <>
-                      <Minimize2 className="w-3.5 h-3.5 text-sky-600" />
+                      <Minimize2 className="w-3.5 h-3.5 text-emerald-700" />
                       <span>Editar</span>
                     </>
                   ) : (
@@ -1920,22 +1920,22 @@ export default function HybridStudioWorkspace({
                             onClick={() => handleApplyMexicoKit(activeMexicoClubKits.awayKit)}
                             className={`p-3 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2.5 cursor-pointer group ${
                               activeMexicoClubKits.currentKit.edition === 'visitante'
-                                ? 'bg-sky-50/80 border-2 border-sky-600 shadow-sm ring-2 ring-sky-500/20'
-                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                ? 'arza-pill-glass-green border-2 shadow-sm'
+                                : 'arza-glass-card hover:border-emerald-300'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <span
                                 className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
                                   activeMexicoClubKits.currentKit.edition === 'visitante'
-                                    ? 'bg-sky-600 text-white'
+                                    ? 'arza-btn-glass-green'
                                     : 'bg-slate-100 text-slate-700'
                                 }`}
                               >
                                 ✈️ Visita
                               </span>
                               {activeMexicoClubKits.currentKit.edition === 'visitante' ? (
-                                <span className="text-[10px] font-black text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">
+                                <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
                                   ✓ Activo en 3D
                                 </span>
                               ) : (
@@ -1945,7 +1945,7 @@ export default function HybridStudioWorkspace({
                               )}
                             </div>
 
-                            <div className="py-2 flex justify-center bg-slate-50/60 rounded-xl border border-slate-100 group-hover:bg-sky-50/40 transition-colors">
+                            <div className="py-2 flex justify-center bg-white/60 rounded-xl border border-slate-100 group-hover:bg-emerald-50/40 transition-colors">
                               <JerseyThumbnailMiniature kit={activeMexicoClubKits.awayKit} size={64} />
                             </div>
 
@@ -1966,7 +1966,7 @@ export default function HybridStudioWorkspace({
                   /* Modo Normal: Todos los estilos de corte CAD (16 cortes) */
                   <>
                     {/* Banner de Acceso a Kits Oficiales Pro (Liga MX + Champions League) */}
-                    <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white shadow-md border border-indigo-800/50 space-y-2.5">
+                    <div className="p-3.5 rounded-2xl arza-glass-dark text-white space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
@@ -1989,7 +1989,7 @@ export default function HybridStudioWorkspace({
                             setProKitsCollectionTab('ligamx');
                             setIsMexicoKitsModalOpen(true);
                           }}
-                          className="px-2.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 flex items-center justify-center gap-1.5 border border-emerald-400/30"
+                          className="px-2.5 py-2 rounded-xl arza-btn-glass-green text-xs font-black cursor-pointer hover:scale-102 flex items-center justify-center gap-1.5"
                         >
                           <span>🇲🇽</span>
                           <span>Liga MX (36)</span>
@@ -2001,7 +2001,7 @@ export default function HybridStudioWorkspace({
                             setProKitsCollectionTab('ucl');
                             setIsMexicoKitsModalOpen(true);
                           }}
-                          className="px-2.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 flex items-center justify-center gap-1.5 border border-blue-400/40 ring-2 ring-amber-400/60"
+                          className="px-2.5 py-2 rounded-xl arza-btn-glass-green text-xs font-black cursor-pointer hover:scale-102 flex items-center justify-center gap-1.5"
                         >
                           <span>⭐</span>
                           <span>Champions (24)</span>
@@ -2093,10 +2093,10 @@ export default function HybridStudioWorkspace({
                 )}
 
                 {/* Textura Geométrica Opcional sobre Zona A */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800">Trama Sublimada en Zona A</span>
-                    <span className="text-[10px] font-mono text-blue-600 font-bold">
+                    <span className="text-[10px] font-mono text-emerald-700 font-bold">
                       {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
                     </span>
                   </div>
@@ -2108,8 +2108,8 @@ export default function HybridStudioWorkspace({
                         onClick={() => onCommitDesign({ ...design, surfacePatternId: pat.id }, true)}
                         className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
                           (design.surfacePatternId || 'none') === pat.id
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            ? 'arza-btn-glass-green'
+                            : 'bg-white/75 text-slate-700 border-slate-200 hover:border-emerald-300'
                         }`}
                       >
                         {pat.name}
@@ -2135,7 +2135,7 @@ export default function HybridStudioWorkspace({
                 </div>
 
                 {/* Tejido Técnico Real */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2">
                   <span className="text-xs font-bold text-slate-800 block">Tejido Técnico (Micro-Relieve 3D)</span>
                   <div className="space-y-1.5">
                     {FABRIC_WEAVES.map((w) => (
@@ -2145,8 +2145,8 @@ export default function HybridStudioWorkspace({
                         onClick={() => onCommitDesign({ ...design, fabricWeaveId: w.id }, true)}
                         className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-colors ${
                           design.fabricWeaveId === w.id
-                            ? 'bg-blue-50 border-blue-600 text-blue-950 font-bold'
-                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                            ? 'arza-pill-glass-green font-bold'
+                            : 'bg-white/75 border-slate-200 text-slate-700 hover:border-emerald-300'
                         }`}
                       >
                         <div>
@@ -2492,7 +2492,7 @@ export default function HybridStudioWorkspace({
                             )
                           }
                           placeholder="Escribe lema, club o patrocinador..."
-                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                          className="w-full px-3 py-2 rounded-xl bg-white/85 border border-slate-300 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-600 shadow-2xs"
                         />
 
                         {/* Pieza destino + Mostrar solo en zona (`clampToZone`) */}
@@ -2518,7 +2518,7 @@ export default function HybridStudioWorkspace({
                                 setPanel2D(nextP);
                                 if (PANEL_TO_CAMERA[nextP]) setCameraPreset(PANEL_TO_CAMERA[nextP]);
                               }}
-                              className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white/85 border border-slate-300 text-xs text-slate-800 font-medium focus:border-emerald-600 shadow-2xs"
                             >
                               {droppablePanels.map((p) => (
                                 <option key={p.panelId} value={p.panelId}>
@@ -2535,7 +2535,7 @@ export default function HybridStudioWorkspace({
                               onChange={(e) =>
                                 updateDecal(selectedTextDecal.id, { clampToZone: e.target.value }, true)
                               }
-                              className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white/85 border border-slate-300 text-xs text-slate-800 font-medium focus:border-emerald-600 shadow-2xs"
                             >
                               <option value="ALL">Toda la pieza</option>
                               <option value="A">Solo Zona A</option>
@@ -2618,7 +2618,7 @@ export default function HybridStudioWorkspace({
                             <button
                               type="button"
                               onClick={() => updateDecal(selectedTextDecal.id, { rotationDeg: 0 }, true)}
-                              className="text-[10px] text-sky-600 font-mono font-bold"
+                              className="text-[10px] text-emerald-700 font-mono font-bold cursor-pointer"
                             >
                               Reset 0°
                             </button>
@@ -2644,7 +2644,7 @@ export default function HybridStudioWorkspace({
                             <button
                               type="button"
                               onClick={() => updateDecal(selectedTextDecal.id, { archDeg: 0 }, true)}
-                              className="text-[10px] text-sky-600 font-mono font-bold"
+                              className="text-[10px] text-emerald-700 font-mono font-bold cursor-pointer"
                             >
                               Recto
                             </button>
@@ -2854,7 +2854,7 @@ export default function HybridStudioWorkspace({
                                     onClick={() =>
                                       updateVariableSlot(selectedSlotKey, { ...slot, archDeg: 0 }, true)
                                     }
-                                    className="text-[10px] font-mono text-sky-600 font-bold"
+                                    className="text-[10px] font-mono text-emerald-700 font-bold cursor-pointer"
                                   >
                                     Recto
                                   </button>
@@ -2937,7 +2937,7 @@ export default function HybridStudioWorkspace({
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-3.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
                           <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
                             Dorsal &amp; Nombre en Espalda
                           </span>
@@ -2945,7 +2945,7 @@ export default function HybridStudioWorkspace({
                         <button
                           type="button"
                           onClick={() => setCameraPreset('back')}
-                          className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>Girar a Espalda</span>
@@ -2974,7 +2974,7 @@ export default function HybridStudioWorkspace({
                             }
                           }}
                           placeholder="Ej: RODRÍGUEZ, VALVERDE, etc."
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 font-extrabold text-sm text-slate-900 uppercase focus:outline-none focus:border-sky-500 shadow-xs"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white/85 border border-slate-300 font-extrabold text-sm text-slate-900 uppercase focus:outline-none focus:border-emerald-600 shadow-xs"
                         />
                       </div>
 
@@ -3000,7 +3000,7 @@ export default function HybridStudioWorkspace({
                               }
                             }}
                             placeholder="10"
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 font-black text-slate-900 text-center text-lg focus:outline-none focus:border-sky-500 shadow-xs"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white/85 border border-slate-300 font-black text-slate-900 text-center text-lg focus:outline-none focus:border-emerald-600 shadow-xs"
                           />
                         </div>
 
@@ -3008,7 +3008,7 @@ export default function HybridStudioWorkspace({
                         <div>
                           <label className="text-xs font-bold text-slate-700 block mb-1">Color del Dorsal:</label>
                           <div className="flex items-center gap-1.5 h-[46px]">
-                            {['#ffffff', '#000000', '#facc15', '#ccff00', '#dc2626', '#1d4ed8'].map((c) => (
+                            {['#ffffff', '#111111', '#fa5400', '#facc15', '#059669', '#dc2626'].map((c) => (
                               <button
                                 key={c}
                                 type="button"
@@ -3017,7 +3017,7 @@ export default function HybridStudioWorkspace({
                                   updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, fillHex: c }, true);
                                 }}
                                 className={`w-7 h-7 rounded-lg border-2 cursor-pointer transition-transform hover:scale-110 ${
-                                  design.variableSlots?.playerNumberBack?.fillHex === c ? 'border-sky-600 scale-105 shadow-xs' : 'border-slate-300'
+                                  design.variableSlots?.playerNumberBack?.fillHex === c ? 'border-emerald-600 scale-105 shadow-xs' : 'border-slate-300'
                                 }`}
                                 style={{ backgroundColor: c }}
                               />
@@ -3055,20 +3055,20 @@ export default function HybridStudioWorkspace({
                     <button
                       type="button"
                       onClick={handleAddStaticText}
-                      className="w-full py-2.5 px-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      className="w-full py-2.5 px-3 rounded-2xl arza-pill-glass-green font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Plus className="w-4 h-4 text-sky-600" />
+                      <Plus className="w-4 h-4 text-emerald-700" />
                       <span>Añadir texto adicional / lema / sponsor</span>
                     </button>
 
                     {/* Bloque 1: Nombres y Números individuales por jugador (`Ejemplares`) */}
-                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                    <div className="p-3 rounded-2xl arza-glass-card space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-slate-900">Nombres y Números de Jugador</span>
                         <button
                           type="button"
                           onClick={() => setIsRosterModalOpen(true)}
-                          className="text-[11px] font-bold text-sky-600 hover:underline"
+                          className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
                         >
                           Editar lista ({totalUnits}) →
                         </button>
@@ -3252,7 +3252,7 @@ export default function HybridStudioWorkspace({
                               setPanel2D(nextP);
                               if (PANEL_TO_CAMERA[nextP]) setCameraPreset(PANEL_TO_CAMERA[nextP]);
                             }}
-                            className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-white/85 border border-slate-300 text-xs text-slate-800 font-medium focus:border-emerald-600 shadow-2xs"
                           >
                             {droppablePanels.map((p) => (
                               <option key={p.panelId} value={p.panelId}>
@@ -3269,7 +3269,7 @@ export default function HybridStudioWorkspace({
                             onChange={(e) =>
                               updateDecal(selectedLogoDecal.id, { clampToZone: e.target.value }, true)
                             }
-                            className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-white/85 border border-slate-300 text-xs text-slate-800 font-medium focus:border-emerald-600 shadow-2xs"
                           >
                             <option value="ALL">Toda la pieza</option>
                             <option value="A">Solo Zona A</option>
@@ -3297,7 +3297,7 @@ export default function HybridStudioWorkspace({
                               true
                             );
                           }}
-                          className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-sky-700 flex items-center justify-center gap-1 shadow-2xs transition-colors"
+                          className="py-1.5 px-2 rounded-xl arza-pill-glass-green text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <AlignCenterVertical className="w-3.5 h-3.5" />
                           Centrar en eje
@@ -3364,7 +3364,7 @@ export default function HybridStudioWorkspace({
                           <button
                             type="button"
                             onClick={() => updateDecal(selectedLogoDecal.id, { rotationDeg: 0 }, true)}
-                            className="text-[10px] font-mono text-sky-600 font-bold"
+                            className="text-[10px] font-mono text-emerald-700 font-bold cursor-pointer"
                           >
                             0°
                           </button>
@@ -3485,7 +3485,7 @@ export default function HybridStudioWorkspace({
                                 <button
                                   type="button"
                                   onClick={() => updateDecal(selectedLogoDecal.id, { tintHex: '' }, true)}
-                                  className="text-[10px] text-sky-600 font-bold"
+                                  className="text-[10px] text-emerald-700 font-bold cursor-pointer"
                                 >
                                   Original
                                 </button>
@@ -3531,10 +3531,10 @@ export default function HybridStudioWorkspace({
                         setIsDragOverUpload(false);
                         handleFilesSelected(e.dataTransfer.files);
                       }}
-                      className={`p-4 rounded-2xl border-2 border-dashed text-center transition-colors ${
+                      className={`p-4 rounded-2xl border-2 border-dashed text-center transition-colors backdrop-blur-sm ${
                         isDragOverUpload
-                          ? 'border-sky-500 bg-sky-50/50'
-                          : 'border-slate-300 bg-slate-50/80 hover:border-sky-400 hover:bg-slate-50'
+                          ? 'border-emerald-500 bg-emerald-50/60'
+                          : 'border-slate-300/80 bg-white/60 hover:border-emerald-500 hover:bg-emerald-50/30'
                       }`}
                     >
                       <input
@@ -3549,7 +3549,7 @@ export default function HybridStudioWorkspace({
                         }}
                         className="hidden"
                       />
-                      <Upload className="w-6 h-6 text-sky-600 mx-auto mb-1.5" />
+                      <Upload className="w-6 h-6 text-emerald-700 mx-auto mb-1.5" />
                       <p className="text-xs font-black text-slate-900">
                         Cargar archivos PNG, SVG, WebP o JPG
                       </p>
@@ -3559,7 +3559,7 @@ export default function HybridStudioWorkspace({
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs cursor-pointer"
+                        className="px-4 py-1.5 rounded-xl arza-btn-glass-green font-bold text-xs cursor-pointer"
                       >
                         Seleccionar archivos
                       </button>
@@ -3640,7 +3640,7 @@ export default function HybridStudioWorkspace({
                                 setSelectedDecalId(dec.id);
                                 setIsEditingLogoDetail(true);
                               }}
-                              className="p-2 rounded-xl checkered-preview border border-slate-200 hover:border-sky-500 bg-white flex flex-col items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              className="p-2 rounded-xl checkered-preview border border-slate-200 hover:border-emerald-500 bg-white flex flex-col items-center gap-1 transition-all cursor-pointer shadow-2xs"
                             >
                               <img
                                 src={art.previewUrl}
@@ -3709,7 +3709,7 @@ export default function HybridStudioWorkspace({
                           <Award className="w-4 h-4 text-amber-500" />
                           <span>Parches Oficiales en Mangas</span>
                         </span>
-                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
                           1 Clic
                         </span>
                       </div>
@@ -3760,7 +3760,7 @@ export default function HybridStudioWorkspace({
                         >
                           <img src="/assets/badges/badge_ucl_foundation.svg" alt="UEFA Foundation" className="w-8 h-8 object-contain shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-black text-sky-900 truncate">UEFA Foundation</div>
+                            <div className="text-xs font-black text-emerald-900 truncate">UEFA Foundation</div>
                             <div className="text-[10px] text-slate-500">Manga Izquierda</div>
                           </div>
                         </button>
@@ -3768,12 +3768,12 @@ export default function HybridStudioWorkspace({
                     </div>
 
                     {/* Logoteca Deportiva Integrada con Presets Oficiales */}
-                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                    <div className="p-3 rounded-2xl arza-glass-card space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-slate-900 block uppercase tracking-wide">
                           Logoteca de Escudos &amp; Presets
                         </span>
-                        <span className="text-[10px] font-mono text-sky-600 font-bold">
+                        <span className="text-[10px] font-mono text-emerald-700 font-bold">
                           300+ DPI
                         </span>
                       </div>
@@ -3808,7 +3808,7 @@ export default function HybridStudioWorkspace({
                               key={preset.id}
                               type="button"
                               onClick={() => handleAddPresetCrest(preset)}
-                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-sky-400 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
+                              className="p-2 rounded-xl bg-white/80 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-500 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
                               title={`Añadir escudo de ${preset.name} a la prenda activa`}
                             >
                               <img
@@ -3838,9 +3838,9 @@ export default function HybridStudioWorkspace({
                               key={preset.id}
                               type="button"
                               onClick={() => handleAddPresetCrest(preset)}
-                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-sky-400 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
+                              className="p-2 rounded-xl bg-white/80 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-500 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
                             >
-                              <Shield className="w-5 h-5 text-sky-600 shrink-0 group-hover:scale-110 transition-transform" />
+                              <Shield className="w-5 h-5 text-emerald-700 shrink-0 group-hover:scale-110 transition-transform" />
                               <span className="text-[11px] font-bold text-slate-800 truncate">
                                 {preset.shortName}
                               </span>
@@ -3857,11 +3857,15 @@ export default function HybridStudioWorkspace({
                               key={preset.id}
                               type="button"
                               onClick={() => handleAddPresetCrest(preset)}
-                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 transition-colors cursor-pointer"
+                              className="p-2 rounded-xl bg-white/80 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-500 text-left flex items-center gap-2 transition-colors cursor-pointer"
                             >
-                              <Shield className="w-4 h-4 text-amber-500 shrink-0" />
+                              {preset.id === 'arza_official' ? (
+                                <ArzaLogo theme="light" decorative className="w-6 h-5 shrink-0" />
+                              ) : (
+                                <Shield className="w-4 h-4 text-emerald-700 shrink-0" />
+                              )}
                               <span className="text-[11px] font-bold text-slate-800 truncate">
-                                {preset.label}
+                                {preset.name || preset.label}
                               </span>
                             </button>
                           ))}
@@ -3964,17 +3968,17 @@ export default function HybridStudioWorkspace({
                 type="button"
                 id="btn-finalize-production-mold"
                 onClick={() => setIsProductionMoldModalOpen(true)}
-                className="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 title="Abrir plantilla completa 1:1 de corte y confección para presentar o fabricar"
               >
-                <Scissors className="w-4 h-4 text-emerald-200" />
+                <Scissors className="w-4 h-4 text-emerald-100" />
                 <span>Ver Plantilla 2D (Confección)</span>
               </button>
             </div>
           </div>
 
-          {/* BARRA INFERIOR EXCLUSIVA PARA MÓVIL: Acceso directo a la Plantilla 2D sin saturación */}
-          <div className="sm:hidden shrink-0 border-t border-slate-200 bg-white p-2.5 flex items-center justify-between gap-3 z-20 shadow-lg">
+          {/* BARRA INFERIOR EXCLUSIVA PARA MÓVIL */}
+          <div className="sm:hidden shrink-0 border-t arza-glass-bar p-2.5 flex items-center justify-between gap-3 z-20 shadow-lg">
             <div className="leading-tight">
               <div className="text-[10px] text-slate-500 font-bold">{totalUnits} prendas</div>
               <div className="text-sm font-black text-slate-900">${totalPrice.toFixed(2)} USD</div>
@@ -3983,9 +3987,9 @@ export default function HybridStudioWorkspace({
               type="button"
               id="btn-mobile-open-mold"
               onClick={() => setIsProductionMoldModalOpen(true)}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              className="flex-1 py-2.5 px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
             >
-              <Scissors className="w-4 h-4 text-emerald-200" />
+              <Scissors className="w-4 h-4 text-emerald-100" />
               <span>Ver Plantilla 2D</span>
             </button>
           </div>
@@ -4173,12 +4177,12 @@ export default function HybridStudioWorkspace({
                 value={csvQuickInput}
                 onChange={(e) => setCsvQuickInput(e.target.value)}
                 placeholder={'JORDAN, 23, XL, 1\nPIPPEN, 33, L, 1'}
-                className="flex-1 rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-sky-500 shadow-2xs"
+                className="flex-1 rounded-xl bg-white/85 border border-slate-300 p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
               />
               <button
                 type="button"
                 onClick={handleImportCsvRoster}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shrink-0 cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-xl arza-btn-glass-green font-black text-xs shrink-0 cursor-pointer"
               >
                 Importar Filas
               </button>
@@ -4290,14 +4294,14 @@ export default function HybridStudioWorkspace({
       >
         <div className="space-y-6">
           {/* Segment switch inside modal: Caballero vs Dama */}
-          <div className="flex items-center justify-center p-1 bg-slate-100 rounded-2xl border border-slate-200 max-w-sm mx-auto">
+          <div className="flex items-center justify-center p-1 arza-glass-card rounded-2xl max-w-sm mx-auto">
             <button
               id="modal-tab-caballero"
               type="button"
               onClick={() => handleGenderSwitch('men')}
               className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 genderModule === 'men'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'arza-btn-glass-green'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -4309,7 +4313,7 @@ export default function HybridStudioWorkspace({
               onClick={() => handleGenderSwitch('women')}
               className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 genderModule === 'women'
-                  ? 'bg-fuchsia-600 text-white shadow-xs'
+                  ? 'bg-fuchsia-700/85 backdrop-blur-md text-white shadow-xs border border-fuchsia-300/40'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -4329,11 +4333,11 @@ export default function HybridStudioWorkspace({
                     onClick={() => setGarmentMenuMenSection('custom')}
                     className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
                       garmentMenuMenSection === 'custom'
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-[#111111] text-white shadow-xs'
+                        : 'arza-glass-card text-slate-700 hover:bg-white'
                     }`}
                   >
-                    <Palette className="w-3.5 h-3.5 text-blue-400" />
+                    <Palette className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Personaliza a tu Gusto</span>
                   </button>
                   <button
@@ -4342,8 +4346,8 @@ export default function HybridStudioWorkspace({
                     onClick={() => setGarmentMenuMenSection('ligamx')}
                     className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
                       garmentMenuMenSection === 'ligamx'
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                        ? 'arza-btn-glass-green'
+                        : 'arza-pill-glass-green'
                     }`}
                   >
                     <span>🇲🇽 Inspirados en la Liga MX</span>
@@ -4351,7 +4355,7 @@ export default function HybridStudioWorkspace({
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
                         garmentMenuMenSection === 'ligamx'
                           ? 'bg-white/25 text-white'
-                          : 'bg-emerald-700 text-white'
+                          : 'bg-emerald-800 text-white'
                       }`}
                     >
                       18
@@ -4360,14 +4364,14 @@ export default function HybridStudioWorkspace({
                 </div>
 
                 <span className="text-[11px] font-mono text-slate-500 font-semibold hidden sm:inline">
-                  {garmentMenuMenSection === 'custom' ? 'Moldes CAD en blanco' : '18 Clubes Primera División'}
+                  {garmentMenuMenSection === 'custom' ? 'Moldes CAD ARZA' : '18 Clubes Primera División'}
                 </span>
               </div>
 
               {/* VISTA 1: PERSONALIZA A TU GUSTO (MOLDES CAD EN BLANCO) */}
               {garmentMenuMenSection === 'custom' && (
                 <div className="space-y-5">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed flex items-center justify-between gap-3">
+                  <div className="p-3 rounded-xl arza-glass-card text-xs text-slate-600 leading-relaxed flex items-center justify-between gap-3">
                     <div>
                       <strong className="text-slate-900">Personalización Completa desde Cero:</strong> Selecciona una prenda para diseñar tus propios cortes, armonías de colores, escudos y patrocinadores en 3D.
                     </div>
@@ -4401,8 +4405,8 @@ export default function HybridStudioWorkspace({
                             }}
                             className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               isCur
-                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
-                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                ? 'arza-pill-glass-green border-2 shadow-sm'
+                                : 'arza-glass-card hover:border-emerald-400/60'
                             }`}
                           >
                             <div>
@@ -4410,7 +4414,7 @@ export default function HybridStudioWorkspace({
                               <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                              isCur ? 'arza-btn-glass-green' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {isCur ? 'Activo en 3D' : 'Cargar'}
                             </span>
@@ -4423,7 +4427,7 @@ export default function HybridStudioWorkspace({
                   {/* Baloncesto */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-orange-600" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FA5400]" />
                       <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                         Baloncesto Arena (2 Piezas)
                       </h4>
@@ -4441,8 +4445,8 @@ export default function HybridStudioWorkspace({
                             }}
                             className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               isCur
-                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
-                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                ? 'arza-pill-glass-green border-2 shadow-sm'
+                                : 'arza-glass-card hover:border-emerald-400/60'
                             }`}
                           >
                             <div>
@@ -4450,7 +4454,7 @@ export default function HybridStudioWorkspace({
                               <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                              isCur ? 'arza-btn-glass-green' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {isCur ? 'Activo en 3D' : 'Cargar'}
                             </span>
@@ -4463,7 +4467,7 @@ export default function HybridStudioWorkspace({
                   {/* Chaqueta */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-700" />
                       <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                         Chaquetas Técnicas &amp; Paseo
                       </h4>
@@ -4481,8 +4485,8 @@ export default function HybridStudioWorkspace({
                             }}
                             className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               isCur
-                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
-                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                ? 'arza-pill-glass-green border-2 shadow-sm'
+                                : 'arza-glass-card hover:border-emerald-400/60'
                             }`}
                           >
                             <div>
@@ -4490,7 +4494,7 @@ export default function HybridStudioWorkspace({
                               <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                              isCur ? 'arza-btn-glass-green' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {isCur ? 'Activo en 3D' : 'Cargar'}
                             </span>
@@ -4503,7 +4507,7 @@ export default function HybridStudioWorkspace({
                   {/* E-Sports & Complementos */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-neutral-900" />
                       <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                         E-Sports Pro &amp; Complementos Club
                       </h4>
@@ -4521,8 +4525,8 @@ export default function HybridStudioWorkspace({
                             }}
                             className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               isCur
-                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
-                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                ? 'arza-pill-glass-green border-2 shadow-sm'
+                                : 'arza-glass-card hover:border-emerald-400/60'
                             }`}
                           >
                             <div>
@@ -4530,7 +4534,7 @@ export default function HybridStudioWorkspace({
                               <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
                             </div>
                             <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                              isCur ? 'arza-btn-glass-green' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {isCur ? 'Activo en 3D' : 'Cargar'}
                             </span>
@@ -4541,7 +4545,7 @@ export default function HybridStudioWorkspace({
                   </div>
 
                   {/* Banner inferior para ir a Kits Oficiales Pro */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white border border-indigo-800/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                  <div className="p-4 rounded-2xl arza-glass-dark text-white flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="space-y-0.5 text-center sm:text-left">
                       <h5 className="text-xs font-black text-amber-300 flex items-center gap-1.5 justify-center sm:justify-start">
                         <span>⭐</span>
@@ -4558,7 +4562,7 @@ export default function HybridStudioWorkspace({
                           setProKitsCollectionTab('ligamx');
                           setGarmentMenuMenSection('ligamx');
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-xs cursor-pointer transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl arza-btn-glass-green text-xs font-black cursor-pointer flex items-center gap-1"
                       >
                         <span>🇲🇽</span>
                         <span>Liga MX (36)</span>
@@ -4569,7 +4573,7 @@ export default function HybridStudioWorkspace({
                           setProKitsCollectionTab('ucl');
                           setGarmentMenuMenSection('ligamx');
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-xs cursor-pointer transition-all flex items-center gap-1 ring-2 ring-amber-400/50"
+                        className="px-3 py-1.5 rounded-xl arza-btn-glass-green text-xs font-black cursor-pointer flex items-center gap-1"
                       >
                         <span>⭐</span>
                         <span>Champions (24)</span>
@@ -4583,13 +4587,13 @@ export default function HybridStudioWorkspace({
               {garmentMenuMenSection === 'ligamx' && (
                 <div className="space-y-4">
                   {/* Segmented Selector entre Liga MX y Champions League */}
-                  <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                  <div className="flex items-center gap-2 p-1 arza-glass-card rounded-2xl">
                     <button
                       type="button"
                       onClick={() => setProKitsCollectionTab('ligamx')}
                       className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         proKitsCollectionTab === 'ligamx'
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'arza-btn-glass-green'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       }`}
                     >
@@ -4601,7 +4605,7 @@ export default function HybridStudioWorkspace({
                       onClick={() => setProKitsCollectionTab('ucl')}
                       className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         proKitsCollectionTab === 'ucl'
-                          ? 'bg-blue-600 text-white shadow-xs'
+                          ? 'arza-btn-glass-green'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                       }`}
                     >
@@ -4611,25 +4615,17 @@ export default function HybridStudioWorkspace({
                   </div>
 
                   {/* Banner explicativo */}
-                  <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
-                    proKitsCollectionTab === 'ligamx'
-                      ? 'bg-emerald-50 border-emerald-200'
-                      : 'bg-blue-50 border-blue-200'
-                  }`}>
+                  <div className="p-3.5 rounded-2xl arza-pill-glass-green flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{proKitsCollectionTab === 'ligamx' ? '🇲🇽' : '⭐'}</span>
-                        <h4 className={`text-xs font-black uppercase tracking-wide ${
-                          proKitsCollectionTab === 'ligamx' ? 'text-emerald-950' : 'text-blue-950'
-                        }`}>
+                        <h4 className="text-xs font-black uppercase tracking-wide text-emerald-950">
                           {proKitsCollectionTab === 'ligamx'
                             ? 'Liga MX (18 Clubes • 36 Uniformes Locales y Visita)'
                             : 'UEFA Champions League (12 Clubes Gigantes • 24 Uniformes)'}
                         </h4>
                       </div>
-                      <p className={`text-[11px] leading-relaxed ${
-                        proKitsCollectionTab === 'ligamx' ? 'text-emerald-800' : 'text-blue-800'
-                      }`}>
+                      <p className="text-[11px] leading-relaxed text-emerald-900">
                         {proKitsCollectionTab === 'ligamx'
                           ? 'Uniformes oficiales de Primera División con escudos vectoriales y patrocinadores auténticos (Caliente, Cemento Cruz Azul, DHL, Cemex, etc.).'
                           : 'Los 12 gigantes de Europa (Real Madrid, Barca, Man City, Bayern, PSG, Arsenal, Liverpool, Inter, Juventus, Dortmund, Atlético, Milan) con patrocinadores oficiales.'}
@@ -4638,22 +4634,22 @@ export default function HybridStudioWorkspace({
                     <button
                       type="button"
                       onClick={() => setGarmentMenuMenSection('custom')}
-                      className="text-xs font-bold text-slate-700 hover:text-slate-900 underline shrink-0 cursor-pointer"
+                      className="text-xs font-bold text-slate-800 hover:text-slate-950 underline shrink-0 cursor-pointer"
                     >
                       ← Personaliza a tu gusto
                     </button>
                   </div>
 
                   {/* Selector de Edición (Local vs Visitante) y Búsqueda */}
-                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 arza-glass-card p-2.5 rounded-2xl">
                     {/* Switcher Local vs Visitante */}
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                    <div className="flex items-center gap-1 bg-white/80 p-1 rounded-xl border border-slate-200 shrink-0">
                       <button
                         type="button"
                         onClick={() => setMexicoKitEditionFilter('local')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                           mexicoKitEditionFilter === 'local'
-                            ? 'bg-emerald-600 text-white shadow-xs'
+                            ? 'arza-btn-glass-green'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
@@ -4665,7 +4661,7 @@ export default function HybridStudioWorkspace({
                         onClick={() => setMexicoKitEditionFilter('visitante')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                           mexicoKitEditionFilter === 'visitante'
-                            ? 'bg-sky-600 text-white shadow-xs'
+                            ? 'arza-btn-glass-green'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
@@ -4752,8 +4748,8 @@ export default function HybridStudioWorkspace({
                               <span
                                 className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                   kit.edition === 'local'
-                                    ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
-                                    : 'text-sky-700 bg-sky-50 border border-sky-200/60'
+                                    ? 'text-emerald-800 bg-emerald-50 border border-emerald-200/60'
+                                    : 'text-neutral-800 bg-neutral-100 border border-neutral-200'
                                 }`}
                               >
                                 {kit.edition === 'local' ? '🏠 Local' : '✈️ Visita'}
@@ -4983,7 +4979,7 @@ export default function HybridStudioWorkspace({
               onClick={() => setProKitsCollectionTab('ligamx')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                 proKitsCollectionTab === 'ligamx'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'arza-btn-glass-green'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
@@ -4995,7 +4991,7 @@ export default function HybridStudioWorkspace({
               onClick={() => setProKitsCollectionTab('ucl')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                 proKitsCollectionTab === 'ucl'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'arza-btn-glass-green'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
@@ -5004,7 +5000,7 @@ export default function HybridStudioWorkspace({
             </button>
           </div>
 
-          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-3 rounded-xl arza-pill-glass-green text-xs text-emerald-950 leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               {proKitsCollectionTab === 'ligamx' ? (
                 <><strong>Liga MX Temporada 2026/2027:</strong> Los 18 clubes de Primera División en versiones Local y Visitante con patrocinadores y escudos oficiales de alta definición.</>
@@ -5013,13 +5009,13 @@ export default function HybridStudioWorkspace({
               )}
             </div>
             {/* Switcher Local vs Visitante en Modal */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-blue-200 shrink-0">
+            <div className="flex items-center gap-1 bg-white/85 p-1 rounded-xl border border-emerald-200 shrink-0">
               <button
                 type="button"
                 onClick={() => setMexicoKitEditionFilter('local')}
                 className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
                   mexicoKitEditionFilter === 'local'
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'arza-btn-glass-green'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -5031,7 +5027,7 @@ export default function HybridStudioWorkspace({
                 onClick={() => setMexicoKitEditionFilter('visitante')}
                 className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
                   mexicoKitEditionFilter === 'visitante'
-                    ? 'bg-sky-600 text-white shadow-xs'
+                    ? 'arza-btn-glass-green'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -5059,11 +5055,11 @@ export default function HybridStudioWorkspace({
                 id={`btn-kit-${kit.id}`}
                 type="button"
                 onClick={() => handleApplyOfficialKit(kit)}
-                className="p-3 rounded-2xl bg-white border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between gap-3 shadow-xs cursor-pointer group"
+                className="p-3 rounded-2xl arza-glass-card hover:border-emerald-500 hover:shadow-md transition-all text-left flex flex-col justify-between gap-3 cursor-pointer group"
               >
                 <div className="flex items-start gap-3">
                   {/* Miniatura Vectorial Realista de la Camiseta */}
-                  <div className="p-1.5 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-blue-50/50 transition-colors flex items-center justify-center shrink-0">
+                  <div className="p-1.5 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-emerald-50/50 transition-colors flex items-center justify-center shrink-0">
                     <JerseyThumbnailMiniature kit={kit} size={54} />
                   </div>
 
@@ -5075,15 +5071,15 @@ export default function HybridStudioWorkspace({
                       <span
                         className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                           kit.edition === 'local'
-                            ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
-                            : 'text-sky-700 bg-sky-50 border border-sky-200/60'
+                            ? 'text-emerald-800 bg-emerald-50 border border-emerald-200/60'
+                            : 'text-neutral-800 bg-neutral-100 border border-neutral-200'
                         }`}
                       >
                         {kit.edition === 'local' ? '🏠 Local' : '✈️ Visita'}
                       </span>
                     </div>
 
-                    <h4 className="text-xs font-black text-slate-900 group-hover:text-blue-600 transition-colors mt-1 leading-snug line-clamp-1" title={kit.name}>
+                    <h4 className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors mt-1 leading-snug line-clamp-1" title={kit.name}>
                       {kit.name}
                     </h4>
                     <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-tight">
@@ -5099,7 +5095,7 @@ export default function HybridStudioWorkspace({
                   <span className="text-[10px] font-mono text-slate-400">
                     Corte: <strong className="text-slate-600">{kit.patternId}</strong>
                   </span>
-                  <span className="text-xs font-bold text-blue-600 group-hover:underline flex items-center gap-1">
+                  <span className="text-xs font-bold text-emerald-700 group-hover:underline flex items-center gap-1">
                     <span>Cargar en 3D</span>
                     <span>→</span>
                   </span>
@@ -5174,13 +5170,13 @@ export default function HybridStudioWorkspace({
           type="button"
           onClick={() => setIsMobileFabOpen(!isMobileFabOpen)}
           aria-label="Abrir menú de herramientas y plantilla"
-          className="relative w-14 h-14 rounded-full bg-slate-900 text-white shadow-2xl border-2 border-sky-400 flex items-center justify-center cursor-pointer active:scale-95 transition-all group"
+          className="relative w-14 h-14 rounded-full arza-glass-dark text-white shadow-2xl border-2 border-emerald-400/75 flex items-center justify-center cursor-pointer active:scale-95 transition-all group"
         >
           {isMobileFabOpen ? (
             <X className="w-6 h-6 text-white" />
           ) : (
             <div className="relative flex items-center justify-center">
-              <Layers className="w-6 h-6 text-sky-400 group-hover:scale-110 transition-transform" />
+              <Layers className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
               {galleryCount > 0 && (
                 <span className="absolute -top-2.5 -right-2.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center border border-slate-900">
                   {galleryCount}
@@ -5198,10 +5194,10 @@ export default function HybridStudioWorkspace({
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 sm:hidden transition-opacity"
             onClick={() => setIsMobileFabOpen(false)}
           />
-          <div className="fixed bottom-22 right-4 left-4 sm:hidden z-50 bg-white rounded-3xl p-4 shadow-2xl border border-slate-200 animate-in fade-in slide-in-from-bottom-5 duration-200">
+          <div className="fixed bottom-22 right-4 left-4 sm:hidden z-50 bg-white/90 backdrop-blur-xl rounded-3xl p-4 shadow-2xl border border-white/75 animate-in fade-in slide-in-from-bottom-5 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-black">
+                <div className="w-7 h-7 rounded-lg arza-pill-glass-green flex items-center justify-center font-black">
                   <Layers className="w-4 h-4" />
                 </div>
                 <div>
@@ -5231,13 +5227,13 @@ export default function HybridStudioWorkspace({
                   setIsProductionMoldModalOpen(true);
                   setIsMobileFabOpen(false);
                 }}
-                className="p-3 rounded-2xl bg-blue-50/90 hover:bg-blue-100/90 border border-blue-200/90 text-left flex flex-col justify-between gap-1 transition-colors cursor-pointer group"
+                className="p-3 rounded-2xl arza-pill-glass-green text-left flex flex-col justify-between gap-1 cursor-pointer group"
               >
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <div className="w-8 h-8 rounded-xl arza-btn-glass-green flex items-center justify-center">
                     <Scissors className="w-4 h-4" />
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full">
                     Patrón 1:1
                   </span>
                 </div>
@@ -5375,9 +5371,9 @@ export default function HybridStudioWorkspace({
                     setIsProductionMoldModalOpen(true);
                     setIsMobileFabOpen(false);
                   }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  className="flex-1 py-2.5 px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >
-                  <Scissors className="w-4 h-4 text-emerald-200" />
+                  <Scissors className="w-4 h-4 text-emerald-100" />
                   <span>Ver Plantilla 2D (Confección)</span>
                 </button>
               </div>

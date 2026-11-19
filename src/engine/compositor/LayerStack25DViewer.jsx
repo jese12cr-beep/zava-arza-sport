@@ -256,9 +256,9 @@ export default function LayerStack25DViewer({
     const oCtx = objCanvas.getContext('2d');
 
     // Z-1..3: Tintado instantáneo GPU de máscaras (`source-in`)
-    drawTintedMask(oCtx, bank.maskPrimary, design.colorZones.primary?.hex || '#1d4ed8', tintBuf);
-    drawTintedMask(oCtx, bank.maskSecondary, design.colorZones.secondary?.hex || '#0f172a', tintBuf);
-    drawTintedMask(oCtx, bank.maskAccents, design.colorZones.accents?.hex || '#facc15', tintBuf);
+    drawTintedMask(oCtx, bank.maskPrimary, design.colorZones.primary?.hex || '#111111', tintBuf);
+    drawTintedMask(oCtx, bank.maskSecondary, design.colorZones.secondary?.hex || '#fa5400', tintBuf);
+    drawTintedMask(oCtx, bank.maskAccents, design.colorZones.accents?.hex || '#ffffff', tintBuf);
 
     // Z-4: Proyección de Escudo / Grabado Láser / Dorsal con perspectiva del ángulo
     oCtx.save();
@@ -283,8 +283,8 @@ export default function LayerStack25DViewer({
           if (drawable) {
             oCtx.drawImage(drawable, -55, -55, 110, 110);
           }
-        } else if (crestDecal.type === 'PRESET_VECTOR') {
-          drawPresetCrest(oCtx, crestDecal.presetId || 'royal_shield', 96, 104, design.colorZones);
+        } else if (crestDecal.type === 'PRESET_CREST' || crestDecal.type === 'PRESET_VECTOR') {
+          drawPresetCrest(oCtx, crestDecal.presetId || 'arza_official', 102, 92, design.colorZones);
         }
         oCtx.restore();
       }

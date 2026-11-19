@@ -16,6 +16,7 @@ import {
   resolvedFishMasksCache,
 } from './fishPartCompositor';
 import { resolveAssetUrl } from '../../utils/assetUrl';
+import { renderArzaLogoSvgGroup } from '../../components/brand/ArzaLogo';
 import { preloadLigaMxCrest } from './ligaMxKitsEngine';
 import { preloadUclCrest } from './uclKitsEngine';
 import { preloadSponsorLogo } from './sponsorLogosEngine';
@@ -259,6 +260,28 @@ export function renderClubCrestSvg(clubId, cx, cy, r, design) {
   const accentsColor = design?.colorZones?.accents?.hex || '#FFC72C';
 
   const cid = String(clubId || '').toLowerCase().replace(/[-_]/g, '');
+
+  // 0. LOGOTIPO OFICIAL ARZA SPORT
+  if (cid === 'arzaofficial' || cid === 'arzasport') {
+    const lightHex = primaryColor.replace('#', '');
+    const lum =
+      lightHex.length === 6
+        ? (0.299 * parseInt(lightHex.slice(0, 2), 16) +
+            0.587 * parseInt(lightHex.slice(2, 4), 16) +
+            0.114 * parseInt(lightHex.slice(4, 6), 16)) /
+          255
+        : 0.2;
+    const isLightSurface = lum > 0.58;
+    const w = r * 2.15;
+    const h = w * (278 / 324);
+    return renderArzaLogoSvgGroup(cx, cy, w, h, {
+      swooshColor: '#FA5400',
+      arzaColor: isLightSurface ? '#111111' : '#FFFFFF',
+      sportColor: isLightSurface ? '#C24100' : '#FA5400',
+      outlineColor: isLightSurface ? '#FFFFFF' : '#111111',
+      outlineWidth: 5.5,
+    });
+  }
 
   // 1. AMÉRICA
   if (cid.includes('america')) {
