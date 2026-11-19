@@ -9,18 +9,13 @@ export default function Footer({ onOpenShopifyGuide }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10">
         {/* Identidad Corporativa Zava / ARZA SPORT */}
         <div className="md:col-span-5 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white text-neutral-950 flex items-center justify-center font-display-hero font-extrabold text-lg tracking-tighter">
-              AZ
-            </div>
-            <div>
-              <span className="font-display-hero font-extrabold text-xl tracking-wide uppercase block leading-none">
-                ARZA SPORT
-              </span>
-              <span className="text-[10px] tracking-[0.2em] uppercase text-neutral-400">
-                Una marca de Grupo Zava
-              </span>
-            </div>
+          <div>
+            <span className="font-display-hero font-extrabold text-2xl tracking-wide uppercase block leading-none">
+              ARZA SPORT
+            </span>
+            <span className="text-[10px] tracking-[0.24em] uppercase text-neutral-400 mt-1 block">
+              Una marca de Grupo Zava
+            </span>
           </div>
 
           <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">

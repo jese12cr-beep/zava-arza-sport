@@ -506,26 +506,29 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
   if (isFootballShorts) {
     decals = [
       {
-        id: 'decal_short_crest',
-        type: 'PRESET_CREST',
-        presetId: 'royal_shield',
-        label: 'Escudo Muslo Izq.',
+        id: 'decal_short_brand',
+        type: 'STATIC_TEXT',
+        text: 'ARZA SPORT',
+        isFixed: true,
+        fontFamily: "'Chakra Petch', sans-serif",
+        fillHex: '#ffffff',
+        outlineHex: '#0c2340',
+        outlineWidthMm: 1.8,
+        archDeg: 0,
+        letterSpacingMm: 1.0,
+        label: 'Marca Muslo Izq.',
         panel: 'left_leg',
         centerMm: {
           x: round1(leftLegSpec.widthMm * (leftLegSpec.snapCenterU ?? 0.251)),
           y: round1(leftLegSpec.heightMm * (leftLegSpec.defaultPlaceV ?? 0.67)),
         },
-        sizeMm: { width: 62, height: 68 },
+        sizeMm: { width: 92, height: 22 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
         blendMode: 'source-over',
         clampToZone: 'ALL',
         pinned: false,
-        flipX: false,
-        flipY: false,
-        removeWhiteBg: false,
-        tintHex: '',
         zIndex: 10,
         isVector: true,
         widthPx: 3200,
@@ -537,23 +540,26 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     const crestCenterY = round1(leftLegSpec.heightMm * (useSeparateLeg ? 0.64 : 0.74));
     decals = [
       {
-        id: 'decal_bshort_crest',
-        type: 'PRESET_CREST',
-        presetId: 'eagle_hex',
-        label: 'Emblema Muslo Izq.',
+        id: 'decal_bshort_brand',
+        type: 'STATIC_TEXT',
+        text: 'ARZA SPORT',
+        isFixed: true,
+        fontFamily: "'Chakra Petch', sans-serif",
+        fillHex: '#ffffff',
+        outlineHex: '#101820',
+        outlineWidthMm: 1.8,
+        archDeg: 0,
+        letterSpacingMm: 1.0,
+        label: 'Marca Muslo Izq.',
         panel: 'left_leg',
         centerMm: { x: crestCenterX, y: crestCenterY },
-        sizeMm: useSeparateLeg ? { width: 62, height: 62 } : { width: 74, height: 74 },
+        sizeMm: useSeparateLeg ? { width: 88, height: 22 } : { width: 100, height: 24 },
         scale: 1,
         rotationDeg: 0,
         opacity: 1,
         blendMode: 'source-over',
         clampToZone: 'ALL',
         pinned: false,
-        flipX: false,
-        flipY: false,
-        removeWhiteBg: false,
-        tintHex: '',
         zIndex: 10,
         isVector: true,
         widthPx: 3200,
@@ -566,7 +572,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
       {
         id: 'decal_bball_team',
         type: 'STATIC_TEXT',
-        text: 'ZAVA HOOPS',
+        text: 'ARZA SPORT',
         isFixed: true,
         fontFamily: "'Bebas Neue', sans-serif",
         fillHex: '#ffffff',
@@ -590,32 +596,9 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
       },
     ];
   } else if (isJacket) {
-    const flCenterX = round1(frontLeftSpec.widthMm * 0.40);
     const frCenterX = round1(frontRightSpec.widthMm * 0.64);
     const chestY = round1(frontLeftSpec.heightMm * 0.31);
     decals = [
-      {
-        id: 'decal_club_crest',
-        type: 'PRESET_CREST',
-        presetId: 'royal_shield',
-        label: 'Escudo Pecho Izq.',
-        panel: 'front_left',
-        centerMm: { x: flCenterX, y: chestY },
-        sizeMm: { width: 56, height: 62 },
-        scale: 1,
-        rotationDeg: 0,
-        opacity: 1,
-        blendMode: 'source-over',
-        clampToZone: 'ALL',
-        pinned: false,
-        flipX: false,
-        flipY: false,
-        removeWhiteBg: false,
-        tintHex: '',
-        zIndex: 10,
-        isVector: true,
-        widthPx: 3200,
-      },
       {
         id: 'decal_main_sponsor',
         type: 'STATIC_TEXT',
@@ -644,32 +627,8 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     ];
   } else {
     const fCenterX = round1(frontSpec.widthMm * 0.5);
-    const crestX = round1(frontSpec.widthMm * (isWomenCut ? 0.642 : 0.643));
-    const crestY = round1(frontSpec.heightMm * (isWomenCut ? 0.24 : 0.239));
     const sponsorY = round1(frontSpec.heightMm * (isWomenCut ? 0.386 : 0.385));
     decals = [
-      {
-        id: 'decal_club_crest',
-        type: 'PRESET_CREST',
-        presetId: 'royal_shield',
-        label: 'Escudo del Club',
-        panel: 'front',
-        centerMm: { x: crestX, y: crestY },
-        sizeMm: isWomenCut ? { width: 58, height: 64 } : { width: 68, height: 74 },
-        scale: 1,
-        rotationDeg: 0,
-        opacity: 1,
-        blendMode: 'source-over',
-        clampToZone: 'ALL',
-        pinned: false,
-        flipX: false,
-        flipY: false,
-        removeWhiteBg: false,
-        tintHex: '',
-        zIndex: 10,
-        isVector: true,
-        widthPx: 3200,
-      },
       {
         id: 'decal_main_sponsor',
         type: 'STATIC_TEXT',

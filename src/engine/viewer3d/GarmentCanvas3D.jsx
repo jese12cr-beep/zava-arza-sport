@@ -1269,11 +1269,11 @@ export default function GarmentCanvas3D({
 
       {/* Insignia superior izquierda: Solo en pantallas medianas y grandes */}
       <div className="hidden sm:flex absolute top-4 left-4 items-center gap-2 z-10 select-none">
-        <div className="w-6 h-6 rounded-md bg-neutral-950 text-lime-300 flex items-center justify-center font-black text-[10px] tracking-tighter shadow-sm">
-          AZ
-        </div>
-        <span className="text-xs font-bold text-neutral-700 tracking-wide">
-          ARZA 3D Studio · Zava
+        <span className="font-display-hero text-base font-extrabold text-neutral-950 tracking-tight uppercase">
+          ARZA SPORT
+        </span>
+        <span className="text-[11px] font-semibold text-neutral-500 tracking-wide">
+          · Studio 3D
         </span>
       </div>
 

@@ -50,20 +50,14 @@ export default function Navbar({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 flex items-center justify-between gap-3">
-        {/* Identidad Minimalista ARZA SPORT by Zava */}
-        <a href="#" className="flex items-center gap-3 shrink-0 group rounded-md py-1">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-neutral-950 flex items-center justify-center font-display-hero font-extrabold text-white text-lg tracking-tighter shrink-0 group-hover:bg-neutral-800 transition-colors">
-            <span className="text-white">A</span>
-            <span className="text-lime-400">Z</span>
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-display-hero font-extrabold text-lg sm:text-2xl text-neutral-950 tracking-tight uppercase">
-              ARZA SPORT
-            </span>
-            <span className="text-[10px] font-semibold text-neutral-500 tracking-[0.2em] uppercase mt-0.5">
-              By Zava
-            </span>
-          </div>
+        {/* Identidad Minimalista solo tipográfica ARZA SPORT (sin logotipo gráfico aún) */}
+        <a href="#" className="flex flex-col leading-none shrink-0 group rounded-md py-1">
+          <span className="font-display-hero font-extrabold text-2xl sm:text-3xl text-neutral-950 tracking-tight uppercase">
+            ARZA SPORT
+          </span>
+          <span className="text-[10px] font-semibold text-neutral-500 tracking-[0.24em] uppercase mt-0.5">
+            By Zava
+          </span>
         </a>
 
         {/* Navegación Desktop */}
