@@ -25,14 +25,14 @@ export default function AthleteProof() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-12">
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-600 block">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
               Clubes Verificados
             </span>
-            <h2 className="font-display-hero font-extrabold uppercase text-neutral-950 arza-section-headline">
+            <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
               Equipos que Confían en Zava
             </h2>
           </div>
-          <p className="text-neutral-600 text-sm max-w-md">
+          <p className="text-[#757575] text-sm max-w-md">
             Clubes federados, ligas universitarias y academias compiten cada semana con uniformes manufacturados bajo la línea ARZA SPORT.
           </p>
         </div>
@@ -41,10 +41,10 @@ export default function AthleteProof() {
           {reviews.map((rev) => (
             <div
               key={rev.club}
-              className="arza-card bg-neutral-100 p-7 rounded-2xl border border-neutral-200 flex flex-col justify-between gap-5"
+              className="arza-card bg-[#F5F5F5] p-7 rounded-2xl border border-neutral-200 flex flex-col justify-between gap-5"
             >
               <div>
-                <div className="flex gap-1 text-neutral-950 mb-4" aria-label="Calificación 5 de 5 estrellas">
+                <div className="flex gap-1 text-[#FA5400] mb-4" aria-label="Calificación 5 de 5 estrellas">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <Star key={i} className="w-4 h-4 fill-current" aria-hidden="true" />
                   ))}

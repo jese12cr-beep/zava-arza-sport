@@ -35,10 +35,10 @@ export default function FaqSection() {
     <section id="faq" className="py-16 sm:py-24 bg-neutral-100 border-t border-neutral-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-10 space-y-2">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-600 block">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
             Preguntas Frecuentes
           </span>
-          <h2 className="font-display-hero font-extrabold uppercase text-neutral-950 arza-section-headline">
+          <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
             Todo Sobre tu Pedido ARZA SPORT
           </h2>
         </div>
@@ -50,7 +50,7 @@ export default function FaqSection() {
               <div
                 key={faq.q}
                 className={`rounded-2xl border bg-white transition-colors ${
-                  isOpen ? 'border-neutral-950' : 'border-neutral-200'
+                  isOpen ? 'border-[#FA5400]' : 'border-neutral-200'
                 }`}
               >
                 <button

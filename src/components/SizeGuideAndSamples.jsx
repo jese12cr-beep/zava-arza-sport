@@ -63,13 +63,13 @@ export default function SizeGuideAndSamples() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-600 block">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
               Patronaje Anatómico Garantizado
             </span>
-            <h2 className="font-display-hero font-extrabold uppercase text-neutral-950 arza-section-headline">
+            <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
               Guía de Tallas &amp; Muestras Zava
             </h2>
-            <p className="text-neutral-600 text-sm sm:text-base max-w-xl">
+            <p className="text-[#757575] text-sm sm:text-base max-w-xl">
               Consulta las tablas oficiales por disciplina o solicita un muestrario físico de telas y tallas para tu club.
             </p>
           </div>
@@ -318,7 +318,7 @@ export default function SizeGuideAndSamples() {
 
                   <button
                     type="submit"
-                    className="w-full min-h-11 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white font-semibold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    className="w-full min-h-11 rounded-full bg-[#FA5400] hover:bg-[#ff6a1f] text-[#111111] font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     <Send className="w-4 h-4" aria-hidden="true" />
                     <span>Enviar Solicitud de Muestras</span>

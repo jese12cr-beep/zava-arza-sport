@@ -5,7 +5,7 @@ export default function Footer({ onOpenShopifyGuide }) {
   const [registered, setRegistered] = useState(false);
 
   return (
-    <footer className="w-full bg-neutral-950 text-white border-t border-neutral-800 py-16">
+    <footer className="w-full bg-[#111111] text-white border-t border-neutral-800 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10">
         {/* Identidad Corporativa Zava / ARZA SPORT */}
         <div className="md:col-span-5 flex flex-col gap-4">
@@ -13,16 +13,16 @@ export default function Footer({ onOpenShopifyGuide }) {
             <span className="font-display-hero font-extrabold text-2xl tracking-wide uppercase block leading-none">
               ARZA SPORT
             </span>
-            <span className="text-[10px] tracking-[0.24em] uppercase text-neutral-400 mt-1 block">
+            <span className="text-[10px] tracking-[0.24em] uppercase text-[#757575] mt-1 block">
               Una marca de Grupo Zava
             </span>
           </div>
 
-          <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">
+          <p className="text-xs text-neutral-300 max-w-sm leading-relaxed">
             Manufactura, sublimación textil digital y patronaje 3D/2D personalizado para clubes profesionales, ligas y academias deportivas.
           </p>
 
-          <div className="text-[11px] font-mono text-lime-300 font-bold uppercase tracking-wider">
+          <div className="text-[11px] font-mono text-[#FA5400] font-bold uppercase tracking-wider">
             [ GRUPO ZAVA · MOLDES PROPIETARIOS ARZA ]
           </div>
         </div>
@@ -32,7 +32,7 @@ export default function Footer({ onOpenShopifyGuide }) {
           <label htmlFor={emailId} className="text-xs font-bold uppercase tracking-wider text-white">
             Muestras Textiles para Clubes
           </label>
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-300">
             Registra el correo oficial de tu equipo para recibir catálogo técnico y caja de tallas.
           </p>
           <form
@@ -48,11 +48,11 @@ export default function Footer({ onOpenShopifyGuide }) {
               required
               autoComplete="email"
               placeholder="correo@tuclub.com"
-              className="bg-neutral-900 border border-neutral-700 text-xs text-white px-3.5 min-h-11 rounded-l-full placeholder-neutral-400 focus:outline-none focus:border-white w-full"
+              className="bg-neutral-900 border border-neutral-700 text-xs text-white px-3.5 min-h-11 rounded-l-full placeholder-neutral-400 focus:outline-none focus:border-[#FA5400] w-full"
             />
             <button
               type="submit"
-              className="bg-white text-neutral-950 text-xs font-bold px-5 min-h-11 rounded-r-full hover:bg-neutral-200 transition-colors uppercase shrink-0 cursor-pointer"
+              className="bg-[#FA5400] text-[#111111] text-xs font-bold px-5 min-h-11 rounded-r-full hover:bg-[#ff6a1f] transition-colors uppercase shrink-0 cursor-pointer"
             >
               {registered ? 'Listo' : 'Pedir'}
             </button>

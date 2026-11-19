@@ -40,9 +40,9 @@ export default function Navbar({
   return (
     <header className="sticky top-0 left-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200 text-neutral-950">
       {/* Barra utilitaria superior minimalista */}
-      <div className="bg-neutral-950 text-white text-[11px] font-semibold py-2 px-4 sm:px-6 text-center tracking-wider uppercase">
+      <div className="bg-[#111111] text-white text-[11px] font-semibold py-2 px-4 sm:px-6 text-center tracking-wider uppercase">
         <span className="inline-flex items-center gap-2 max-w-full">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime-400 shrink-0" aria-hidden="true" />
+          <span className="inline-block w-2 h-2 rounded-full bg-[#FA5400] shrink-0" aria-hidden="true" />
           <span className="truncate">
             Grupo Zava • Marca Oficial ARZA SPORT — Sin Pedido Mínimo · Entrega 10–12 Días
           </span>
@@ -52,10 +52,10 @@ export default function Navbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 flex items-center justify-between gap-3">
         {/* Identidad Minimalista solo tipográfica ARZA SPORT (sin logotipo gráfico aún) */}
         <a href="#" className="flex flex-col leading-none shrink-0 group rounded-md py-1">
-          <span className="font-display-hero font-extrabold text-2xl sm:text-3xl text-neutral-950 tracking-tight uppercase">
+          <span className="font-display-hero font-extrabold text-2xl sm:text-3xl text-[#111111] tracking-tight uppercase">
             ARZA SPORT
           </span>
-          <span className="text-[10px] font-semibold text-neutral-500 tracking-[0.24em] uppercase mt-0.5">
+          <span className="text-[10px] font-semibold text-[#757575] tracking-[0.24em] uppercase mt-0.5">
             By Zava
           </span>
         </a>
@@ -66,7 +66,7 @@ export default function Navbar({
             <a
               key={link.href}
               href={link.href}
-              className="min-h-11 inline-flex items-center hover:text-neutral-950 border-b-2 border-transparent hover:border-neutral-950 transition-colors"
+              className="min-h-11 inline-flex items-center hover:text-[#111111] border-b-2 border-transparent hover:border-[#FA5400] transition-colors"
             >
               {link.label}
             </a>
@@ -79,9 +79,9 @@ export default function Navbar({
             <button
               type="button"
               onClick={onOpenQuoteModal}
-              className="hidden xl:inline-flex items-center gap-1.5 px-3.5 min-h-11 rounded-full border border-neutral-300 hover:border-neutral-950 text-neutral-900 text-xs font-semibold transition-colors cursor-pointer"
+              className="hidden xl:inline-flex items-center gap-1.5 px-3.5 min-h-11 rounded-full border border-neutral-300 hover:border-[#111111] text-[#111111] text-xs font-semibold transition-colors cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+              <FileText className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
               <span>Cotizar</span>
             </button>
           )}
@@ -90,12 +90,12 @@ export default function Navbar({
             <button
               type="button"
               onClick={onOpenGallery}
-              className="hidden sm:inline-flex relative px-3.5 min-h-11 rounded-full border border-neutral-300 hover:border-neutral-950 text-neutral-900 text-xs font-semibold items-center gap-1.5 transition-colors cursor-pointer"
+              className="hidden sm:inline-flex relative px-3.5 min-h-11 rounded-full border border-neutral-300 hover:border-[#111111] text-[#111111] text-xs font-semibold items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <FolderHeart className="w-3.5 h-3.5" aria-hidden="true" />
+              <FolderHeart className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
               <span className="hidden md:inline">Guardados</span>
               {galleryCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-neutral-950 text-white text-[10px] font-bold tabular-nums-pro">
+                <span className="px-1.5 py-0.5 rounded-full bg-[#111111] text-white text-[10px] font-bold tabular-nums-pro">
                   {galleryCount}
                 </span>
               )}
@@ -105,7 +105,7 @@ export default function Navbar({
           <button
             type="button"
             onClick={onOpenStudio}
-            className="px-4 sm:px-5 min-h-11 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-4 sm:px-5 min-h-11 rounded-full bg-[#FA5400] hover:bg-[#ff6a1f] text-[#111111] text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>Abrir App 3D</span>
             <ArrowUpRight className="w-4 h-4" aria-hidden="true" />

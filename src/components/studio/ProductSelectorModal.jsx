@@ -106,10 +106,10 @@ export default function ProductSelectorModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del Selector */}
-        <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-neutral-800 bg-neutral-950 text-white flex items-center justify-between">
+        <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-neutral-800 bg-[#111111] text-white flex items-center justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-neutral-200 text-xs font-bold uppercase tracking-wider mb-1.5 border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-lime-300" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-wider mb-1.5 border border-white/20">
+              <Sparkles className="w-3.5 h-3.5 text-[#FA5400]" />
               <span>ARZA SPORT Studio · Grupo Zava</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">

@@ -6,9 +6,10 @@
   --arza-bg: #ffffff;
   --arza-surface: #f5f5f5;
   --arza-ink: #111111;
-  --arza-muted: #525252;
+  --arza-muted: #757575;
   --arza-border: #e5e5e5;
-  --arza-volt: #c8ff00;
+  --arza-accent: #fa5400;
+  --arza-accent-ink: #c24100;
 }
 
 /* ARZA SPORT Editorial Typography (Barlow Condensed + Inter) */
@@ -372,7 +373,7 @@ dialog::backdrop {
 
 /* 9. ARZA SPORT Storefront Minimalist Accessibility, Typography & Grid */
 :where(a:any-link, button, summary, [tabindex]):focus-visible {
-  outline: 3px solid #111111;
+  outline: 3px solid #fa5400;
   outline-offset: 2px;
 }
 

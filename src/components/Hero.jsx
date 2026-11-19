@@ -80,8 +80,8 @@ export default function Hero({ onStartDesigning }) {
                   onClick={() => setSelectedIdx(idx)}
                   className={`px-4 min-h-10 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
                     isSel
-                      ? 'bg-neutral-950 text-white'
-                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950'
+                      ? 'bg-[#111111] text-white'
+                      : 'bg-[#F5F5F5] text-[#757575] hover:bg-neutral-200 hover:text-[#111111]'
                   }`}
                 >
                   {item.tabLabel}
@@ -95,24 +95,24 @@ export default function Hero({ onStartDesigning }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Columna de Tipografía Display + CTAs */}
           <div className="lg:col-span-6 space-y-6">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-600">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#C24100]">
               APP DE PERSONALIZACIÓN 3D Y PATRONAJE 2D
             </p>
 
-            <h1 className="font-display-hero font-extrabold uppercase text-neutral-950 arza-hero-headline">
+            <h1 className="font-display-hero font-extrabold uppercase text-[#111111] arza-hero-headline">
               DISEÑA TU UNIFORME.{' '}
-              <span className="text-neutral-500 block sm:inline">PRECISIÓN ZAVA.</span>
+              <span className="text-[#757575] block sm:inline">PRECISIÓN ZAVA.</span>
             </h1>
 
-            <p className="font-body-lg text-base sm:text-lg text-neutral-700 max-w-[52ch]">
-              Configura cada molde <strong className="text-neutral-950">ARZA SPORT</strong> en tiempo real con geometría 3D interactiva, paleta completa y exportación industrial 1:1 para confección.
+            <p className="font-body-lg text-base sm:text-lg text-[#525252] max-w-[52ch]">
+              Configura cada molde <strong className="text-[#111111]">ARZA SPORT</strong> en tiempo real con geometría 3D interactiva, paleta completa y exportación industrial 1:1 para confección.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => onStartDesigning(active.id)}
-                className="px-7 min-h-12 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                className="px-7 min-h-12 rounded-full bg-[#FA5400] hover:bg-[#ff6a1f] text-[#111111] text-sm font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
               >
                 <span>Abrir App Personalizador</span>
                 <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
@@ -120,7 +120,7 @@ export default function Hero({ onStartDesigning }) {
 
               <a
                 href="#drops-catalog"
-                className="px-7 min-h-12 rounded-full border border-neutral-950 text-neutral-950 hover:bg-neutral-100 text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                className="px-7 min-h-12 rounded-full border border-[#111111] text-[#111111] hover:bg-[#F5F5F5] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
                 <span>Ver Moldes (13)</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -130,29 +130,29 @@ export default function Hero({ onStartDesigning }) {
             {/* Datos Técnicos Limpios */}
             <dl className="grid grid-cols-3 gap-4 pt-6 border-t border-neutral-200">
               <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-neutral-950 shrink-0" aria-hidden="true" />
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#757575] flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
                   <span>Moldes 3D</span>
                 </dt>
-                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-neutral-950 tabular-nums-pro">
+                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
                   13 CORTES
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
-                  <Scissors className="w-3.5 h-3.5 text-neutral-950 shrink-0" aria-hidden="true" />
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#757575] flex items-center gap-1.5">
+                  <Scissors className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
                   <span>Pliegos RIP</span>
                 </dt>
-                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-neutral-950 tabular-nums-pro">
+                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
                   ESCALA 1:1
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
-                  <Ruler className="w-3.5 h-3.5 text-neutral-950 shrink-0" aria-hidden="true" />
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#757575] flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
                   <span>Tallas</span>
                 </dt>
-                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-neutral-950 tabular-nums-pro">
+                <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
                   XS – XXL
                 </dd>
               </div>
@@ -161,7 +161,7 @@ export default function Hero({ onStartDesigning }) {
 
           {/* Columna Visual Producto Activo sobre Fondo Neutro Estilo Estudio */}
           <div className="lg:col-span-6">
-            <div className="relative rounded-2xl bg-neutral-100 overflow-hidden border border-neutral-200">
+            <div className="relative rounded-2xl bg-[#F5F5F5] overflow-hidden border border-neutral-200">
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-200">
                 <img
                   src={active.image}
@@ -169,11 +169,11 @@ export default function Hero({ onStartDesigning }) {
                   className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-[1.03]"
                 />
                 <div
-                  className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none"
+                  className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none"
                   aria-hidden="true"
                 />
                 <div className="absolute top-4 left-4">
-                  <span className="inline-block px-3 py-1 rounded-full bg-neutral-950 text-white text-[11px] font-mono font-bold tracking-wider">
+                  <span className="inline-block px-3 py-1 rounded-full bg-[#111111] text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
                     {active.code}
                   </span>
                 </div>
@@ -188,7 +188,7 @@ export default function Hero({ onStartDesigning }) {
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-[11px] uppercase tracking-wider text-neutral-200 block">Desde</span>
-                    <span className="font-display-hero text-2xl sm:text-3xl font-extrabold tabular-nums-pro">
+                    <span className="font-display-hero text-2xl sm:text-3xl font-extrabold text-[#FA5400] tabular-nums-pro">
                       {active.price}
                     </span>
                   </div>
@@ -197,9 +197,9 @@ export default function Hero({ onStartDesigning }) {
 
               <div className="p-5 sm:p-6 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-neutral-200">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-700">{active.subtitle}</p>
+                  <p className="text-xs font-medium text-[#525252]">{active.subtitle}</p>
                   <div className="flex items-center gap-2 pt-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#757575]">
                       Tonos sugeridos:
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -218,7 +218,7 @@ export default function Hero({ onStartDesigning }) {
                 <button
                   type="button"
                   onClick={() => onStartDesigning(active.id)}
-                  className="px-5 min-h-11 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 shrink-0 transition-colors cursor-pointer"
+                  className="px-5 min-h-11 rounded-full bg-[#111111] hover:bg-[#FA5400] hover:text-[#111111] text-white text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 transition-colors cursor-pointer"
                 >
                   <span>Personalizar este Molde</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />

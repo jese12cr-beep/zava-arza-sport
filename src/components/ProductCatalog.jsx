@@ -107,13 +107,13 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
       {/* Cabecera Editorial Minimalista */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-neutral-200">
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-600 block">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
             Catálogo Oficial Zava // Serie ARZA
           </span>
-          <h2 className="font-display-hero font-extrabold uppercase text-neutral-950 arza-section-headline">
+          <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
             Moldes y Prendas Configurables ({ENGINE_PRODUCTS.length})
           </h2>
-          <p className="text-neutral-600 text-sm sm:text-base max-w-2xl">
+          <p className="text-[#757575] text-sm sm:text-base max-w-2xl">
             Patronaje propietario ARZA SPORT en 3D interactivo y pliegos 2D 1:1 para Caballero, Dama y Equipos.
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
         <button
           type="button"
           onClick={onOpenQuote}
-          className="px-5 min-h-11 rounded-full border border-neutral-950 text-neutral-950 hover:bg-neutral-950 hover:text-white text-xs font-semibold transition-colors cursor-pointer shrink-0 self-start md:self-auto"
+          className="px-5 min-h-11 rounded-full border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white text-xs font-semibold transition-colors cursor-pointer shrink-0 self-start md:self-auto"
         >
           Solicitar Cotización de Club
         </button>
@@ -192,7 +192,7 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
                 )}
 
                 {item.owayoCutCode && (
-                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950 text-white text-[10px] font-mono font-bold tracking-wider">
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#111111] text-[#FA5400] text-[10px] font-mono font-bold tracking-wider">
                     {item.owayoCutCode}
                   </span>
                 )}
@@ -238,7 +238,7 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
                 <button
                   type="button"
                   onClick={() => onSelectProduct(item.id)}
-                  className="px-4 min-h-11 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-4 min-h-11 rounded-full bg-[#111111] hover:bg-[#FA5400] hover:text-[#111111] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span>Configurar Molde</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
