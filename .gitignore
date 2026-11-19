@@ -1,0 +1,15 @@
+# Logs & Dependencies
+node_modules
+dist
+dist-ssr
+*.local
+*.log
+
+# Temp & OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# REA & Captures
+rea-captures/**/*.har
+rea-captures/**/*.report.json

@@ -1,0 +1,5343 @@
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Sparkles,
+  Box,
+  Scan,
+  Upload,
+  Plus,
+  Minus,
+  Trash2,
+  Scissors,
+  ShoppingBag,
+  Store,
+  AlignCenterVertical,
+  RefreshCw,
+  Check,
+  Shield,
+  Lock,
+  Type,
+  Users,
+  Palette,
+  Copy,
+  FlipHorizontal2,
+  FlipVertical2,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  Save,
+  FolderOpen,
+  ClipboardCheck,
+  ChevronLeft,
+  X,
+  AlertTriangle,
+  CheckCircle2,
+  Link2,
+  Eye,
+  ChevronDown,
+  Menu,
+  User,
+  Share2,
+  Undo2,
+  Redo2,
+  Maximize2,
+  Minimize2,
+  FolderHeart,
+  Layers,
+  RotateCw,
+  Award,
+} from 'lucide-react';
+import Interactive2DLab from '../../engine/compositor/Interactive2DLab';
+import LayerStack25DViewer from '../../engine/compositor/LayerStack25DViewer';
+import UserDesignGalleryModal from './UserDesignGalleryModal';
+import UserAuthModal from '../auth/UserAuthModal';
+import { useAuth } from '../../engine/auth/authManager';
+import {
+  LIGA_MX_PRESETS,
+  WORLD_CUP_PRESETS,
+  LOGO_CATEGORIES,
+} from '../../data/sportPresetsRegistry';
+import {
+  loadUserGallery,
+  saveDesignToGallery,
+} from '../../utils/userGalleryStore';
+import {
+  ENGINE_PRODUCTS,
+  PANTONE_CM5_PALETTE,
+  COLOR_HARMONY_SUGGESTIONS,
+  getDesignsForProduct,
+  ZONE_SURFACE_PATTERNS,
+  VECTOR_CREST_PRESETS,
+  FABRIC_WEAVES,
+  SPORT_FONTS,
+  VOLUME_TIERS,
+  createDefaultDesignForProduct,
+} from '../../engine/core/designStore';
+import { MEXICO_PRO_KITS } from '../../data/mexicoKitsData';
+import { UCL_PRO_KITS } from '../../data/uclKitsData';
+import { processUploadedArtwork, calculateEffectiveDpi } from '../../engine/core/dpiValidator';
+import {
+  getDroppablePanelsForProduct,
+  getPartSpec,
+  getMirrorSymmetryTarget,
+  evaluateDecalPlacement,
+  isShortsProduct,
+  snapRotationAngle,
+} from '../../engine/core/boundingBoxMath';
+
+import GarmentCanvas3D from '../../engine/viewer3d/GarmentCanvas3D';
+import { ATLETIQ_PRO_PATTERNS } from '../../data/atletiqProPatterns';
+import JerseyThumbnailMiniature from './JerseyThumbnailMiniature';
+import { preloadLigaMxCrest } from '../../engine/compositor/ligaMxKitsEngine';
+import { preloadUclCrest } from '../../engine/compositor/uclKitsEngine';
+import { preloadSponsorLogo } from '../../engine/compositor/sponsorLogosEngine';
+import ProductionMoldModal from './ProductionMoldModal';
+import Interactive2DPliegoStage from './Interactive2DPliegoStage';
+import SocialMediaMockupModal from './SocialMediaMockupModal';
+
+const OWAYO_TABS = [
+  { id: 'design', label: 'Diseño', icon: Sparkles },
+  { id: 'colors', label: 'Colores', icon: Palette },
+  { id: 'text', label: 'Text', icon: Type },
+  { id: 'logo', label: 'Logo', icon: Shield },
+];
+
+const ESSENTIAL_SPORT_COLORS = [
+  { hex: '#FFFFFF', name: 'Blanco' },
+  { hex: '#F1F5F9', name: 'Gris Perla' },
+  { hex: '#94A3B8', name: 'Gris Medio' },
+  { hex: '#334155', name: 'Gris Carbón' },
+  { hex: '#0F172A', name: 'Negro Noche' },
+  { hex: '#000000', name: 'Negro Puro' },
+
+  { hex: '#0B1B3D', name: 'Marino Oscuro' },
+  { hex: '#1E3A8A', name: 'Azul Marino' },
+  { hex: '#1D4ED8', name: 'Azul Real' },
+  { hex: '#0284C7', name: 'Azul Eléctrico' },
+  { hex: '#38BDF8', name: 'Celeste' },
+  { hex: '#06B6D4', name: 'Turquesa' },
+
+  { hex: '#15803D', name: 'Verde Competición' },
+  { hex: '#064E3B', name: 'Verde Bosque' },
+  { hex: '#84CC16', name: 'Verde Lima' },
+  { hex: '#FACC15', name: 'Amarillo Limón' },
+  { hex: '#D97706', name: 'Oro Deportivo' },
+  { hex: '#EA580C', name: 'Naranja Flúor' },
+
+  { hex: '#DC2626', name: 'Rojo Clásico' },
+  { hex: '#991B1B', name: 'Granate' },
+  { hex: '#FB7185', name: 'Coral / Rosa' },
+  { hex: '#E11D48', name: 'Fucsia' },
+  { hex: '#7C3AED', name: 'Morado' },
+  { hex: '#4C1D95', name: 'Púrpura Oscuro' },
+];
+
+const CUT_OPTIONS = [
+  { value: 'MEN_PRO_SLIM', label: 'Hombre Slim' },
+  { value: 'MEN_CLASSIC', label: 'Hombre Clásico' },
+  { value: 'WOMEN_FIT', label: 'Mujer Entallado' },
+  { value: 'YOUTH_KIDS', label: 'Infantil / Juvenil' },
+];
+
+const SIZE_OPTIONS = ['128', '140', '152', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+const PANEL_TO_CAMERA = {
+  front: 'front',
+  back: 'back',
+  left_arm: 'left_sleeve',
+  right_arm: 'right_sleeve',
+  right_leg: 'right_leg',
+  left_leg: 'left_leg',
+  collar: 'front',
+};
+
+const DRAFTS_STORAGE_KEY = 'arza_sport_drafts_v1';
+
+function rangeVars(val, min, max) {
+  return {
+    '--attr-min': min,
+    '--attr-max': max,
+    '--control-value': val,
+  };
+}
+
+/**
+ * Diálogo modal nativo con soporte declarativo `closedby="any"` y fallback para navegadores sin `closedBy`.
+ */
+function LightDismissModal({ isOpen, onClose, titleId, title, subtitle, maxWidthClass = 'max-w-4xl', children }) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+
+    const handleNativeClose = () => {
+      onClose?.();
+    };
+    dialog.addEventListener('close', handleNativeClose);
+
+    const handleBackdropClick = (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isDialogContent =
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width;
+      if (isDialogContent) return;
+      dialog.close();
+    };
+
+    if (!('closedBy' in HTMLDialogElement.prototype)) {
+      dialog.addEventListener('click', handleBackdropClick);
+    }
+
+    return () => {
+      dialog.removeEventListener('close', handleNativeClose);
+      dialog.removeEventListener('click', handleBackdropClick);
+    };
+  }, [isOpen, onClose]);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      closedby="any"
+      aria-labelledby={titleId}
+      className={`p-0 rounded-3xl bg-white text-slate-900 border border-slate-200 ${maxWidthClass} w-full shadow-2xl m-auto backdrop:bg-slate-950/40 backdrop:backdrop-blur-xs`}
+    >
+      <div className="p-5 sm:p-6 flex flex-col max-h-[90dvh]">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+          <div>
+            {subtitle && (
+              <span className="text-[10px] font-mono text-sky-600 uppercase tracking-widest block font-bold">
+                {subtitle}
+              </span>
+            )}
+            <h2 id={titleId} className="text-lg sm:text-xl font-black text-slate-900">
+              {title}
+            </h2>
+          </div>
+          <button
+            id="btn-close-garment-modal"
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            aria-label="Cerrar ventana"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto pt-4">{children}</div>
+      </div>
+    </dialog>
+  );
+}
+
+export default function HybridStudioWorkspace({
+  design,
+  designsByProduct,
+  onSwitchProduct,
+  onSyncPairedColors,
+  onCommitDesign,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  roster,
+  onUpdateRoster,
+  artworkRegistry,
+  onRegisterArtwork,
+  onOpenProductionModal,
+  onOpenCart,
+  cartCount,
+  onSwitchToStorefront,
+}) {
+  const [activeTab, setActiveTab] = useState('design'); // 'design' | 'colors' | 'text' | 'logo'
+  const [viewportMode, setViewportMode] = useState('3d'); // '3d' | '2d_pliego'
+  const [isSocialMediaModalOpen, setIsSocialMediaModalOpen] = useState(false);
+  const [patternCategoryFilter, setPatternCategoryFilter] = useState('Todos');
+  const [cameraPreset, setCameraPreset] = useState('three_quarter');
+  const [cameraPulse, setCameraPulse] = useState(0);
+  const [autoRotate, setAutoRotate] = useState(false);
+  const [panel2D, setPanel2D] = useState('front');
+
+  const handleChangeCameraPreset = (presetId) => {
+    setCameraPreset(presetId);
+    setCameraPulse((n) => n + 1);
+  };
+
+  // Control de autenticación y privilegios
+  const { currentUser, isAdmin, isAuthenticated, setAdminMode } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const pendingAuthActionRef = useRef(null);
+
+  // Estados del Muestreo 3D Pro y Recuadros Deportivos
+  const [proPatternId, setProPatternId] = useState(design.proPatternId || 'ATLETIQ_PRO_01');
+  const [proColorZoneMap, setProColorZoneMap] = useState(() => {
+    return design.proColorZoneMap || {
+      c1: design.primaryColor || '#085dbf',
+      c2: design.primaryColor || '#085dbf',
+      c3: design.primaryColor || '#085dbf',
+      c4: design.primaryColor || '#085dbf',
+      c5: design.accentColor || '#085dbf',
+      c6: design.secondaryColor || '#072661',
+      c7: design.accentColor || '#ffffff',
+      c8: '#8bb8e8',
+      c9: '#004c97',
+    };
+  });
+  const [proCollar, setProCollar] = useState(design.proCollar || 'round');
+  const [proCut, setProCut] = useState(design.proCut || 'MEN_PRO_SLIM');
+  const [proSampleCrest, setProSampleCrest] = useState(null);
+  const [proSponsorText, setProSponsorText] = useState('');
+  const [proSponsorImage, setProSponsorImage] = useState(null);
+  const [proFrontNumberActive, setProFrontNumberActive] = useState(false);
+  const [proFontFamily, setProFontFamily] = useState('Impact, sans-serif');
+  const [proNumberFillColor, setProNumberFillColor] = useState('#FFFFFF');
+  const [proNumberOutlineColor, setProNumberOutlineColor] = useState('#0F172A');
+  const [proNumberShadowColor, setProNumberShadowColor] = useState('#000000');
+  const [proNameFillColor, setProNameFillColor] = useState('#FFFFFF');
+  const [proNameOutlineColor, setProNameOutlineColor] = useState('#0F172A');
+  const [proNameCurveAngle, setProNameCurveAngle] = useState(0);
+
+  const activeProPattern = useMemo(() => {
+    return ATLETIQ_PRO_PATTERNS.find((p) => p.id === proPatternId) || ATLETIQ_PRO_PATTERNS[0];
+  }, [proPatternId]);
+
+  const [selectedDecalId, setSelectedDecalId] = useState(null);
+  const [selectedSlotKey, setSelectedSlotKey] = useState(null);
+  const [isEditingLogoDetail, setIsEditingLogoDetail] = useState(false);
+  const [isEditingTextDetail, setIsEditingTextDetail] = useState(false);
+
+  const [activeRosterIndex, setActiveRosterIndex] = useState(0);
+  const [activeColorZone, setActiveColorZone] = useState('primary');
+  const [paletteFilterMode, setPaletteFilterMode] = useState('all');
+  const [colorSearch, setColorSearch] = useState('');
+  const [isDragOverUpload, setIsDragOverUpload] = useState(false);
+  const [csvQuickInput, setCsvQuickInput] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Diálogos de la barra inferior Owayo (`Mis bocetos`, `Ejemplares`, `Revisión del diseño`)
+  const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+  const [isDraftsModalOpen, setIsDraftsModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isGarmentMenuOpen, setIsGarmentMenuOpen] = useState(false);
+  const [isMobilePanelCollapsed, setIsMobilePanelCollapsed] = useState(false);
+  const [isMexicoKitsModalOpen, setIsMexicoKitsModalOpen] = useState(false);
+  const [isProductionMoldModalOpen, setIsProductionMoldModalOpen] = useState(false);
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
+  const [activeLogoCategory, setActiveLogoCategory] = useState('ligamx'); // 'ligamx' | 'mundial' | 'vector'
+  const [galleryCount, setGalleryCount] = useState(() => {
+    try {
+      return loadUserGallery().length;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    const handleGalleryUpdate = () => {
+      try {
+        setGalleryCount(loadUserGallery().length);
+      } catch {}
+    };
+    window.addEventListener('arza_gallery_updated', handleGalleryUpdate);
+    return () => window.removeEventListener('arza_gallery_updated', handleGalleryUpdate);
+  }, []);
+  const [garmentMenuMenSection, setGarmentMenuMenSection] = useState('custom'); // 'custom' | 'ligamx'
+  const [mexicoKitSearch, setMexicoKitSearch] = useState('');
+  const [mexicoKitRegionFilter, setMexicoKitRegionFilter] = useState('all');
+  const [proKitsCollectionTab, setProKitsCollectionTab] = useState('ligamx'); // 'ligamx' | 'ucl'
+  const [mexicoKitEditionFilter, setMexicoKitEditionFilter] = useState('local'); // 'local' | 'visitante' | 'all'
+  const [activeMexicoKitId, setActiveMexicoKitId] = useState(design?.mexicoKitId || null);
+  const [savedDrafts, setSavedDrafts] = useState(() => {
+    try {
+      const raw = localStorage.getItem(DRAFTS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const fileInputRef = useRef(null);
+  const canvasSnapshotRef = useRef(null);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((cur) => (cur === msg ? '' : cur));
+    }, 2400);
+  };
+
+  const currentProduct =
+    ENGINE_PRODUCTS.find((p) => p.id === design.productModelId) || ENGINE_PRODUCTS[0];
+  const pairedProduct = currentProduct.pairedProductId
+    ? ENGINE_PRODUCTS.find((p) => p.id === currentProduct.pairedProductId)
+    : null;
+  const isFaux3DAccessory = currentProduct.renderMode === 'FAUX_3D_LAYERED_WEBP';
+  const isShorts = isShortsProduct(design.productModelId);
+  const isJacket = currentProduct.garmentCategory === 'jacket';
+
+  const [genderModule, setGenderModule] = useState(() => currentProduct.gender || 'men');
+
+  useEffect(() => {
+    if (currentProduct.gender && currentProduct.gender !== genderModule) {
+      setGenderModule(currentProduct.gender);
+    }
+  }, [currentProduct.gender]);
+
+  const availableFishDesigns = useMemo(
+    () => getDesignsForProduct(design.productModelId),
+    [design.productModelId]
+  );
+  const droppablePanels = useMemo(
+    () => getDroppablePanelsForProduct(design.productModelId),
+    [design.productModelId]
+  );
+
+  // Asegurar que `panel2D` sea siempre válido al cambiar entre Camiseta (`front`/`back`) y Short (`right_leg`/`left_leg`)
+  useEffect(() => {
+    if (!droppablePanels.some((p) => p.panelId === panel2D)) {
+      setPanel2D(droppablePanels[0]?.panelId || 'front');
+    }
+    setCameraPreset('three_quarter');
+    setSelectedDecalId(null);
+    setSelectedSlotKey(null);
+    setIsEditingLogoDetail(false);
+    setIsEditingTextDetail(false);
+  }, [design.productModelId, droppablePanels]);
+
+  const colorZonesMeta = useMemo(() => {
+    if (isShorts) {
+      return [
+        { id: 'primary', label: 'Zona A • Cuerpo Principal', short: 'A' },
+        { id: 'secondary', label: 'Zona B • Franja / Lateral', short: 'B' },
+        { id: 'accents', label: 'Zona C • Filete / Ribete', short: 'C' },
+        { id: 'quaternary', label: 'Zona D • Cuarto Tono', short: 'D' },
+      ];
+    }
+    if (isJacket) {
+      return [
+        { id: 'primary', label: 'Zona A • Cuerpo Chaqueta', short: 'A' },
+        { id: 'secondary', label: 'Zona B • Paneles / Costados', short: 'B' },
+        { id: 'accents', label: 'Zona C • Cremallera / Detalles', short: 'C' },
+        { id: 'quaternary', label: 'Zona D • Cuarto Tono', short: 'D' },
+        { id: 'collar', label: 'Cuello Alto', short: 'K' },
+        { id: 'sleeves', label: 'Mangas / Bajomanga', short: 'SL' },
+      ];
+    }
+    return [
+      { id: 'primary', label: 'Zona A • Cuerpo Principal', short: 'A' },
+      { id: 'secondary', label: 'Zona B • Bloque Secundario', short: 'B' },
+      { id: 'accents', label: 'Zona C • Acentos / Filetes', short: 'C' },
+      { id: 'quaternary', label: 'Zona D • Cuarto Tono', short: 'D' },
+      { id: 'collar', label: 'Cuello (Collar)', short: 'K' },
+      {
+        id: 'sleeves',
+        label:
+          currentProduct.garmentShape === 'basketball_tank'
+            ? 'Ribetes de Sisa (Aermelband)'
+            : 'Mangas / Puños',
+        short: 'SL',
+      },
+    ];
+  }, [isShorts, isJacket, currentProduct.garmentShape]);
+
+  const filteredPalette = useMemo(() => {
+    const q = colorSearch.trim().toLowerCase();
+    return PANTONE_CM5_PALETTE.filter((c) => {
+      if (paletteFilterMode === 'cm5' && c.isSpecial) return false;
+      if (paletteFilterMode === 'special' && !c.isSpecial) return false;
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.pantone.toLowerCase().includes(q) ||
+        c.hex.toLowerCase().includes(q)
+      );
+    });
+  }, [paletteFilterMode, colorSearch]);
+
+  const uploadedLibrary = useMemo(() => Object.values(artworkRegistry || {}), [artworkRegistry]);
+
+  const activePlayer = roster[activeRosterIndex] || roster[0] || {
+    name: 'RODRÍGUEZ',
+    number: '10',
+    size: 'L',
+  };
+  const totalUnits = roster.reduce((acc, r) => acc + (Number(r.qty) || 1), 0);
+  const currentTier =
+    VOLUME_TIERS.find((t) => totalUnits >= t.min && totalUnits <= t.max) || VOLUME_TIERS[0];
+  const unitPrice = +(currentProduct.basePrice * (1 - currentTier.discountPct / 100)).toFixed(2);
+  const totalPrice = +(unitPrice * totalUnits).toFixed(2);
+
+  const allDecals = design.decals || [];
+  const logoDecals = allDecals.filter((d) => d.type !== 'STATIC_TEXT');
+  const textDecals = allDecals.filter((d) => d.type === 'STATIC_TEXT');
+
+  const selectedDecal = selectedDecalId
+    ? allDecals.find((d) => d.id === selectedDecalId) || null
+    : null;
+  const selectedLogoDecal =
+    selectedDecal && selectedDecal.type !== 'STATIC_TEXT' ? selectedDecal : null;
+  const selectedTextDecal =
+    selectedDecal && selectedDecal.type === 'STATIC_TEXT' ? selectedDecal : null;
+
+  const variableSlotKeysForProduct = isShorts
+    ? ['playerNumberShorts']
+    : isJacket
+    ? ['playerNameBack', 'playerNumberBack']
+    : currentProduct.garmentShape === 'basketball_tank'
+    ? ['playerNameBack', 'playerNumberBack', 'playerNumberFront']
+    : ['playerNameBack', 'playerNumberBack', 'playerNumberFront', 'playerNumberSleeve'];
+
+  const SLOT_LABELS = {
+    playerNameBack: 'Nombre Jugador (Espalda)',
+    playerNumberBack: 'Dorsal Trasero Principal',
+    playerNumberFront: 'Número Frontal Pecho',
+    playerNumberSleeve: 'Número en Manga',
+    playerNumberShorts: 'Número en Pierna de Short',
+  };
+
+  // --- Mutadores del Documento Maestro ---
+  const updateColorZone = (zoneKey, colorObj) => {
+    onCommitDesign({
+      ...design,
+      colorZones: {
+        ...design.colorZones,
+        [zoneKey]: {
+          hex: colorObj.hex,
+          pantone: colorObj.pantone || 'PMS Custom',
+          code: colorObj.code || colorObj.name || 'Custom',
+        },
+      },
+    });
+  };
+
+  const applyColorHarmony = (harmony) => {
+    if (harmony.zones) {
+      onCommitDesign({
+        ...design,
+        colorZones: {
+          ...design.colorZones,
+          ...harmony.zones,
+        },
+      });
+      return;
+    }
+    const findMeta = (hex) =>
+      PANTONE_CM5_PALETTE.find((p) => p.hex.toLowerCase() === hex?.toLowerCase()) || {
+        hex,
+        pantone: 'PMS Custom',
+        code: hex,
+      };
+    const p = findMeta(harmony.primary || harmony.zones?.primary?.hex);
+    const s = findMeta(harmony.secondary || harmony.zones?.secondary?.hex);
+    const a = findMeta(harmony.accents || harmony.zones?.accents?.hex);
+    const q = findMeta(harmony.quaternary || harmony.zones?.quaternary?.hex);
+
+    onCommitDesign({
+      ...design,
+      colorZones: {
+        ...design.colorZones,
+        primary: { hex: p.hex, pantone: p.pantone, code: p.code },
+        secondary: { hex: s.hex, pantone: s.pantone, code: s.code },
+        accents: { hex: a.hex, pantone: a.pantone, code: a.code },
+        quaternary: { hex: q.hex, pantone: q.pantone, code: q.code },
+        collar: { hex: a.hex, pantone: a.pantone, code: a.code },
+        sleeves: { hex: s.hex, pantone: s.pantone, code: s.code },
+      },
+    });
+  };
+
+  const updateDecal = (decalId, patch, recordHistory = false) => {
+    onCommitDesign(
+      {
+        ...design,
+        decals: allDecals.map((d) => (d.id === decalId ? { ...d, ...patch } : d)),
+      },
+      recordHistory
+    );
+  };
+
+  const updateVariableSlot = (slotKey, nextSlotObj, recordHistory = false) => {
+    onCommitDesign(
+      {
+        ...design,
+        variableSlots: {
+          ...design.variableSlots,
+          [slotKey]: nextSlotObj,
+        },
+      },
+      recordHistory
+    );
+  };
+
+  const deleteDecal = (decalId) => {
+    onCommitDesign(
+      {
+        ...design,
+        decals: allDecals.filter((d) => d.id !== decalId),
+      },
+      true
+    );
+    if (selectedDecalId === decalId) {
+      setSelectedDecalId(null);
+      setIsEditingLogoDetail(false);
+      setIsEditingTextDetail(false);
+    }
+  };
+
+  const mirrorDecalToSymmetricPiece = (sourceDecal) => {
+    const mirror = getMirrorSymmetryTarget(
+      design.productModelId,
+      sourceDecal.panel || droppablePanels[0]?.panelId,
+      sourceDecal.centerMm
+    );
+    const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+    const cloned = {
+      ...sourceDecal,
+      id: `decal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+      label: `${sourceDecal.label} (Simétrico)`,
+      panel: mirror.targetPanel,
+      centerMm: mirror.centerMm,
+      pinned: false,
+      zIndex: maxZ + 5,
+    };
+    onCommitDesign(
+      {
+        ...design,
+        decals: [...allDecals, cloned],
+      },
+      true
+    );
+    setSelectedDecalId(cloned.id);
+    setPanel2D(mirror.targetPanel);
+    if (PANEL_TO_CAMERA[mirror.targetPanel]) {
+      setCameraPreset(PANEL_TO_CAMERA[mirror.targetPanel]);
+    }
+    showToast(`Espejado en ${getPartSpec(design.productModelId, mirror.targetPanel).shortLabel}`);
+  };
+
+  const handleSelectDecalFromStage = (decalId, hitPanel) => {
+    const target = allDecals.find((d) => d.id === decalId);
+    setSelectedDecalId(decalId);
+    setSelectedSlotKey(null);
+    if (hitPanel) setPanel2D(hitPanel);
+
+    if (target?.type === 'STATIC_TEXT') {
+      setActiveTab('text');
+      setIsEditingTextDetail(true);
+      setIsEditingLogoDetail(false);
+    } else if (target) {
+      setActiveTab('logo');
+      setIsEditingLogoDetail(true);
+      setIsEditingTextDetail(false);
+    }
+  };
+
+  const handleSelectSlotFromStage = (slotKey, hitPanel) => {
+    setSelectedSlotKey(slotKey);
+    setSelectedDecalId(null);
+    if (hitPanel) setPanel2D(hitPanel);
+    setActiveTab('text');
+    setIsEditingTextDetail(true);
+    setIsEditingLogoDetail(false);
+  };
+
+  const insertArtworkOnPanel = (processed, targetPanel = panel2D) => {
+    const validPanel = droppablePanels.some((p) => p.panelId === targetPanel)
+      ? targetPanel
+      : droppablePanels[0]?.panelId || 'front';
+    const spec = getPartSpec(design.productModelId, validPanel);
+    const defaultWidthMm =
+      validPanel === 'collar'
+        ? 38
+        : validPanel.includes('arm')
+        ? 72
+        : validPanel.includes('leg')
+        ? 84
+        : 112;
+    const defaultHeightMm = Math.max(14, Math.round(defaultWidthMm / (processed.aspectRatio || 1)));
+    const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+
+    return {
+      id: `decal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+      type: processed.isVector ? 'UPLOADED_VECTOR' : 'UPLOADED_RASTER',
+      artworkId: processed.artworkId,
+      label: processed.fileName.replace(/\.[^.]+$/, '').slice(0, 22),
+      panel: validPanel,
+      clampToZone: 'ALL',
+      pinned: false,
+      centerMm: {
+        x: +(spec.widthMm * spec.snapCenterU).toFixed(1),
+        y: +(spec.heightMm * (validPanel === 'front' ? 0.34 : validPanel.includes('leg') ? 0.62 : 0.48)).toFixed(1),
+      },
+      sizeMm: { width: defaultWidthMm, height: defaultHeightMm },
+      scale: 1,
+      rotationDeg: 0,
+      opacity: 1,
+      blendMode: 'source-over',
+      flipX: false,
+      flipY: false,
+      removeWhiteBg: false,
+      whiteThreshold: 238,
+      invertImage: false,
+      tintHex: '',
+      zIndex: maxZ + 5,
+      isVector: processed.isVector,
+      widthPx: processed.widthPx,
+      dataUrl: processed.dataUrl || '',
+      previewUrl: processed.dataUrl || processed.previewUrl || '',
+      imageElement: processed.imageElement,
+    };
+  };
+
+  const handleFilesSelected = async (fileList) => {
+    const files = Array.from(fileList || []).filter(
+      (f) => /\.(png|svg|webp|jpe?g)$/i.test(f.name) || f.type.startsWith('image/')
+    );
+    if (files.length === 0) return;
+
+    const added = [];
+    for (const file of files) {
+      const processed = await processUploadedArtwork(file);
+      onRegisterArtwork(processed.artworkId, processed);
+      added.push(insertArtworkOnPanel(processed, panel2D));
+    }
+
+    if (added.length > 0) {
+      onCommitDesign(
+        {
+          ...design,
+          decals: [...allDecals, ...added],
+        },
+        true
+      );
+      const last = added[added.length - 1];
+      setSelectedDecalId(last.id);
+      setSelectedSlotKey(null);
+      setActiveTab('logo');
+      setIsEditingLogoDetail(true);
+      showToast(`${added.length} archivo(s) añadido(s) a ${getPartSpec(design.productModelId, last.panel).shortLabel}`);
+    }
+  };
+
+  const handleAddPresetCrest = (preset) => {
+    const validPanel = droppablePanels.some((p) => p.panelId === panel2D)
+      ? panel2D
+      : droppablePanels[0]?.panelId || 'front';
+    const spec = getPartSpec(design.productModelId, validPanel);
+    const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+    const newDecal = {
+      id: `crest_${Date.now().toString(36)}`,
+      type: 'PRESET_CREST',
+      presetId: preset.id,
+      clubId: preset.id,
+      label: preset.name || preset.label || preset.shortName || 'Escudo Oficial',
+      panel: validPanel,
+      clampToZone: 'ALL',
+      pinned: false,
+      centerMm: {
+        x: +(spec.widthMm * (validPanel === 'front' ? 0.36 : spec.snapCenterU)).toFixed(1),
+        y: +(spec.heightMm * (validPanel === 'front' ? 0.24 : 0.62)).toFixed(1),
+      },
+      sizeMm: { width: 78, height: 78 },
+      scale: 1,
+      rotationDeg: 0,
+      opacity: 1,
+      zIndex: maxZ + 5,
+      isVector: true,
+      widthPx: 2400,
+    };
+    onCommitDesign({ ...design, decals: [...allDecals, newDecal] }, true);
+    setSelectedDecalId(newDecal.id);
+    setSelectedSlotKey(null);
+    setIsEditingLogoDetail(true);
+    showToast(`Escudo añadido: ${preset.shortName || preset.name || preset.label}`);
+    if (PANEL_TO_CAMERA[validPanel]) setCameraPreset(PANEL_TO_CAMERA[validPanel]);
+  };
+
+  const handleAddStaticText = () => {
+    const validPanel = droppablePanels.some((p) => p.panelId === panel2D)
+      ? panel2D
+      : droppablePanels[0]?.panelId || 'front';
+    const spec = getPartSpec(design.productModelId, validPanel);
+    const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+    const newText = {
+      id: `txt_${Date.now().toString(36)}`,
+      type: 'STATIC_TEXT',
+      text: 'TU EQUIPO',
+      label: 'Texto: TU EQUIPO',
+      panel: validPanel,
+      clampToZone: 'ALL',
+      pinned: false,
+      fontFamily: "'Bebas Neue', sans-serif",
+      fillHex: '#ffffff',
+      strokeHex: '#101820',
+      strokeWidthMm: 2.2,
+      archDeg: 0,
+      centerMm: {
+        x: +(spec.widthMm * spec.snapCenterU).toFixed(1),
+        y: +(spec.heightMm * (validPanel === 'front' ? 0.42 : 0.52)).toFixed(1),
+      },
+      sizeMm: { width: 190, height: 48 },
+      scale: 1,
+      rotationDeg: 0,
+      opacity: 1,
+      zIndex: maxZ + 8,
+      isVector: true,
+      widthPx: 3200,
+    };
+    onCommitDesign({ ...design, decals: [...allDecals, newText] }, true);
+    setSelectedDecalId(newText.id);
+    setSelectedSlotKey(null);
+    setActiveTab('text');
+    setIsEditingTextDetail(true);
+    if (PANEL_TO_CAMERA[validPanel]) setCameraPreset(PANEL_TO_CAMERA[validPanel]);
+  };
+
+  // --- Guardado de Bocetos Locales & Galería Interna ---
+  const executeSaveDraft = () => {
+    let thumb = null;
+    try {
+      if (canvasSnapshotRef?.current) {
+        thumb = canvasSnapshotRef.current();
+      }
+    } catch {}
+
+    saveDesignToGallery({
+      name: `Equipación ${currentProduct.shortName || currentProduct.name} - ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`,
+      design,
+      productModelId: design.productModelId,
+      productName: currentProduct.name,
+      category: currentProduct.category || 'futbol',
+      roster,
+      unitPrice,
+      totalUnits,
+      totalPrice,
+      thumbnail: thumb,
+    });
+
+    const entry = {
+      draftId: `draft_${Date.now().toString(36)}`,
+      savedAt: new Date().toLocaleString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      productName: currentProduct.shortName || currentProduct.name,
+      productModelId: design.productModelId,
+      patternId: design.patternId,
+      colors: [
+        design.colorZones.primary?.hex,
+        design.colorZones.secondary?.hex,
+        design.colorZones.accents?.hex,
+      ],
+      designSnapshot: design,
+    };
+    const next = [entry, ...savedDrafts].slice(0, 16);
+    setSavedDrafts(next);
+    try {
+      localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+    showToast(`¡Diseño guardado en tu Galería Personal!`);
+  };
+
+  const handleSaveDraft = () => {
+    if (!isAuthenticated) {
+      pendingAuthActionRef.current = 'save_draft';
+      setIsAuthModalOpen(true);
+      return;
+    }
+    executeSaveDraft();
+  };
+
+  const handleLoadFromGallery = (galleryItem) => {
+    if (!galleryItem?.design) return;
+    if (galleryItem.productModelId && galleryItem.productModelId !== design.productModelId) {
+      onSwitchProduct(galleryItem.productModelId);
+    }
+    onCommitDesign(galleryItem.design, true);
+    if (galleryItem.roster && galleryItem.roster.length > 0) {
+      onUpdateRoster(galleryItem.roster);
+    }
+    showToast(`Diseño cargado: ${galleryItem.name}`);
+  };
+
+  const handleLoadDraft = (draft) => {
+    if (!draft?.designSnapshot) return;
+    onCommitDesign(draft.designSnapshot, true);
+    setIsDraftsModalOpen(false);
+    showToast(`Boceto cargado: ${draft.productName}`);
+  };
+
+  const handleDeleteDraft = (draftId) => {
+    const next = savedDrafts.filter((d) => d.draftId !== draftId);
+    setSavedDrafts(next);
+    try {
+      localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Ignorar
+    }
+  };
+
+  // --- Aplicar Preset de la Colección México Pro (18 Clubes) ---
+  const handleApplyOfficialKit = async (kit) => {
+    setActiveMexicoKitId(kit.id);
+
+    // Pre-cargar logotipos oficiales (escudo del club y patrocinador) de inmediato
+    const crestDecal = kit.decals?.find((d) => d.type === 'LIGAMX_CREST' || d.type === 'UCL_CREST');
+    const sponsorDecal = kit.decals?.find((d) => d.type === 'SPONSOR_LOGO');
+    const preloads = [];
+
+    if (crestDecal) {
+      const clubId = crestDecal.clubId || crestDecal.presetId;
+      if (crestDecal.type === 'UCL_CREST' || kit.id.startsWith('ucl_')) {
+        preloads.push(preloadUclCrest(clubId));
+      } else {
+        preloads.push(preloadLigaMxCrest(clubId));
+      }
+    }
+    if (sponsorDecal && sponsorDecal.sponsorId) {
+      preloads.push(preloadSponsorLogo(sponsorDecal.sponsorId, sponsorDecal.tintHex));
+    }
+
+    if (preloads.length > 0) {
+      await Promise.race([
+        Promise.all(preloads),
+        new Promise((resolve) => setTimeout(resolve, 800)),
+      ]);
+    }
+
+    const baseDesign =
+      designsByProduct?.['futbol_jersey_pro_vneck'] ||
+      (design.productModelId === 'futbol_jersey_pro_vneck' ? design : null) ||
+      createDefaultDesignForProduct('futbol_jersey_pro_vneck');
+
+    const nextRoster = [...roster];
+    if (nextRoster[0]) {
+      nextRoster[0] = {
+        ...nextRoster[0],
+        name: kit.sampleName,
+        number: kit.sampleNumber,
+      };
+      onUpdateRoster(nextRoster);
+    }
+
+    onCommitDesign({
+      ...baseDesign,
+      mexicoKitId: kit.id,
+      mexicoBaseClubId: kit.baseClubId,
+      productModelId: 'futbol_jersey_pro_vneck',
+      patternId: kit.patternId,
+      colorZones: {
+        ...baseDesign.colorZones,
+        ...kit.colorZones,
+      },
+      decals: (kit.decals && kit.decals.length > 0 ? kit.decals : (baseDesign.decals || [])).map((d) => ({
+        ...d,
+        pinned: true,
+        locked: true,
+        isPattern: d.type === 'LIGAMX_GRAPHIC' || d.type === 'UCL_GRAPHIC',
+      })),
+      surfacePatternId: kit.surfacePatternId || 'none',
+      surfacePatternOpacity: kit.surfacePatternOpacity ?? 0.16,
+      variableSlots: {
+        ...baseDesign.variableSlots,
+        playerNameBack: {
+          ...baseDesign.variableSlots?.playerNameBack,
+          fillHex: kit.numberColor,
+          outlineHex: kit.numberOutline,
+        },
+        playerNumberBack: {
+          ...baseDesign.variableSlots?.playerNumberBack,
+          fillHex: kit.numberColor,
+          outlineHex: kit.numberOutline,
+        },
+        playerNumberFront: {
+          ...baseDesign.variableSlots?.playerNumberFront,
+          enabled: false,
+          fillHex: kit.numberColor,
+          outlineHex: kit.numberOutline,
+        },
+      },
+    }, true);
+
+    setIsMexicoKitsModalOpen(false);
+    setIsGarmentMenuOpen(false);
+    showToast(`Kit oficial cargado en 3D: ${kit.name} (${kit.clubAlias})`);
+  };
+
+  const handleApplyMexicoKit = (kit) => handleApplyOfficialKit(kit);
+  const handleApplyUclKit = (kit) => handleApplyOfficialKit(kit);
+
+  const PRO_KIT_DECAL_TYPES = new Set([
+    'LIGAMX_GRAPHIC',
+    'UCL_GRAPHIC',
+    'LIGAMX_CREST',
+    'UCL_CREST',
+    'SPONSOR_LOGO',
+  ]);
+
+  const handleExitOfficialKitToStandardCut = (nextPatternId = null) => {
+    const currentDecals = Array.isArray(design.decals) ? design.decals : [];
+    const hasProKitState = Boolean(
+      design.mexicoKitId ||
+      activeMexicoKitId ||
+      currentDecals.some(
+        (d) =>
+          PRO_KIT_DECAL_TYPES.has(d.type) ||
+          String(d.id || '').startsWith('decal_mx_') ||
+          String(d.id || '').startsWith('decal_ucl_')
+      )
+    );
+
+    const cleanedDecals = currentDecals.filter(
+      (d) =>
+        !PRO_KIT_DECAL_TYPES.has(d.type) &&
+        !String(d.id || '').startsWith('decal_mx_') &&
+        !String(d.id || '').startsWith('decal_ucl_')
+    );
+
+    setActiveMexicoKitId(null);
+
+    if (!hasProKitState) {
+      onCommitDesign(
+        {
+          ...design,
+          mexicoKitId: null,
+          ...(nextPatternId ? { patternId: nextPatternId } : {}),
+        },
+        true
+      );
+      return;
+    }
+
+    const defaults = createDefaultDesignForProduct(design.productModelId);
+    const nextDecals = cleanedDecals.length > 0 ? cleanedDecals : defaults.decals;
+    const resolvedPatternId =
+      nextPatternId ||
+      (design.patternId && design.patternId !== 'pure'
+        ? design.patternId
+        : defaults.patternId || 'pure');
+
+    onCommitDesign(
+      {
+        ...design,
+        mexicoKitId: null,
+        patternId: resolvedPatternId,
+        surfacePatternId: 'none',
+        colorZones: defaults.colorZones,
+        decals: nextDecals,
+        variableSlots: {
+          ...defaults.variableSlots,
+          ...design.variableSlots,
+          playerNameBack: {
+            ...defaults.variableSlots?.playerNameBack,
+            ...design.variableSlots?.playerNameBack,
+            fillHex: defaults.variableSlots?.playerNameBack?.fillHex || '#ffffff',
+            outlineHex: defaults.variableSlots?.playerNameBack?.outlineHex || '#101820',
+          },
+          playerNumberBack: {
+            ...defaults.variableSlots?.playerNumberBack,
+            ...design.variableSlots?.playerNumberBack,
+            fillHex: defaults.variableSlots?.playerNumberBack?.fillHex || '#ffffff',
+            outlineHex: defaults.variableSlots?.playerNumberBack?.outlineHex || '#101820',
+            inlineHex: defaults.variableSlots?.playerNumberBack?.inlineHex || '#ffcd00',
+          },
+          playerNumberFront: {
+            ...defaults.variableSlots?.playerNumberFront,
+            ...design.variableSlots?.playerNumberFront,
+            enabled: true,
+            fillHex: defaults.variableSlots?.playerNumberFront?.fillHex || '#ffcd00',
+            outlineHex: defaults.variableSlots?.playerNumberFront?.outlineHex || '#101820',
+          },
+        },
+      },
+      true
+    );
+  };
+
+  // --- Importador Rápido CSV para `Ejemplares` ---
+  const handleImportCsvRoster = () => {
+    const lines = csvQuickInput
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    const parsed = lines.map((line, i) => {
+      const parts = line.split(/[,;\t]/).map((s) => s.trim());
+      return {
+        id: `p_${Date.now()}_${i}`,
+        name: (parts[0] || `JUGADOR ${i + 1}`).toUpperCase(),
+        number: parts[1] || String(i + 1),
+        size: SIZE_OPTIONS.includes((parts[2] || '').toUpperCase())
+          ? parts[2].toUpperCase()
+          : 'L',
+        cut: 'MEN_PRO_SLIM',
+        qty: Math.max(1, parseInt(parts[3], 10) || 1),
+      };
+    });
+    onUpdateRoster([...roster, ...parsed]);
+    setCsvQuickInput('');
+    showToast(`${parsed.length} jugadores importados a Ejemplares`);
+  };
+
+  // --- Auditoría de Pre-Vuelo (`Revisión del diseño`) ---
+  const designReviewChecks = useMemo(() => {
+    const checks = [];
+    let hasWarnings = false;
+
+    for (const d of allDecals) {
+      const placement = evaluateDecalPlacement(d, design.productModelId, false, 'SOFT_WARN');
+      const dpi = calculateEffectiveDpi(d.widthPx || 1600, d.sizeMm.width, d.scale ?? 1, d.isVector);
+      if (placement.isOutOfSafeZone) {
+        hasWarnings = true;
+        checks.push({
+          ok: false,
+          title: `«${d.label}» invade margen de costura inferior (${placement.maxOverflowMm} mm)`,
+          detail: 'Súbelo ligeramente o cambia a modo All-Over si deseas sangrado completo.',
+        });
+      }
+      if (dpi.level === 'LOW_RES') {
+        hasWarnings = true;
+        checks.push({
+          ok: false,
+          title: `«${d.label}» tiene ${dpi.dpi} DPI al tamaño actual`,
+          detail: 'Reduce su escala o sube una versión vectorial SVG / PNG mayor a 1200 px.',
+        });
+      }
+    }
+
+    if (checks.length === 0) {
+      checks.push({
+        ok: true,
+        title: 'Todos los escudos, archivos PNG/SVG y textos cumplen con márgenes de costura y nitidez RIP.',
+        detail: `${allDecals.length} capas gráficas auditadas a escala física 1:1.`,
+      });
+    }
+
+    checks.push({
+      ok: roster.length > 0,
+      title: `Lista de Ejemplares lista (${totalUnits} prendas en ${roster.length} filas)`,
+      detail: `Tarifa aplicada: ${currentTier.label} ($${unitPrice.toFixed(2)} USD c/u).`,
+    });
+
+    return { checks, hasWarnings };
+  }, [allDecals, design.productModelId, roster.length, totalUnits, currentTier.label, unitPrice]);
+
+  const handleGenderSwitch = (targetGender) => {
+    if (targetGender === genderModule) return;
+    setGenderModule(targetGender);
+
+    if (targetGender === 'women') {
+      if (design.productModelId === 'basketball_b6_hero') {
+        onSwitchProduct('basketball_b7w_epic_women');
+      } else if (design.productModelId === 'basketball_shorts_bp6') {
+        onSwitchProduct('basketball_shorts_bp7w_women');
+      } else if (design.productModelId === 'jacket_softshell_601m_men') {
+        onSwitchProduct('jacket_softshell_601w_women');
+      } else {
+        onSwitchProduct('basketball_b7w_epic_women');
+      }
+    } else {
+      if (design.productModelId === 'basketball_b7w_epic_women') {
+        onSwitchProduct('basketball_b6_hero');
+      } else if (design.productModelId === 'basketball_shorts_bp7w_women') {
+        onSwitchProduct('basketball_shorts_bp6');
+      } else if (design.productModelId === 'jacket_softshell_601w_women') {
+        onSwitchProduct('jacket_softshell_601m_men');
+      } else {
+        onSwitchProduct('futbol_jersey_pro_vneck');
+      }
+    }
+  };
+
+  const handleOpenGarmentMenuForGender = (targetGender, section = null) => {
+    if (targetGender !== genderModule) {
+      handleGenderSwitch(targetGender);
+    }
+    if (section) {
+      setGarmentMenuMenSection(section);
+    }
+    setIsGarmentMenuOpen(true);
+  };
+
+  const filteredUclKitsInMenu = useMemo(() => {
+    return UCL_PRO_KITS.filter((kit) => {
+      if (mexicoKitEditionFilter !== 'all' && kit.edition !== mexicoKitEditionFilter) {
+        return false;
+      }
+      const q = mexicoKitSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        kit.name.toLowerCase().includes(q) ||
+        kit.clubAlias.toLowerCase().includes(q) ||
+        kit.location.toLowerCase().includes(q) ||
+        kit.description.toLowerCase().includes(q)
+      );
+    });
+  }, [mexicoKitSearch, mexicoKitEditionFilter]);
+
+  const filteredMexicoKitsInMenu = useMemo(() => {
+    return MEXICO_PRO_KITS.filter((kit) => {
+      // Filtro de Versión: Local / Visitante / Todos
+      if (mexicoKitEditionFilter !== 'all' && kit.edition !== mexicoKitEditionFilter) {
+        return false;
+      }
+
+      const q = mexicoKitSearch.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        kit.name.toLowerCase().includes(q) ||
+        kit.clubAlias.toLowerCase().includes(q) ||
+        kit.location.toLowerCase().includes(q) ||
+        kit.description.toLowerCase().includes(q);
+
+      if (!matchSearch) return false;
+
+      if (mexicoKitRegionFilter === 'all') return true;
+      if (mexicoKitRegionFilter === 'cdmx') return kit.location === 'CDMX';
+      if (mexicoKitRegionFilter === 'jalisco') return kit.location === 'Jalisco';
+      if (mexicoKitRegionFilter === 'norte') {
+        return ['Nuevo León', 'Coahuila', 'Sinaloa', 'Baja California', 'Chihuahua'].includes(kit.location);
+      }
+      if (mexicoKitRegionFilter === 'centro_bajio') {
+        return ['Edo. de México', 'Guanajuato', 'Hidalgo', 'Aguascalientes', 'Puebla', 'Querétaro', 'San Luis Potosí'].includes(kit.location);
+      }
+      return true;
+    });
+  }, [mexicoKitSearch, mexicoKitRegionFilter, mexicoKitEditionFilter]);
+
+  // Insertar Parche Oficial de Manga (Liga MX / UEFA Champions League)
+  const handleAddSleeveBadge = (badgeType) => {
+    const badgeMap = {
+      mx_official: {
+        label: 'Parche Oficial Liga MX',
+        file: '/assets/badges/badge_ligamx_official.svg',
+        panel: 'right_sleeve',
+        size: 70,
+      },
+      mx_champion: {
+        label: 'Parche Campeón Liga MX',
+        file: '/assets/badges/badge_ligamx_champion.svg',
+        panel: 'right_sleeve',
+        size: 70,
+      },
+      ucl_starball: {
+        label: 'Starball Oficial UCL',
+        file: '/assets/badges/badge_ucl_starball.svg',
+        panel: 'right_sleeve',
+        size: 75,
+      },
+      ucl_foundation: {
+        label: 'UEFA Foundation for Children',
+        file: '/assets/badges/badge_ucl_foundation.svg',
+        panel: 'left_sleeve',
+        size: 70,
+      },
+    };
+
+    const b = badgeMap[badgeType];
+    if (!b) return;
+
+    const artId = `art_${badgeType}_${Date.now()}`;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      onRegisterArtwork?.(artId, {
+        artworkId: artId,
+        fileName: b.label,
+        previewUrl: b.file,
+        drawable: img,
+        widthPx: 500,
+        heightPx: 500,
+        aspectRatio: 1,
+        isVector: true,
+      });
+
+      const targetPanel = droppablePanels.some((p) => p.panelId === b.panel)
+        ? b.panel
+        : droppablePanels[0]?.panelId || 'front';
+
+      const sp = getPartSpec(design.productModelId, targetPanel);
+      const newDecal = {
+        id: `decal_${Date.now()}`,
+        type: 'UPLOADED_VECTOR',
+        artworkId: artId,
+        label: b.label,
+        panel: targetPanel,
+        centerMm: {
+          x: +(sp.widthMm * 0.5).toFixed(1),
+          y: +(sp.heightMm * 0.45).toFixed(1),
+        },
+        sizeMm: { width: b.size, height: b.size },
+        scale: 1,
+        rotationDeg: 0,
+        opacity: 1,
+        zIndex: 25,
+        removeWhiteBg: false,
+      };
+
+      onCommitDesign(
+        {
+          ...design,
+          decals: [...(design.decals || []), newDecal],
+        },
+        true
+      );
+
+      setSelectedDecalId(newDecal.id);
+      setIsEditingLogoDetail(true);
+      setPanel2D(targetPanel);
+      if (PANEL_TO_CAMERA[targetPanel]) setCameraPreset(PANEL_TO_CAMERA[targetPanel]);
+      showToast(`${b.label} colocado en manga`);
+    };
+    img.src = b.file;
+  };
+
+  // Si hay un kit de la Liga MX activo, identificamos el club y sus 2 versiones oficiales (Local y Visitante)
+  const activeMexicoClubKits = useMemo(() => {
+    const kitId = design?.mexicoKitId || activeMexicoKitId;
+    if (!kitId || design?.productModelId !== 'futbol_jersey_pro_vneck') return null;
+    
+    let currentKit = MEXICO_PRO_KITS.find((k) => k.id === kitId);
+    let pool = MEXICO_PRO_KITS;
+    let isUcl = false;
+
+    if (!currentKit) {
+      currentKit = UCL_PRO_KITS.find((k) => k.id === kitId);
+      if (currentKit) {
+        pool = UCL_PRO_KITS;
+        isUcl = true;
+      }
+    }
+
+    if (!currentKit) return null;
+    const baseClubId = currentKit.baseClubId;
+    const homeKit = pool.find((k) => k.baseClubId === baseClubId && k.edition === 'local');
+    const awayKit = pool.find((k) => k.baseClubId === baseClubId && k.edition === 'visitante');
+    return {
+      currentKit,
+      homeKit,
+      awayKit,
+      baseClubId,
+      clubAlias: currentKit.clubAlias,
+      location: currentKit.location,
+      isUcl,
+      flag: isUcl ? '⭐' : '🇲🇽',
+      leagueName: isUcl ? 'UEFA Champions League 2026/27' : 'Liga MX 2026/2027',
+    };
+  }, [design?.mexicoKitId, design?.productModelId, activeMexicoKitId]);
+
+  const menBasketball = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Baloncesto');
+  const menFootball = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Fútbol');
+  const menJackets = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Chaquetas');
+  const menEsports = ENGINE_PRODUCTS.filter((p) => p.sport === 'E-Sports');
+
+  const womenFootball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Fútbol');
+  const womenBasketball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Baloncesto');
+  const womenJackets = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Chaquetas');
+  const accessoryProducts = ENGINE_PRODUCTS.filter((p) => p.renderMode === 'FAUX_3D_LAYERED_WEBP');
+
+  const currentSportProducts = useMemo(() => {
+    const list = ENGINE_PRODUCTS.filter(
+      (p) => p.gender === genderModule && p.sport === currentProduct.sport
+    );
+    // Si es Dama y está en fútbol pero no hay short de dama exclusivo, incluir el short de fútbol de matchday
+    if (genderModule === 'women' && currentProduct.sport === 'Fútbol') {
+      const matchdayShort = ENGINE_PRODUCTS.find((p) => p.id === 'football_shorts_fp3');
+      if (matchdayShort && !list.some((p) => p.id === matchdayShort.id)) {
+        list.push(matchdayShort);
+      }
+    }
+    return list;
+  }, [genderModule, currentProduct.sport]);
+
+  return (
+    <div className="h-dvh flex flex-col bg-slate-50 text-slate-900 overflow-hidden font-sans">
+      {/* 1. CABECERA DESKTOP (PANTALLAS MEDIANAS Y GRANDES) */}
+      <header className="hidden sm:flex shrink-0 px-3 sm:px-5 py-2.5 bg-white border-b border-slate-200 flex-wrap items-center justify-between gap-2 shadow-xs z-30">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onSwitchToStorefront}
+            title="Volver a la tienda principal"
+            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 border border-slate-300 transition-colors cursor-pointer"
+          >
+            <Store className="w-4 h-4 text-sky-600" />
+            <span>← Volver a la Tienda</span>
+          </button>
+
+          {/* Segmentos Independientes: ♂ Caballero vs ♀ Dama */}
+          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+            <button
+              id="btn-nav-caballero"
+              type="button"
+              onClick={() => handleOpenGarmentMenuForGender('men')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                genderModule === 'men'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Abrir menú interactivo para Caballero"
+            >
+              <span>♂ Caballero</span>
+            </button>
+            <button
+              id="btn-nav-dama"
+              type="button"
+              onClick={() => handleOpenGarmentMenuForGender('women')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                genderModule === 'women'
+                  ? 'bg-fuchsia-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Abrir menú interactivo para Dama"
+            >
+              <span>♀ Dama</span>
+            </button>
+          </div>
+
+          {/* Menú Interactivo de Deportes y Prendas */}
+          <button
+            id="btn-open-garment-menu"
+            type="button"
+            onClick={() => setIsGarmentMenuOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+            title="Abrir catálogo interactivo de deportes"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span>
+              {currentProduct.sport}: <strong className="text-slate-900">{currentProduct.shortName || currentProduct.name}</strong>
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+          </button>
+
+          {/* Alternador Rápido de Prendas del Deporte Activo (p. ej. Camiseta ↔ Short) */}
+          {currentSportProducts.length > 1 && (
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+              {currentSportProducts.map((prod) => {
+                const isActive = design.productModelId === prod.id;
+                const label = prod.garmentCategory === 'shorts' ? 'Short' : 'Camisa';
+                return (
+                  <button
+                    key={prod.id}
+                    type="button"
+                    onClick={() => onSwitchProduct(prod.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Sincronizador 1-clic Camiseta ↔ Short */}
+          {pairedProduct && (
+            <button
+              type="button"
+              onClick={() => {
+                onSyncPairedColors?.();
+                showToast(`Colores copiados a ${pairedProduct.shortName}`);
+              }}
+              title={`Copiar la paleta actual a ${pairedProduct.name}`}
+              className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-[11px] font-bold text-sky-700 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Link2 className="w-3.5 h-3.5 text-sky-600" />
+              <span className="hidden xl:inline">Sincronizar colores en {pairedProduct.shortName}</span>
+              <span className="xl:hidden">Sincronizar Kit</span>
+            </button>
+          )}
+        </div>
+
+        {/* Estado de Privilegios e Identidad: Administrador Master / Cuenta de Club */}
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-900 text-emerald-400 border border-slate-800 text-xs font-black uppercase tracking-wider shadow-2xs">
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Admin Master</span>
+              <button
+                type="button"
+                onClick={() => setAdminMode(false)}
+                title="Probar vista de cliente (requiere crear cuenta para descargar plantillas)"
+                className="ml-1 text-[9px] text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                (Modo Cliente)
+              </button>
+            </div>
+          ) : isAuthenticated ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold shadow-2xs">
+              <span>👤 {currentUser?.name}</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                pendingAuthActionRef.current = null;
+                setIsAuthModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <span>Cuenta de Club</span>
+            </button>
+          )}
+        </div>
+
+        {/* Conmutador Dual Escenario: [ 🌐 3D CAD ] vs [ 📐 Plantilla 2D ] */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300">
+          <button
+            type="button"
+            id="toggle-stage-3d"
+            onClick={() => setViewportMode('3d')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewportMode === '3d'
+                ? 'bg-slate-900 text-emerald-400 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>3D CAD</span>
+          </button>
+          <button
+            type="button"
+            id="toggle-stage-2d"
+            onClick={() => setViewportMode('2d_pliego')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewportMode === '2d_pliego'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Scissors className="w-3.5 h-3.5" />
+            <span>Plantilla 2D</span>
+          </button>
+        </div>
+
+        {/* Acciones Rápidas: Mockup Redes, Plantilla 2D y Galería Desktop */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsSocialMediaModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-xs font-black text-sky-800 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            title="Generar mockup para redes sociales o compartir enlace"
+          >
+            <Share2 className="w-4 h-4 text-sky-600" />
+            <span>Mockup / Redes</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-header-production-mold"
+            onClick={() => setIsProductionMoldModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-xs font-black text-emerald-800 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            title="Abrir plantilla técnica de confección y corte a escala real 1:1"
+          >
+            <Scissors className="w-4 h-4 text-emerald-600" />
+            <span>Descarga RIP</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsGalleryModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Abrir galería de diseños guardados"
+          >
+            <FolderHeart className="w-4 h-4 text-rose-500" />
+            <span>Mis Diseños ({galleryCount})</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 1. CABECERA MOBILE COMPACTA (1 SOLA FILA LIMPIA DE 48PX CON TOGGLE 3D/2D) */}
+      <header className="flex sm:hidden shrink-0 h-12 px-2.5 bg-white border-b border-slate-200 items-center justify-between z-30 shadow-2xs">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <button
+            type="button"
+            onClick={onSwitchToStorefront}
+            title="Volver a la tienda"
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsGarmentMenuOpen(true)}
+            className="px-2 py-1 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-900 flex items-center gap-1 truncate cursor-pointer shadow-2xs max-w-[130px]"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="truncate">{currentProduct.shortName || currentProduct.name}</span>
+            <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            id="btn-mobile-header-production-mold"
+            onClick={() => setIsProductionMoldModalOpen(true)}
+            title="Ver Plantilla 2D"
+            className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-black flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+          >
+            <Scissors className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Plantilla</span>
+          </button>
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Deshacer"
+            className="p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 disabled:opacity-25 cursor-pointer"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Rehacer"
+            className="p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 disabled:opacity-25 cursor-pointer"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* Toast flotante de confirmación instantánea */}
+      {toastMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-emerald-500 text-slate-950 text-xs font-black shadow-xl flex items-center gap-1.5">
+          <Check className="w-3.5 h-3.5" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* 2. CUERPO CENTRAL OWAYO EN 2 COLUMNAS: ESCENARIO INTERACTIVO (IZQ) + PANEL DE 4 PESTAÑAS (DER) */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+        {/* ESCENARIO 3D INTERACTIVO / 2D PLANO CON ILUMINACIÓN PROFESIONAL DE ESTUDIO */}
+        <main
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); return false; }}
+          className={`relative bg-[radial-gradient(circle_at_50%_38%,#ffffff_0%,#f1f5f9_60%,#e2e8f0_100%)] overflow-hidden flex flex-col transition-all duration-300 ${
+            isMobilePanelCollapsed
+              ? 'flex-1 h-full'
+              : 'h-[44vh] sm:h-[48vh] lg:h-auto lg:flex-1 shrink-0 lg:shrink'
+          }`}
+        >
+          {!isFaux3DAccessory ? (
+            <div
+              className={`absolute inset-0 transition-opacity duration-150 ${
+                viewportMode === '2d_pliego' ? 'opacity-0 pointer-events-none invisible' : 'opacity-100 z-10'
+              }`}
+              aria-hidden={viewportMode === '2d_pliego'}
+            >
+              <GarmentCanvas3D
+                design={design}
+                activePlayer={activePlayer}
+                artworkRegistry={artworkRegistry}
+                cameraPreset={cameraPreset}
+                cameraPulse={cameraPulse}
+                isVisible={viewportMode !== '2d_pliego'}
+                onChangeCameraPreset={handleChangeCameraPreset}
+                autoRotate={autoRotate}
+                selectedDecalId={selectedDecalId}
+                selectedSlotKey={selectedSlotKey}
+                onSelectDecalFrom3D={handleSelectDecalFromStage}
+                onSelectSlotFrom3D={handleSelectSlotFromStage}
+                onUpdateDecalFrom3D={updateDecal}
+                onUpdateSlotFrom3D={updateVariableSlot}
+                onDeleteDecalFrom3D={deleteDecal}
+                onMirrorDecalFrom3D={mirrorDecalToSymmetricPiece}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={onUndo}
+                onRedo={onRedo}
+                canvasSnapshotRef={canvasSnapshotRef}
+              />
+            </div>
+          ) : (
+            <LayerStack25DViewer
+              design={design}
+              product={currentProduct}
+              artworkRegistry={artworkRegistry}
+            />
+          )}
+
+          {viewportMode === '2d_pliego' && (
+            <div className="absolute inset-0 z-20 bg-white">
+              <Interactive2DPliegoStage
+                design={design}
+                activePlayer={activePlayer}
+                artworkRegistry={artworkRegistry}
+                onOpenProductionModal={() => setIsProductionMoldModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* Selector rápido inferior de jugador de muestra + Auto-giro */}
+          <div
+            className={`pointer-events-auto absolute hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 border border-slate-300 text-[11px] backdrop-blur-sm shadow-xs text-slate-800 ${
+              viewportMode === '2d_pliego'
+                ? 'bottom-4 left-1/2 -translate-x-1/2'
+                : 'bottom-3 right-3'
+            }`}
+          >
+            <span className="text-slate-500 font-bold">Muestra:</span>
+            <select
+              value={activeRosterIndex}
+              onChange={(e) => setActiveRosterIndex(Number(e.target.value))}
+              aria-label="Seleccionar jugador de muestra en visor"
+              className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-slate-900 font-bold"
+            >
+              {roster.map((r, idx) => (
+                <option key={r.id || idx} value={idx}>
+                  #{r.number} {r.name} ({r.size})
+                </option>
+              ))}
+            </select>
+
+            {!isFaux3DAccessory && viewportMode !== '2d_pliego' && (
+              <label className="flex items-center gap-1.5 pl-2 border-l border-slate-200 text-slate-700 cursor-pointer">
+                <span>Giro 360°</span>
+                <input
+                  type="checkbox"
+                  {...{ switch: '' }}
+                  checked={autoRotate}
+                  onChange={(e) => setAutoRotate(e.target.checked)}
+                />
+              </label>
+            )}
+          </div>
+        </main>
+
+        {/* PANEL LATERAL DERECHO OWAYO (`Diseño | Colores | Text | Logo`) */}
+        <aside
+          className={`w-full lg:w-[430px] xl:w-[465px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col min-h-0 shadow-md z-20 transition-all duration-300 ${
+            isMobilePanelCollapsed
+              ? 'h-13 overflow-hidden'
+              : 'flex-1 lg:flex-initial lg:h-auto lg:max-h-none'
+          }`}
+        >
+          {/* Cabecera del Panel: Nombre Prenda + Conmutador [ ✨ Recuadros Pro ] / [ 🛠️ Clásico ] */}
+          <div className="shrink-0 px-3.5 py-2.5 sm:p-4 sm:pb-3 border-b border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
+                    {currentProduct.name}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsGarmentMenuOpen(true)}
+                    className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200 hover:bg-sky-100 flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    <span>Cambiar</span>
+                    <ChevronDown className="w-3 h-3 text-sky-600" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón expandir/colapsar en móviles */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsMobilePanelCollapsed((prev) => !prev)}
+                  className="sm:hidden px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer border border-slate-200"
+                  title={isMobilePanelCollapsed ? 'Abrir herramientas de edición' : 'Ver modelo 3D en pantalla completa'}
+                >
+                  {isMobilePanelCollapsed ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Editar</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Ver 3D</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRosterModalOpen(true)}
+                  title="Lista de ejemplares y tallas"
+                  className="hidden sm:flex p-2 rounded-xl text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Pestañas de píldora Clásicas */}
+            {!isMobilePanelCollapsed && (
+              <div className="flex items-center gap-1.5 sm:gap-2 mt-2.5 sm:mt-3.5">
+                {OWAYO_TABS.map((t) => {
+                  const isActive = activeTab === t.id;
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.id}
+                      id={`tab-pill-${t.id}`}
+                      type="button"
+                      onClick={() => setActiveTab(t.id)}
+                      className={`flex-1 py-1.5 sm:py-2 px-2 rounded-xl sm:rounded-full text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-900 text-white shadow-xs font-bold'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/60 font-semibold'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Contenido desplazable de la pestaña activa */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* ==================== PESTAÑA 1: DISEÑO ==================== */}
+            {activeTab === 'design' && (
+              <div className="space-y-4">
+                {activeMexicoClubKits ? (
+                  /* Modo Liga MX: Exclusivamente Versión Local y Visitante (2 Versiones) */
+                  <div className="space-y-3.5">
+                    {/* Cabecera del Club Activo */}
+                    <div className="p-3.5 rounded-2xl bg-white text-slate-900 shadow-xs border border-slate-200">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm">{activeMexicoClubKits.flag}</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                              {activeMexicoClubKits.clubAlias}
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">
+                              {activeMexicoClubKits.location}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 truncate mt-1 font-medium">
+                            {activeMexicoClubKits.leagueName} • Patrocinadores Oficiales
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          id="btn-change-club-in-design"
+                          onClick={() => setIsMexicoKitsModalOpen(true)}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold shrink-0 transition-all cursor-pointer border border-slate-300 flex items-center gap-1 shadow-2xs"
+                        >
+                          <span>Cambiar Club</span>
+                          <span>↺</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Selector de 2 Versiones: Local y Visitante */}
+                    <div>
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                        <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                          <span>Versiones de Diseño Oficiales (2):</span>
+                        </span>
+                        <button
+                          type="button"
+                          id="btn-return-standard-cuts"
+                          onClick={() => handleExitOfficialKitToStandardCut()}
+                          className="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Ver cortes estándar ({availableFishDesigns.length})
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mt-2.5">
+                        {/* Tarjeta Versión Local */}
+                        {activeMexicoClubKits.homeKit && (
+                          <button
+                            type="button"
+                            id="btn-switch-kit-local"
+                            onClick={() => handleApplyMexicoKit(activeMexicoClubKits.homeKit)}
+                            className={`p-3 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2.5 cursor-pointer group ${
+                              activeMexicoClubKits.currentKit.edition === 'local'
+                                ? 'bg-emerald-50/80 border-2 border-emerald-600 shadow-sm ring-2 ring-emerald-500/20'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  activeMexicoClubKits.currentKit.edition === 'local'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                🏠 Local
+                              </span>
+                              {activeMexicoClubKits.currentKit.edition === 'local' ? (
+                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                                  ✓ Activo en 3D
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 group-hover:text-slate-600">
+                                  Seleccionar
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="py-2 flex justify-center bg-slate-50/60 rounded-xl border border-slate-100 group-hover:bg-emerald-50/40 transition-colors">
+                              <JerseyThumbnailMiniature kit={activeMexicoClubKits.homeKit} size={64} />
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-1.5">
+                              <h5 className="text-xs font-black text-slate-900 truncate" title={activeMexicoClubKits.homeKit.name}>
+                                {activeMexicoClubKits.homeKit.name}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5 font-medium">
+                                Corte: {activeMexicoClubKits.homeKit.patternId}
+                              </p>
+                            </div>
+                          </button>
+                        )}
+
+                        {/* Tarjeta Versión Visitante */}
+                        {activeMexicoClubKits.awayKit && (
+                          <button
+                            type="button"
+                            id="btn-switch-kit-away"
+                            onClick={() => handleApplyMexicoKit(activeMexicoClubKits.awayKit)}
+                            className={`p-3 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2.5 cursor-pointer group ${
+                              activeMexicoClubKits.currentKit.edition === 'visitante'
+                                ? 'bg-sky-50/80 border-2 border-sky-600 shadow-sm ring-2 ring-sky-500/20'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  activeMexicoClubKits.currentKit.edition === 'visitante'
+                                    ? 'bg-sky-600 text-white'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                ✈️ Visita
+                              </span>
+                              {activeMexicoClubKits.currentKit.edition === 'visitante' ? (
+                                <span className="text-[10px] font-black text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">
+                                  ✓ Activo en 3D
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 group-hover:text-slate-600">
+                                  Seleccionar
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="py-2 flex justify-center bg-slate-50/60 rounded-xl border border-slate-100 group-hover:bg-sky-50/40 transition-colors">
+                              <JerseyThumbnailMiniature kit={activeMexicoClubKits.awayKit} size={64} />
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-1.5">
+                              <h5 className="text-xs font-black text-slate-900 truncate" title={activeMexicoClubKits.awayKit.name}>
+                                {activeMexicoClubKits.awayKit.name}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5 font-medium">
+                                Corte: {activeMexicoClubKits.awayKit.patternId}
+                              </p>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Modo Normal: Todos los estilos de corte CAD (16 cortes) */
+                  <>
+                    {/* Banner de Acceso a Kits Oficiales Pro (Liga MX + Champions League) */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white shadow-md border border-indigo-800/50 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                            <span>⭐</span>
+                            <span>Kits Oficiales Pro (60)</span>
+                          </span>
+                        </div>
+                        <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">
+                          2026/27
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-300 font-medium leading-tight">
+                        Colecciones completas con patrocinadores y escudos oficiales. Cárgalos directamente en el visor 3D:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <button
+                          id="btn-open-ligamx-sidebar"
+                          type="button"
+                          onClick={() => {
+                            setProKitsCollectionTab('ligamx');
+                            setIsMexicoKitsModalOpen(true);
+                          }}
+                          className="px-2.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 flex items-center justify-center gap-1.5 border border-emerald-400/30"
+                        >
+                          <span>🇲🇽</span>
+                          <span>Liga MX (36)</span>
+                        </button>
+                        <button
+                          id="btn-open-ucl-sidebar"
+                          type="button"
+                          onClick={() => {
+                            setProKitsCollectionTab('ucl');
+                            setIsMexicoKitsModalOpen(true);
+                          }}
+                          className="px-2.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 flex items-center justify-center gap-1.5 border border-blue-400/40 ring-2 ring-amber-400/60"
+                        >
+                          <span>⭐</span>
+                          <span>Champions (24)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                      <span className="text-xs font-black text-slate-800">
+                        Estilos de corte disponibles ({availableFishDesigns.length}):
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                        {currentProduct.owayoCutCode}
+                      </span>
+                    </div>
+
+                    {/* Filtro por Categoría de Estilo */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                      {['Todos', 'Moderno', 'Rayas', 'Geométrico', 'Degradado', 'Minimalista'].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setPatternCategoryFilter(cat)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-tight transition-all whitespace-nowrap cursor-pointer ${
+                            patternCategoryFilter === cat
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/60'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Cuadrícula de Recuadros Deportivos de Personalización (Sin miniaturas de camiseta) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {availableFishDesigns
+                        .filter((d) => {
+                          if (patternCategoryFilter === 'Todos') return true;
+                          return (d.category || 'Moderno') === patternCategoryFilter;
+                        })
+                        .map((dMeta) => {
+                          const isSelected = design.patternId === dMeta.id && !activeMexicoKitId;
+                          const catLabel = dMeta.category || 'Clásico';
+                          return (
+                            <button
+                              key={dMeta.id}
+                              type="button"
+                              onClick={() => {
+                                handleExitOfficialKitToStandardCut(dMeta.id);
+                                setToastMessage(`Estilo ${dMeta.name} aplicado`);
+                                setTimeout(() => setToastMessage(''), 2000);
+                              }}
+                              className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer relative group ${
+                                isSelected
+                                  ? 'border-2 border-emerald-500 bg-emerald-50/40 shadow-xs ring-2 ring-emerald-500/20'
+                                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1 w-full">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                  {catLabel}
+                                </span>
+                                {isSelected ? (
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                    <span>Activo</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-mono text-slate-400 font-medium">
+                                    {dMeta.baseColors?.length || 3} zonas
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate w-full">
+                                {dMeta.name}
+                              </div>
+
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium w-full pt-1 border-t border-slate-100">
+                                <span className="text-[9px] font-mono text-slate-400">corte CAD</span>
+                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-mono">3D</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
+
+                {/* Textura Geométrica Opcional sobre Zona A */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">Trama Sublimada en Zona A</span>
+                    <span className="text-[10px] font-mono text-blue-600 font-bold">
+                      {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {ZONE_SURFACE_PATTERNS.map((pat) => (
+                      <button
+                        key={pat.id}
+                        type="button"
+                        onClick={() => onCommitDesign({ ...design, surfacePatternId: pat.id }, true)}
+                        className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
+                          (design.surfacePatternId || 'none') === pat.id
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {pat.name}
+                      </button>
+                    ))}
+                  </div>
+                  {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                    <input
+                      type="range"
+                      min="5"
+                      max="55"
+                      value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
+                      style={rangeVars(Math.round((design.surfacePatternOpacity ?? 0.16) * 100), 5, 55)}
+                      onChange={(e) =>
+                        onCommitDesign(
+                          { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
+                          false
+                        )
+                      }
+                      className="studio-range w-full"
+                    />
+                  )}
+                </div>
+
+                {/* Tejido Técnico Real */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <span className="text-xs font-bold text-slate-800 block">Tejido Técnico (Micro-Relieve 3D)</span>
+                  <div className="space-y-1.5">
+                    {FABRIC_WEAVES.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() => onCommitDesign({ ...design, fabricWeaveId: w.id }, true)}
+                        className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-colors ${
+                          design.fabricWeaveId === w.id
+                            ? 'bg-blue-50 border-blue-600 text-blue-950 font-bold'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold">{w.name}</div>
+                          <div className="text-[10px] text-slate-500">{w.subtitle}</div>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
+                          {w.gsm}g
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Opciones de Confección: Tipo de Cuello y Malla Técnica */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 block uppercase tracking-wide">
+                      Estilo de Cuello (Patronaje)
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      Confección
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'v_neck', label: 'Cuello V Pro', desc: 'Ergonómico' },
+                      { id: 'round', label: 'Cuello Redondo', desc: 'Clásico' },
+                      { id: 'polo', label: 'Cuello Polo', desc: 'Con botón' },
+                    ].map((col) => {
+                      const isSel = (design.proCollar || 'v_neck') === col.id;
+                      return (
+                        <button
+                          key={col.id}
+                          type="button"
+                          onClick={() => {
+                            setProCollar(col.id);
+                            onCommitDesign({ ...design, proCollar: col.id }, true);
+                            showToast(`Estilo de cuello actualizado a ${col.label}`);
+                          }}
+                          className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <div className="text-xs font-black truncate">{col.label}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{col.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Switch Malla Mesh Transpirable */}
+                  <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-700 font-bold cursor-pointer">
+                    <div>
+                      <span>Inserciones de Malla Mesh Lateral</span>
+                      <p className="text-[10px] text-slate-400 font-normal">Microperforaciones para ventilación activa</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      {...{ switch: '' }}
+                      checked={Boolean(design.hasMeshPanels)}
+                      onChange={(e) => {
+                        onCommitDesign({ ...design, hasMeshPanels: e.target.checked }, true);
+                        showToast(e.target.checked ? 'Paneles de malla mesh activados' : 'Paneles de malla desactivados');
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== PESTAÑA 2: COLORES SIMPLIFICADOS (OWAYO STYLE) ==================== */}
+            {activeTab === 'colors' && (
+              <div className="space-y-4">
+                {/* Bloques Horizontales de Color: Principal, Secundario, Cuello */}
+                <div className="space-y-3">
+                  {/* Fila 1: Color Principal + Patrón */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveColorZone('primary')}
+                      className={`flex-1 p-2 rounded-xl border text-left transition-all cursor-pointer relative ${
+                        activeColorZone === 'primary'
+                          ? 'border-2 border-slate-900 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div
+                        className="w-full h-8 rounded-lg border border-black/10 shadow-inner"
+                        style={{ backgroundColor: design.colorZones.primary?.hex || '#ffffff' }}
+                      />
+                      <div className="flex items-center justify-between mt-1 px-0.5">
+                        <span className="text-xs font-bold text-slate-800">Color principal</span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase">
+                          {design.colorZones.primary?.hex}
+                        </span>
+                      </div>
+                      {activeColorZone === 'primary' && (
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900 z-10" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('design')}
+                      title="Ver o cambiar patrón de diseño"
+                      className="w-20 p-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 flex flex-col items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <div className="w-full h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                        <Sparkles className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-700 mt-1">Patrón</span>
+                    </button>
+                  </div>
+
+                  {/* Fila 2: Segundo Color + Contorno */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveColorZone('secondary')}
+                      className={`flex-1 p-2 rounded-xl border text-left transition-all cursor-pointer relative ${
+                        activeColorZone === 'secondary'
+                          ? 'border-2 border-slate-900 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div
+                        className="w-full h-8 rounded-lg border border-black/10 shadow-inner"
+                        style={{ backgroundColor: design.colorZones.secondary?.hex || '#1d4ed8' }}
+                      />
+                      <div className="flex items-center justify-between mt-1 px-0.5">
+                        <span className="text-xs font-bold text-slate-800">Segundo color</span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase">
+                          {design.colorZones.secondary?.hex}
+                        </span>
+                      </div>
+                      {activeColorZone === 'secondary' && (
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900 z-10" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveColorZone('accents')}
+                      title="Color de detalles y contornos"
+                      className={`w-20 p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                        activeColorZone === 'accents'
+                          ? 'border-2 border-slate-900 bg-white'
+                          : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                      }`}
+                    >
+                      <div
+                        className="w-full h-8 rounded-lg border border-black/10 shadow-inner"
+                        style={{ backgroundColor: design.colorZones.accents?.hex || '#facc15' }}
+                      />
+                      <span className="text-[11px] font-bold text-slate-700 mt-1">Contorno</span>
+                    </button>
+                  </div>
+
+                  {/* Fila 3: Color Cuello (+ Mangas si aplica) */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveColorZone('collar')}
+                      className={`flex-1 p-2 rounded-xl border text-left transition-all cursor-pointer relative ${
+                        activeColorZone === 'collar'
+                          ? 'border-2 border-slate-900 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div
+                        className="w-full h-8 rounded-lg border border-black/10 shadow-inner"
+                        style={{
+                          backgroundColor:
+                            design.colorZones.collar?.hex ||
+                            design.colorZones.accents?.hex ||
+                            design.colorZones.primary?.hex ||
+                            '#101820',
+                        }}
+                      />
+                      <div className="flex items-center justify-between mt-1 px-0.5">
+                        <span className="text-xs font-bold text-slate-800">
+                          {currentProduct.garmentShape === 'basketball_tank' ? 'Ribetes Sisa / Cuello' : 'Color cuello'}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase">
+                          {design.colorZones.collar?.hex || design.colorZones.accents?.hex}
+                        </span>
+                      </div>
+                      {activeColorZone === 'collar' && (
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900 z-10" />
+                      )}
+                    </button>
+
+                    {/* Zona adicional solo si la prenda realmente tiene mangas */}
+                    {design.colorZones.sleeves &&
+                      !['basketball_tank', 'football_shorts', 'basketball_shorts'].includes(currentProduct.garmentShape) && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveColorZone('sleeves')}
+                        title="Mangas / Puños"
+                        className={`w-20 p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                          activeColorZone === 'sleeves'
+                            ? 'border-2 border-slate-900 bg-white'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                        }`}
+                      >
+                        <div
+                          className="w-full h-8 rounded-lg border border-black/10 shadow-inner"
+                          style={{ backgroundColor: design.colorZones.sleeves?.hex || '#ffffff' }}
+                        />
+                        <span className="text-[11px] font-bold text-slate-700 mt-1">Mangas</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paleta Oficial de 24 Colores Deportivos Owayo */}
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">
+                      Paleta Deportiva ({activeColorZone === 'primary' ? 'Color principal' : activeColorZone === 'secondary' ? 'Segundo color' : 'Color cuello'}):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onCommitDesign(
+                          {
+                            ...design,
+                            colorZones: {
+                              ...design.colorZones,
+                              primary: design.colorZones.secondary,
+                              secondary: design.colorZones.primary,
+                            },
+                          },
+                          true
+                        )
+                      }
+                      className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[10px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Invertir Color Principal y Segundo Color"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Invertir A ↔ B</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-6 gap-2">
+                    {ESSENTIAL_SPORT_COLORS.map((c) => {
+                      const isCur =
+                        design.colorZones[activeColorZone]?.hex?.toUpperCase() === c.hex.toUpperCase();
+                      const isLight = ['#FFFFFF', '#F1F5F9', '#94A3B8', '#FACC15', '#38BDF8'].includes(c.hex.toUpperCase());
+                      return (
+                        <button
+                          key={c.hex}
+                          type="button"
+                          onClick={() =>
+                            updateColorZone(activeColorZone, {
+                              hex: c.hex,
+                              name: c.name,
+                              code: c.hex,
+                            })
+                          }
+                          title={c.name}
+                          className={`w-full aspect-square rounded-xl transition-all cursor-pointer flex items-center justify-center relative ${
+                            isCur
+                              ? 'ring-2 ring-slate-900 scale-105 shadow-md z-10'
+                              : 'hover:scale-105 border border-slate-300/80 shadow-xs'
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                        >
+                          {isCur && (
+                            <Check className={`w-4 h-4 ${isLight ? 'text-slate-900' : 'text-white'}`} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selector RGB / HEX Libre para colores corporativos exactos */}
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-200">
+                    <span className="text-[11px] text-slate-500 font-medium">¿Tono institucional exacto?</span>
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-3 py-1.5 rounded-xl cursor-pointer shadow-xs transition-colors">
+                      <span>Selector Libre</span>
+                      <input
+                        type="color"
+                        value={design.colorZones[activeColorZone]?.hex || '#1d4ed8'}
+                        onChange={(e) =>
+                          updateColorZone(activeColorZone, {
+                            hex: e.target.value,
+                            name: 'Personalizado',
+                            code: e.target.value.toUpperCase(),
+                          })
+                        }
+                        className="w-5 h-5 rounded cursor-pointer border-0"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== PESTAÑA 3: TEXTO (NOMBRES, NÚMEROS Y PATROCINADORES) ==================== */}
+            {activeTab === 'text' && (
+              <div className="space-y-3.5">
+                {/* VISTA CONTEXTUAL DE DETALLE: EDITAR TEXTO LIBRE O SLOT VARIABLE */}
+                {isEditingTextDetail && (selectedTextDecal || (selectedSlotKey && design.variableSlots?.[selectedSlotKey])) ? (
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTextDetail(false)}
+                      className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Volver a lista de textos y dorsales
+                    </button>
+
+                    {selectedTextDecal ? (
+                      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-900">Editar Texto Fijo (Idéntico en todo el lote)</span>
+                          <button
+                            type="button"
+                            onClick={() => deleteDecal(selectedTextDecal.id)}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200"
+                            title="Eliminar texto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={selectedTextDecal.text || ''}
+                          onChange={(e) =>
+                            updateDecal(
+                              selectedTextDecal.id,
+                              {
+                                text: e.target.value,
+                                label: `Texto: ${e.target.value.slice(0, 18) || 'Vacío'}`,
+                              },
+                              false
+                            )
+                          }
+                          placeholder="Escribe lema, club o patrocinador..."
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                        />
+
+                        {/* Pieza destino + Mostrar solo en zona (`clampToZone`) */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] text-slate-500 font-bold block mb-1">Pieza de la prenda</label>
+                            <select
+                              value={selectedTextDecal.panel || droppablePanels[0]?.panelId}
+                              onChange={(e) => {
+                                const nextP = e.target.value;
+                                const sp = getPartSpec(design.productModelId, nextP);
+                                updateDecal(
+                                  selectedTextDecal.id,
+                                  {
+                                    panel: nextP,
+                                    centerMm: {
+                                      x: +(sp.widthMm * sp.snapCenterU).toFixed(1),
+                                      y: +(sp.heightMm * 0.45).toFixed(1),
+                                    },
+                                  },
+                                  true
+                                );
+                                setPanel2D(nextP);
+                                if (PANEL_TO_CAMERA[nextP]) setCameraPreset(PANEL_TO_CAMERA[nextP]);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                            >
+                              {droppablePanels.map((p) => (
+                                <option key={p.panelId} value={p.panelId}>
+                                  {p.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] text-slate-500 font-bold block mb-1">Mostrar solo en zona</label>
+                            <select
+                              value={selectedTextDecal.clampToZone || 'ALL'}
+                              onChange={(e) =>
+                                updateDecal(selectedTextDecal.id, { clampToZone: e.target.value }, true)
+                              }
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                            >
+                              <option value="ALL">Toda la pieza</option>
+                              <option value="A">Solo Zona A</option>
+                              <option value="B">Solo Zona B</option>
+                              <option value="C">Solo Zona C</option>
+                              <option value="D">Solo Zona D</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Tipografías Deportivas */}
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block mb-1">Fuente Atlética</span>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {SPORT_FONTS.map((f) => (
+                              <button
+                                key={f.id}
+                                type="button"
+                                style={{ fontFamily: f.family }}
+                                onClick={() => updateDecal(selectedTextDecal.id, { fontFamily: f.family }, true)}
+                                className={`px-2.5 py-2 rounded-xl border text-xs font-black tracking-wide transition-all flex items-center justify-center cursor-pointer shadow-xs ${
+                                  selectedTextDecal.fontFamily === f.family
+                                    ? 'bg-amber-400 text-slate-950 border-amber-500 font-black ring-2 ring-amber-400/40'
+                                    : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-300 hover:border-slate-400'
+                                }`}
+                              >
+                                <span className="truncate">{f.name || f.label || 'Fuente'}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Escala, Rotación y Arco Circular con Steppers Owayo (- / +) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-700 font-medium">Tamaño ({Math.round((selectedTextDecal.scale ?? 1) * 100)}%)</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDecal(
+                                    selectedTextDecal.id,
+                                    { scale: Math.max(0.25, +((selectedTextDecal.scale ?? 1) - 0.1).toFixed(2)) },
+                                    true
+                                  )
+                                }
+                                className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDecal(
+                                    selectedTextDecal.id,
+                                    { scale: Math.min(3.0, +((selectedTextDecal.scale ?? 1) + 0.1).toFixed(2)) },
+                                    true
+                                  )
+                                }
+                                className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="range"
+                            min="25"
+                            max="300"
+                            value={Math.round((selectedTextDecal.scale ?? 1) * 100)}
+                            style={rangeVars(Math.round((selectedTextDecal.scale ?? 1) * 100), 25, 300)}
+                            onChange={(e) =>
+                              updateDecal(selectedTextDecal.id, { scale: Number(e.target.value) / 100 }, false)
+                            }
+                            className="studio-range"
+                          />
+
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-700 font-medium">Rotación ({selectedTextDecal.rotationDeg || 0}°)</span>
+                            <button
+                              type="button"
+                              onClick={() => updateDecal(selectedTextDecal.id, { rotationDeg: 0 }, true)}
+                              className="text-[10px] text-sky-600 font-mono font-bold"
+                            >
+                              Reset 0°
+                            </button>
+                          </div>
+                          <input
+                            type="range"
+                            min="-180"
+                            max="180"
+                            value={selectedTextDecal.rotationDeg || 0}
+                            style={rangeVars(selectedTextDecal.rotationDeg || 0, -180, 180)}
+                            onChange={(e) =>
+                              updateDecal(
+                                selectedTextDecal.id,
+                                { rotationDeg: snapRotationAngle(Number(e.target.value), 5) },
+                                false
+                              )
+                            }
+                            className="studio-range"
+                          />
+
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-700 font-medium">Curvatura Circular ({selectedTextDecal.archDeg || 0}°)</span>
+                            <button
+                              type="button"
+                              onClick={() => updateDecal(selectedTextDecal.id, { archDeg: 0 }, true)}
+                              className="text-[10px] text-sky-600 font-mono font-bold"
+                            >
+                              Recto
+                            </button>
+                          </div>
+                          <input
+                            type="range"
+                            min="-120"
+                            max="120"
+                            value={selectedTextDecal.archDeg || 0}
+                            style={rangeVars(selectedTextDecal.archDeg || 0, -120, 120)}
+                            onChange={(e) =>
+                              updateDecal(selectedTextDecal.id, { archDeg: Number(e.target.value) }, false)
+                            }
+                            className="studio-range"
+                          />
+                        </div>
+
+                        {/* Color de Relleno y Contorno */}
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <label className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-800 font-medium">
+                            <span>Relleno</span>
+                            <input
+                              type="color"
+                              value={selectedTextDecal.fillHex || '#ffffff'}
+                              onChange={(e) =>
+                                updateDecal(selectedTextDecal.id, { fillHex: e.target.value }, true)
+                              }
+                              className="w-7 h-6 rounded cursor-pointer"
+                            />
+                          </label>
+                          <label className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-800 font-medium">
+                            <span>Contorno</span>
+                            <input
+                              type="color"
+                              value={selectedTextDecal.strokeHex || '#101820'}
+                              onChange={(e) =>
+                                updateDecal(selectedTextDecal.id, { strokeHex: e.target.value }, true)
+                              }
+                              className="w-7 h-6 rounded cursor-pointer"
+                            />
+                          </label>
+                        </div>
+
+                        <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs text-slate-700 cursor-pointer">
+                          <span>Fijar texto en el tejido (evitar arrastre accidental)</span>
+                          <input
+                            type="checkbox"
+                            {...{ switch: '' }}
+                            checked={Boolean(selectedTextDecal.pinned)}
+                            onChange={(e) =>
+                              updateDecal(selectedTextDecal.id, { pinned: e.target.checked }, true)
+                            }
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      /* Inspector de Slot Variable (`Nombre` / `Dorsal` vinculado a Ejemplares) */
+                      (() => {
+                        const slot = design.variableSlots[selectedSlotKey];
+                        const isName = selectedSlotKey === 'playerNameBack';
+                        const sizeField = isName ? 'capHeightMm' : 'heightMm';
+                        const curSizeMm = slot[sizeField] || (isName ? 52 : 68);
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-xs font-black text-slate-900 block">
+                                  {SLOT_LABELS[selectedSlotKey] || selectedSlotKey}
+                                </span>
+                                <span className="text-[10px] text-emerald-600 font-bold">
+                                  Vinculado automáticamente a los {totalUnits} jugadores de «Ejemplares»
+                                </span>
+                              </div>
+                              <input
+                                type="checkbox"
+                                {...{ switch: '' }}
+                                checked={Boolean(slot.enabled)}
+                                onChange={(e) =>
+                                  updateVariableSlot(
+                                    selectedSlotKey,
+                                    { ...slot, enabled: e.target.checked },
+                                    true
+                                  )
+                                }
+                              />
+                            </div>
+
+                            {/* Selector de pierna cuando es número de Short */}
+                            {selectedSlotKey === 'playerNumberShorts' && (
+                              <div>
+                                <label className="text-[10px] text-slate-500 font-bold block mb-1">Pierna del Short</label>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {[
+                                    { id: 'right_leg', label: 'Pierna Derecha' },
+                                    { id: 'left_leg', label: 'Pierna Izquierda' },
+                                  ].map((leg) => (
+                                    <button
+                                      key={leg.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const sp = getPartSpec(design.productModelId, leg.id);
+                                        updateVariableSlot(
+                                          'playerNumberShorts',
+                                          {
+                                            ...slot,
+                                            panel: leg.id,
+                                            centerMm: {
+                                              x: +(sp.widthMm * sp.snapCenterU).toFixed(1),
+                                              y: slot.centerMm.y,
+                                            },
+                                          },
+                                          true
+                                        );
+                                        setPanel2D(leg.id);
+                                        setCameraPreset(leg.id);
+                                      }}
+                                      className={`py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                        slot.panel === leg.id
+                                          ? 'bg-amber-400 text-slate-950 border-amber-300'
+                                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      {leg.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Fuente Atlética del Dorsal/Nombre */}
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {SPORT_FONTS.map((f) => (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  style={{ fontFamily: f.family }}
+                                  onClick={() =>
+                                    updateVariableSlot(selectedSlotKey, { ...slot, fontFamily: f.family }, true)
+                                  }
+                                  className={`px-2.5 py-2 rounded-xl border text-xs font-black tracking-wide transition-all flex items-center justify-center cursor-pointer shadow-xs ${
+                                    slot.fontFamily === f.family
+                                      ? 'bg-amber-400 text-slate-950 border-amber-500 font-black ring-2 ring-amber-400/40'
+                                      : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-300 hover:border-slate-400'
+                                  }`}
+                                >
+                                  <span className="truncate">{f.name || f.label || 'Fuente'}</span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Altura física real en milímetros / centímetros */}
+                            <div>
+                              <div className="flex items-center justify-between text-[11px] mb-1">
+                                <span className="text-slate-700 font-medium">Altura oficial: {(curSizeMm / 10).toFixed(1)} cm</span>
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateVariableSlot(
+                                        selectedSlotKey,
+                                        { ...slot, [sizeField]: Math.max(24, curSizeMm - 6) },
+                                        true
+                                      )
+                                    }
+                                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                                  >
+                                    -
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateVariableSlot(
+                                        selectedSlotKey,
+                                        { ...slot, [sizeField]: Math.min(280, curSizeMm + 6) },
+                                        true
+                                      )
+                                    }
+                                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                              <input
+                                type="range"
+                                min={isName ? 28 : 32}
+                                max={isName ? 95 : 280}
+                                value={curSizeMm}
+                                style={rangeVars(curSizeMm, isName ? 28 : 32, isName ? 95 : 280)}
+                                onChange={(e) =>
+                                  updateVariableSlot(
+                                    selectedSlotKey,
+                                    { ...slot, [sizeField]: Number(e.target.value) },
+                                    false
+                                  )
+                                }
+                                className="studio-range"
+                              />
+                            </div>
+
+                            {isName && (
+                              <div>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-700 font-medium">Arco NBA / Europeo ({slot.archDeg || 0}°)</span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateVariableSlot(selectedSlotKey, { ...slot, archDeg: 0 }, true)
+                                    }
+                                    className="text-[10px] font-mono text-sky-600 font-bold"
+                                  >
+                                    Recto
+                                  </button>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="-65"
+                                  max="65"
+                                  value={slot.archDeg || 0}
+                                  style={rangeVars(slot.archDeg || 0, -65, 65)}
+                                  onChange={(e) =>
+                                    updateVariableSlot(
+                                      selectedSlotKey,
+                                      { ...slot, archDeg: Number(e.target.value) },
+                                      false
+                                    )
+                                  }
+                                  className="studio-range"
+                                />
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-800 font-medium">
+                                <span>Color Número</span>
+                                <input
+                                  type="color"
+                                  value={slot.fillHex || '#ffffff'}
+                                  onChange={(e) =>
+                                    updateVariableSlot(
+                                      selectedSlotKey,
+                                      { ...slot, fillHex: e.target.value },
+                                      true
+                                    )
+                                  }
+                                  className="w-7 h-6 rounded cursor-pointer"
+                                />
+                              </label>
+                              <label className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-800 font-medium">
+                                <span>Filete Exterior</span>
+                                <input
+                                  type="color"
+                                  value={slot.outlineHex || '#101820'}
+                                  onChange={(e) =>
+                                    updateVariableSlot(
+                                      selectedSlotKey,
+                                      { ...slot, outlineHex: e.target.value },
+                                      true
+                                    )
+                                  }
+                                  className="w-7 h-6 rounded cursor-pointer"
+                                />
+                              </label>
+                            </div>
+
+                            <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs text-slate-700 cursor-pointer">
+                              <span>Fijar posición (Pin)</span>
+                              <input
+                                type="checkbox"
+                                {...{ switch: '' }}
+                                checked={Boolean(slot.pinned)}
+                                onChange={(e) =>
+                                  updateVariableSlot(
+                                    selectedSlotKey,
+                                    { ...slot, pinned: e.target.checked },
+                                    true
+                                  )
+                                }
+                              />
+                            </label>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                ) : (
+                  /* VISTA GENERAL DE TEXTOS: SLOTS DEL EQUIPO + TEXTOS FIJOS */
+                  <div className="space-y-3.5">
+                    {/* Bloque Destacado 1: Edición Directa de Dorsal y Nombre en Espalda */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                            Dorsal &amp; Nombre en Espalda
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCameraPreset('back')}
+                          className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Girar a Espalda</span>
+                        </button>
+                      </div>
+
+                      {/* Nombre o Apellido */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Nombre o Apellidos en la Espalda:
+                        </label>
+                        <input
+                          type="text"
+                          value={activePlayer.name || ''}
+                          onChange={(e) => {
+                            const nextName = e.target.value.toUpperCase();
+                            const nextRoster = [...roster];
+                            if (nextRoster[activeRosterIndex]) {
+                              nextRoster[activeRosterIndex] = { ...nextRoster[activeRosterIndex], name: nextName };
+                            } else if (nextRoster[0]) {
+                              nextRoster[0] = { ...nextRoster[0], name: nextName };
+                            }
+                            onUpdateRoster(nextRoster);
+                            if (!design.variableSlots?.playerNameBack?.enabled) {
+                              updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, enabled: true }, false);
+                            }
+                          }}
+                          placeholder="Ej: RODRÍGUEZ, VALVERDE, etc."
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 font-extrabold text-sm text-slate-900 uppercase focus:outline-none focus:border-sky-500 shadow-xs"
+                        />
+                      </div>
+
+                      {/* Número Dorsal */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Número Dorsal:</label>
+                          <input
+                            type="text"
+                            maxLength={3}
+                            value={activePlayer.number || ''}
+                            onChange={(e) => {
+                              const nextNum = e.target.value;
+                              const nextRoster = [...roster];
+                              if (nextRoster[activeRosterIndex]) {
+                                nextRoster[activeRosterIndex] = { ...nextRoster[activeRosterIndex], number: nextNum };
+                              } else if (nextRoster[0]) {
+                                nextRoster[0] = { ...nextRoster[0], number: nextNum };
+                              }
+                              onUpdateRoster(nextRoster);
+                              if (!design.variableSlots?.playerNumberBack?.enabled) {
+                                updateVariableSlot('playerNumberBack', { ...design.variableSlots?.playerNumberBack, enabled: true }, false);
+                              }
+                            }}
+                            placeholder="10"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 font-black text-slate-900 text-center text-lg focus:outline-none focus:border-sky-500 shadow-xs"
+                          />
+                        </div>
+
+                        {/* Color del Dorsal */}
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Color del Dorsal:</label>
+                          <div className="flex items-center gap-1.5 h-[46px]">
+                            {['#ffffff', '#000000', '#facc15', '#ccff00', '#dc2626', '#1d4ed8'].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => {
+                                  updateVariableSlot('playerNumberBack', { ...design.variableSlots?.playerNumberBack, fillHex: c }, true);
+                                  updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, fillHex: c }, true);
+                                }}
+                                className={`w-7 h-7 rounded-lg border-2 cursor-pointer transition-transform hover:scale-110 ${
+                                  design.variableSlots?.playerNumberBack?.fillHex === c ? 'border-sky-600 scale-105 shadow-xs' : 'border-slate-300'
+                                }`}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tipografía Atlética */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">Tipografía Atlética Oficial:</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {SPORT_FONTS.slice(0, 6).map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              style={{ fontFamily: f.family }}
+                              onClick={() => {
+                                updateVariableSlot('playerNumberBack', { ...design.variableSlots?.playerNumberBack, fontFamily: f.family }, true);
+                                updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, fontFamily: f.family }, true);
+                              }}
+                              className={`py-2 px-1 rounded-xl text-xs font-black border transition-all cursor-pointer truncate shadow-xs ${
+                                design.variableSlots?.playerNumberBack?.fontFamily === f.family
+                                  ? 'bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-400/40'
+                                  : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="truncate">{f.name || f.label || 'Fuente'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddStaticText}
+                      className="w-full py-2.5 px-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-sky-600" />
+                      <span>Añadir texto adicional / lema / sponsor</span>
+                    </button>
+
+                    {/* Bloque 1: Nombres y Números individuales por jugador (`Ejemplares`) */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900">Nombres y Números de Jugador</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsRosterModalOpen(true)}
+                          className="text-[11px] font-bold text-sky-600 hover:underline"
+                        >
+                          Editar lista ({totalUnits}) →
+                        </button>
+                      </div>
+
+                      {variableSlotKeysForProduct.map((sKey) => {
+                        const slot = design.variableSlots?.[sKey];
+                        if (!slot) return null;
+                        return (
+                          <div
+                            key={sKey}
+                            className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 flex items-center justify-between gap-2 transition-colors"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSlotKey(sKey);
+                                setSelectedDecalId(null);
+                                setIsEditingTextDetail(true);
+                                const targetP =
+                                  sKey === 'playerNameBack' || sKey === 'playerNumberBack'
+                                    ? 'back'
+                                    : sKey === 'playerNumberFront'
+                                    ? 'front'
+                                    : slot.panel || 'front';
+                                setPanel2D(targetP);
+                                if (PANEL_TO_CAMERA[targetP]) setCameraPreset(PANEL_TO_CAMERA[targetP]);
+                              }}
+                              className="text-left flex-1 min-w-0"
+                            >
+                              <div className="text-xs font-bold text-slate-900 truncate">
+                                {SLOT_LABELS[sKey] || sKey}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                Clic para cambiar fuente, color, arco o altura
+                              </div>
+                            </button>
+                            <input
+                              type="checkbox"
+                              {...{ switch: '' }}
+                              aria-label={`Activar ${SLOT_LABELS[sKey]}`}
+                              checked={Boolean(slot.enabled)}
+                              onChange={(e) =>
+                                updateVariableSlot(sKey, { ...slot, enabled: e.target.checked }, true)
+                              }
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Bloque 2: Textos Idénticos en todas las prendas */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                      <span className="text-xs font-black text-slate-900 block">
+                        Textos Fijos en la Prenda ({textDecals.length})
+                      </span>
+                      {textDecals.length === 0 ? (
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Aún no hay textos fijos. Pulsa «Añadir nuevo texto» arriba.
+                        </p>
+                      ) : (
+                        textDecals.map((td) => (
+                          <div
+                            key={td.id}
+                            className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 flex items-center justify-between gap-2 transition-colors"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDecalId(td.id);
+                                setSelectedSlotKey(null);
+                                setIsEditingTextDetail(true);
+                                if (td.panel) {
+                                  setPanel2D(td.panel);
+                                  if (PANEL_TO_CAMERA[td.panel]) setCameraPreset(PANEL_TO_CAMERA[td.panel]);
+                                }
+                              }}
+                              className="text-left flex-1 min-w-0"
+                            >
+                              <div className="text-xs font-bold text-amber-600 truncate">{td.text}</div>
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                Pieza: {getPartSpec(design.productModelId, td.panel).shortLabel}
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteDecal(td.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ==================== PESTAÑA 4: LOGO (PNG / SVG SIN LÍMITES + EDITAR LOGOTIPO) ==================== */}
+            {activeTab === 'logo' && (
+              <div className="space-y-3.5">
+                {isEditingLogoDetail && selectedLogoDecal ? (
+                  /* INSPECTOR CONTEXTUAL OWAYO: `EDITAR EL LOGOTIPO` */
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingLogoDetail(false)}
+                      className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Volver a galería y carga de logos
+                    </button>
+
+                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      {/* Cabecera con miniatura cuadriculada + Auditoría DPI */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-xl checkered-preview border border-slate-200 p-1.5 flex items-center justify-center shrink-0 overflow-hidden bg-slate-50">
+                          {selectedLogoDecal.artworkId &&
+                          artworkRegistry[selectedLogoDecal.artworkId]?.previewUrl ? (
+                            <img
+                              src={artworkRegistry[selectedLogoDecal.artworkId].previewUrl}
+                              alt={selectedLogoDecal.label}
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          ) : (
+                            <Shield className="w-7 h-7 text-amber-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="text-xs font-black text-slate-900 truncate">
+                            {selectedLogoDecal.label}
+                          </div>
+                          {(() => {
+                            const dpi = calculateEffectiveDpi(
+                              selectedLogoDecal.widthPx || 1600,
+                              selectedLogoDecal.sizeMm.width,
+                              selectedLogoDecal.scale ?? 1,
+                              selectedLogoDecal.isVector
+                            );
+                            return (
+                              <span
+                                className={`inline-block text-[10px] px-2 py-0.5 rounded-md border font-bold ${dpi.colorClass}`}
+                              >
+                                {dpi.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteDecal(selectedLogoDecal.id)}
+                          title="Eliminar logotipo"
+                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Pieza + Mostrar solo en zona (`clampToZone` de Owayo) */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-slate-500 font-bold block mb-1">Pieza</label>
+                          <select
+                            value={selectedLogoDecal.panel || droppablePanels[0]?.panelId}
+                            onChange={(e) => {
+                              const nextP = e.target.value;
+                              const sp = getPartSpec(design.productModelId, nextP);
+                              updateDecal(
+                                selectedLogoDecal.id,
+                                {
+                                  panel: nextP,
+                                  centerMm: {
+                                    x: +(sp.widthMm * sp.snapCenterU).toFixed(1),
+                                    y: +(sp.heightMm * 0.42).toFixed(1),
+                                  },
+                                },
+                                true
+                              );
+                              setPanel2D(nextP);
+                              if (PANEL_TO_CAMERA[nextP]) setCameraPreset(PANEL_TO_CAMERA[nextP]);
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                          >
+                            {droppablePanels.map((p) => (
+                              <option key={p.panelId} value={p.panelId}>
+                                {p.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-500 font-bold block mb-1">Mostrar solo en</label>
+                          <select
+                            value={selectedLogoDecal.clampToZone || 'ALL'}
+                            onChange={(e) =>
+                              updateDecal(selectedLogoDecal.id, { clampToZone: e.target.value }, true)
+                            }
+                            className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 font-medium focus:border-sky-500 shadow-2xs"
+                          >
+                            <option value="ALL">Toda la pieza</option>
+                            <option value="A">Solo Zona A</option>
+                            <option value="B">Solo Zona B</option>
+                            <option value="C">Solo Zona C</option>
+                            <option value="D">Solo Zona D</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Acciones Rápidas: Centrar, Espejar en manga/pierna opuesta, Voltear y Orden Z */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sp = getPartSpec(design.productModelId, selectedLogoDecal.panel || 'front');
+                            updateDecal(
+                              selectedLogoDecal.id,
+                              {
+                                centerMm: {
+                                  ...selectedLogoDecal.centerMm,
+                                  x: +(sp.widthMm * sp.snapCenterU).toFixed(1),
+                                },
+                              },
+                              true
+                            );
+                          }}
+                          className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-sky-700 flex items-center justify-center gap-1 shadow-2xs transition-colors"
+                        >
+                          <AlignCenterVertical className="w-3.5 h-3.5" />
+                          Centrar en eje
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => mirrorDecalToSymmetricPiece(selectedLogoDecal)}
+                          className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-bold text-emerald-700 flex items-center justify-center gap-1 shadow-2xs transition-colors"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          Espejar simétrico
+                        </button>
+                      </div>
+
+                      {/* Sliders con botones - / + de Escala, Rotación y Marca de Agua */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-700 font-medium">
+                            Tamaño ({((selectedLogoDecal.sizeMm.width * (selectedLogoDecal.scale ?? 1)) / 10).toFixed(1)} cm)
+                          </span>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDecal(
+                                  selectedLogoDecal.id,
+                                  { scale: Math.max(0.2, +((selectedLogoDecal.scale ?? 1) - 0.1).toFixed(2)) },
+                                  true
+                                )
+                              }
+                              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                            >
+                              -
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDecal(
+                                  selectedLogoDecal.id,
+                                  { scale: Math.min(3.5, +((selectedLogoDecal.scale ?? 1) + 0.1).toFixed(2)) },
+                                  true
+                                )
+                              }
+                              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="20"
+                          max="350"
+                          value={Math.round((selectedLogoDecal.scale ?? 1) * 100)}
+                          style={rangeVars(Math.round((selectedLogoDecal.scale ?? 1) * 100), 20, 350)}
+                          onChange={(e) =>
+                            updateDecal(selectedLogoDecal.id, { scale: Number(e.target.value) / 100 }, false)
+                          }
+                          className="studio-range"
+                        />
+
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-700 font-medium">Rotación ({selectedLogoDecal.rotationDeg || 0}°)</span>
+                          <button
+                            type="button"
+                            onClick={() => updateDecal(selectedLogoDecal.id, { rotationDeg: 0 }, true)}
+                            className="text-[10px] font-mono text-sky-600 font-bold"
+                          >
+                            0°
+                          </button>
+                        </div>
+                        <input
+                          type="range"
+                          min="-180"
+                          max="180"
+                          value={selectedLogoDecal.rotationDeg || 0}
+                          style={rangeVars(selectedLogoDecal.rotationDeg || 0, -180, 180)}
+                          onChange={(e) =>
+                            updateDecal(
+                              selectedLogoDecal.id,
+                              { rotationDeg: snapRotationAngle(Number(e.target.value), 5) },
+                              false
+                            )
+                          }
+                          className="studio-range"
+                        />
+
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-700 font-medium">
+                            Opacidad / Marca de Agua ({Math.round((selectedLogoDecal.opacity ?? 1) * 100)}%)
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          value={Math.round((selectedLogoDecal.opacity ?? 1) * 100)}
+                          style={rangeVars(Math.round((selectedLogoDecal.opacity ?? 1) * 100), 10, 100)}
+                          onChange={(e) =>
+                            updateDecal(selectedLogoDecal.id, { opacity: Number(e.target.value) / 100 }, false)
+                          }
+                          className="studio-range"
+                        />
+                      </div>
+
+                      {/* Volteo Horizontal/Vertical + Capas Z */}
+                      <div className="flex items-center justify-between gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDecal(selectedLogoDecal.id, { flipX: !selectedLogoDecal.flipX }, true)
+                          }
+                          className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1 transition-colors ${
+                            selectedLogoDecal.flipX
+                              ? 'bg-amber-400 text-slate-950 border-amber-300'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <FlipHorizontal2 className="w-3.5 h-3.5" />
+                          Espejo H
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDecal(selectedLogoDecal.id, { flipY: !selectedLogoDecal.flipY }, true)
+                          }
+                          className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1 transition-colors ${
+                            selectedLogoDecal.flipY
+                              ? 'bg-amber-400 text-slate-950 border-amber-300'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <FlipVertical2 className="w-3.5 h-3.5" />
+                          Espejo V
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDecal(
+                              selectedLogoDecal.id,
+                              { zIndex: (selectedLogoDecal.zIndex ?? 10) + 6 },
+                              true
+                            )
+                          }
+                          title="Traer al frente"
+                          className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-950 transition-colors"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDecal(
+                              selectedLogoDecal.id,
+                              { zIndex: Math.max(1, (selectedLogoDecal.zIndex ?? 10) - 6) },
+                              true
+                            )
+                          }
+                          title="Enviar atrás"
+                          className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-950 transition-colors"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Switches Nativos Owayo: Quita-fondo blanco, Recoloración Pantone y Fijar Logo */}
+                      {selectedLogoDecal.artworkId && (
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                          <label className="flex items-center justify-between gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+                            <span>Eliminar fondo blanco automáticamente</span>
+                            <input
+                              type="checkbox"
+                              {...{ switch: '' }}
+                              checked={Boolean(selectedLogoDecal.removeWhiteBg)}
+                              onChange={(e) =>
+                                updateDecal(selectedLogoDecal.id, { removeWhiteBg: e.target.checked }, true)
+                              }
+                            />
+                          </label>
+
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-slate-700 font-medium">Recolorear silueta (Tinte Pantone)</span>
+                            <div className="flex items-center gap-1.5">
+                              {selectedLogoDecal.tintHex && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateDecal(selectedLogoDecal.id, { tintHex: '' }, true)}
+                                  className="text-[10px] text-sky-600 font-bold"
+                                >
+                                  Original
+                                </button>
+                              )}
+                              <input
+                                type="color"
+                                value={selectedLogoDecal.tintHex || '#ffffff'}
+                                onChange={(e) =>
+                                  updateDecal(selectedLogoDecal.id, { tintHex: e.target.value }, true)
+                                }
+                                className="w-7 h-6 rounded cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs text-slate-700 cursor-pointer">
+                        <span>Fijar logotipo (evitar mover por error)</span>
+                        <input
+                          type="checkbox"
+                          {...{ switch: '' }}
+                          checked={Boolean(selectedLogoDecal.pinned)}
+                          onChange={(e) =>
+                            updateDecal(selectedLogoDecal.id, { pinned: e.target.checked }, true)
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  /* VISTA GALERÍA DE LOGOS: SUBIR PNG/SVG + ESCUDOS DEPORTIVOS + CAPAS EN PRENDA */
+                  <div className="space-y-3.5">
+                    {/* Zona Drag & Drop Multi-Archivo */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragOverUpload(true);
+                      }}
+                      onDragLeave={() => setIsDragOverUpload(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragOverUpload(false);
+                        handleFilesSelected(e.dataTransfer.files);
+                      }}
+                      className={`p-4 rounded-2xl border-2 border-dashed text-center transition-colors ${
+                        isDragOverUpload
+                          ? 'border-sky-500 bg-sky-50/50'
+                          : 'border-slate-300 bg-slate-50/80 hover:border-sky-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        id="logo-file-input"
+                        type="file"
+                        multiple
+                        accept=".png,.svg,.webp,.jpg,.jpeg,image/*"
+                        onChange={(e) => {
+                          handleFilesSelected(e.target.files);
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                      />
+                      <Upload className="w-6 h-6 text-sky-600 mx-auto mb-1.5" />
+                      <p className="text-xs font-black text-slate-900">
+                        Cargar archivos PNG, SVG, WebP o JPG
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5 mb-2.5">
+                        Sanitizador SVG vectorial infinito + recorte automático de márgenes transparentes
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs cursor-pointer"
+                      >
+                        Seleccionar archivos
+                      </button>
+                    </div>
+
+                    {/* Logos activos colocados actualmente en la prenda */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                      <span className="text-xs font-black text-slate-900 block">
+                        Logos colocados en esta prenda ({logoDecals.length})
+                      </span>
+                      {logoDecals.length === 0 ? (
+                        <p className="text-[11px] text-slate-500">
+                          Sube tu escudo o elige uno de la logoteca deportiva abajo.
+                        </p>
+                      ) : (
+                        logoDecals.map((ld) => (
+                          <div
+                            key={ld.id}
+                            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 flex items-center justify-between gap-2 transition-colors"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDecalId(ld.id);
+                                setSelectedSlotKey(null);
+                                setIsEditingLogoDetail(true);
+                                if (ld.panel) {
+                                  setPanel2D(ld.panel);
+                                  if (PANEL_TO_CAMERA[ld.panel]) setCameraPreset(PANEL_TO_CAMERA[ld.panel]);
+                                }
+                              }}
+                              className="flex items-center gap-2.5 text-left flex-1 min-w-0"
+                            >
+                              <span className="w-9 h-9 rounded-lg checkered-preview border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden p-1 bg-white">
+                                {ld.artworkId && artworkRegistry[ld.artworkId]?.previewUrl ? (
+                                  <img
+                                    src={artworkRegistry[ld.artworkId].previewUrl}
+                                    alt={ld.label}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : (
+                                  <Shield className="w-4 h-4 text-amber-500" />
+                                )}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-slate-900 truncate">{ld.label}</div>
+                                <div className="text-[10px] text-slate-500">
+                                  {getPartSpec(design.productModelId, ld.panel).shortLabel} • Clic para editar
+                                </div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteDecal(ld.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Mis Archivos Subidos en esta sesión (Reutilizables entre Camiseta y Short) */}
+                    {uploadedLibrary.length > 0 && (
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                        <span className="text-xs font-black text-amber-700 block">
+                          Mis Logotipos Cargados (Clic para insertar en Camisa o Short)
+                        </span>
+                        <div className="grid grid-cols-3 gap-2">
+                          {uploadedLibrary.map((art) => (
+                            <button
+                              key={art.artworkId}
+                              type="button"
+                              onClick={() => {
+                                const dec = insertArtworkOnPanel(art, panel2D);
+                                onCommitDesign({ ...design, decals: [...allDecals, dec] }, true);
+                                setSelectedDecalId(dec.id);
+                                setIsEditingLogoDetail(true);
+                              }}
+                              className="p-2 rounded-xl checkered-preview border border-slate-200 hover:border-sky-500 bg-white flex flex-col items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <img
+                                src={art.previewUrl}
+                                alt={art.fileName}
+                                className="h-10 w-full object-contain"
+                              />
+                              <span className="text-[9px] font-bold text-slate-700 truncate w-full text-center">
+                                {art.fileName}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Parches Oficiales en Mangas (1-Clic) */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 block uppercase tracking-wide flex items-center gap-1.5">
+                          <Award className="w-4 h-4 text-amber-500" />
+                          <span>Parches Oficiales en Mangas</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                          1 Clic
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Insignias reglamentarias oficiales para mangas con escala y orientación preconfigurada.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleAddSleeveBadge('mx_official')}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <img src="/assets/badges/badge_ligamx_official.svg" alt="Liga MX" className="w-8 h-8 object-contain shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 truncate">Oficial Liga MX</div>
+                            <div className="text-[10px] text-slate-500">Manga Derecha</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddSleeveBadge('mx_champion')}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <img src="/assets/badges/badge_ligamx_champion.svg" alt="Campeón Liga MX" className="w-8 h-8 object-contain shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-amber-800 truncate">Campeón Liga MX</div>
+                            <div className="text-[10px] text-slate-500">Manga Derecha • Oro</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddSleeveBadge('ucl_starball')}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <img src="/assets/badges/badge_ucl_starball.svg" alt="Starball UCL" className="w-8 h-8 object-contain shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 truncate">Starball UCL</div>
+                            <div className="text-[10px] text-slate-500">Manga Derecha • Balón</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddSleeveBadge('ucl_foundation')}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <img src="/assets/badges/badge_ucl_foundation.svg" alt="UEFA Foundation" className="w-8 h-8 object-contain shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-sky-900 truncate">UEFA Foundation</div>
+                            <div className="text-[10px] text-slate-500">Manga Izquierda</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Logoteca Deportiva Integrada con Presets Oficiales */}
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 block uppercase tracking-wide">
+                          Logoteca de Escudos &amp; Presets
+                        </span>
+                        <span className="text-[10px] font-mono text-sky-600 font-bold">
+                          300+ DPI
+                        </span>
+                      </div>
+
+                      {/* Selector de Categorías de Logos */}
+                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                        {[
+                          { id: 'ligamx', label: `🇲🇽 Liga MX (${LIGA_MX_PRESETS.length})` },
+                          { id: 'mundial', label: `🏆 Selecciones` },
+                          { id: 'vector', label: `🛡️ Básicos Pro` },
+                        ].map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setActiveLogoCategory(cat.id)}
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                              activeLogoCategory === cat.id
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 1. Categoría Liga MX Oficial (18 Clubes) */}
+                      {activeLogoCategory === 'ligamx' && (
+                        <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                          {LIGA_MX_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleAddPresetCrest(preset)}
+                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-sky-400 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
+                              title={`Añadir escudo de ${preset.name} a la prenda activa`}
+                            >
+                              <img
+                                src={preset.url}
+                                alt={preset.name}
+                                className="w-7 h-7 object-contain shrink-0 group-hover:scale-110 transition-transform"
+                                loading="lazy"
+                              />
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-black text-slate-900 truncate block leading-tight">
+                                  {preset.shortName}
+                                </span>
+                                <span className="text-[9px] text-slate-400 truncate block">
+                                  {preset.location}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 2. Categoría Mundial & Selecciones */}
+                      {activeLogoCategory === 'mundial' && (
+                        <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                          {WORLD_CUP_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleAddPresetCrest(preset)}
+                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-sky-400 text-left flex items-center gap-2 transition-all cursor-pointer group shadow-2xs"
+                            >
+                              <Shield className="w-5 h-5 text-sky-600 shrink-0 group-hover:scale-110 transition-transform" />
+                              <span className="text-[11px] font-bold text-slate-800 truncate">
+                                {preset.shortName}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 3. Categoría Escudos Vectoriales Básicos */}
+                      {activeLogoCategory === 'vector' && (
+                        <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                          {VECTOR_CREST_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleAddPresetCrest(preset)}
+                              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Shield className="w-4 h-4 text-amber-500 shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-800 truncate">
+                                {preset.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* BARRA INFERIOR OWAYO DENTRO DEL PANEL LATERAL: Visible en pantallas sm+ (en móvil se usa la burbuja flotante FAB para evitar saturación visual) */}
+          <div className="hidden sm:block shrink-0 border-t border-slate-200 bg-white p-2.5 sm:p-4 space-y-2.5 sm:space-y-3">
+            {/* Acciones Secundarias: Guardar | Bocetos | Ejemplares | Revisión | Compartir */}
+            <div className="grid grid-cols-5 sm:grid-cols-6 gap-1 text-center">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Guardar diseño actual"
+              >
+                <Save className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 group-hover:text-slate-900 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Guardar</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsGalleryModalOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Abrir mi galería de diseños guardados"
+              >
+                <FolderHeart className="w-4 h-4 sm:w-5 sm:h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Mi Galería</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsRosterModalOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Lista de ejemplares y tallas"
+              >
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 group-hover:text-slate-900 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Ejemplares</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Revisar resolución y reglas de costura"
+              >
+                <ClipboardCheck
+                  className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform ${
+                    designReviewChecks.hasWarnings ? 'text-amber-500' : 'text-slate-600 group-hover:text-slate-900'
+                  }`}
+                />
+                <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Revisión</span>
+              </button>
+
+              {/* Botón Plantilla 2D: Acceso directo al pliego 1:1 */}
+              <button
+                type="button"
+                id="btn-open-production-mold"
+                onClick={() => setIsProductionMoldModalOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-1.5 rounded-xl text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/80 transition-colors cursor-pointer group border border-emerald-300 bg-emerald-50/60 shadow-xs"
+                title="Previsualizar plantilla técnica de confección y corte a escala real 1:1"
+              >
+                <Scissors className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black tracking-tight text-emerald-800 leading-none">Plantilla 2D</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(window.location.href);
+                  }
+                  showToast('Enlace de diseño copiado para compartir');
+                }}
+                className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Compartir enlace de este diseño"
+              >
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 group-hover:text-slate-900 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Compartir</span>
+              </button>
+            </div>
+
+            {/* Resumen de Precio y Botón Prominente: Ver Plantilla 2D de Confección */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-tight">
+                  {totalUnits} uds • ${unitPrice.toFixed(2)} c/u
+                </div>
+                <div className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  ${totalPrice.toFixed(2)} USD
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-finalize-production-mold"
+                onClick={() => setIsProductionMoldModalOpen(true)}
+                className="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                title="Abrir plantilla completa 1:1 de corte y confección para presentar o fabricar"
+              >
+                <Scissors className="w-4 h-4 text-emerald-200" />
+                <span>Ver Plantilla 2D (Confección)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* BARRA INFERIOR EXCLUSIVA PARA MÓVIL: Acceso directo a la Plantilla 2D sin saturación */}
+          <div className="sm:hidden shrink-0 border-t border-slate-200 bg-white p-2.5 flex items-center justify-between gap-3 z-20 shadow-lg">
+            <div className="leading-tight">
+              <div className="text-[10px] text-slate-500 font-bold">{totalUnits} prendas</div>
+              <div className="text-sm font-black text-slate-900">${totalPrice.toFixed(2)} USD</div>
+            </div>
+            <button
+              type="button"
+              id="btn-mobile-open-mold"
+              onClick={() => setIsProductionMoldModalOpen(true)}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+            >
+              <Scissors className="w-4 h-4 text-emerald-200" />
+              <span>Ver Plantilla 2D</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* ==================== MODAL 1: EJEMPLARES (LISTA DE TALLAS, NOMBRES Y NÚMEROS OWAYO) ==================== */}
+      <LightDismissModal
+        isOpen={isRosterModalOpen}
+        onClose={() => setIsRosterModalOpen(false)}
+        titleId="roster-modal-title"
+        subtitle="Tabla Relacional de Ejemplares ARZA SPORT (Sin duplicar imágenes)"
+        title={`Ejemplares del Equipo (${totalUnits} prendas • $${totalPrice.toFixed(2)} USD)`}
+        maxWidthClass="max-w-5xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-slate-300">
+              Cada fila genera su propio nombre y dorsal vinculados al mismo ID maestro{' '}
+              <code className="text-amber-300 font-mono">{design.designId}</code>. Haz clic en «Ver en 3D» para inspeccionar cualquier talla.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateRoster([
+                  ...roster,
+                  {
+                    id: `p_${Date.now()}`,
+                    name: 'NUEVO JUGADOR',
+                    number: String(roster.length + 1),
+                    size: 'L',
+                    cut: 'MEN_PRO_SLIM',
+                    qty: 1,
+                  },
+                ])
+              }
+              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Añadir Jugador / Talla
+            </button>
+          </div>
+
+          <div className="roster-table-wrapper rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <table className="roster-data-table text-xs text-left">
+              <thead className="bg-slate-50 text-slate-700 text-[11px] uppercase border-b border-slate-200">
+                <tr>
+                  <th className="p-2.5">#</th>
+                  <th className="p-2.5">Corte</th>
+                  <th className="p-2.5">Talla</th>
+                  <th className="p-2.5">Cant.</th>
+                  <th className="p-2.5">Nombre Espalda</th>
+                  <th className="p-2.5">Número</th>
+                  <th className="p-2.5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {roster.map((row, idx) => {
+                  const isPreviewed = idx === activeRosterIndex;
+                  return (
+                    <tr
+                      key={row.id || idx}
+                      className={isPreviewed ? 'bg-amber-50/70' : 'hover:bg-slate-50/70 transition-colors'}
+                    >
+                      <th scope="row" className="p-2.5 font-mono text-slate-700">
+                        {String(idx + 1).padStart(2, '0')}
+                      </th>
+                      <td className="p-2">
+                        <select
+                          value={row.cut}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) => (i === idx ? { ...r, cut: e.target.value } : r))
+                            )
+                          }
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
+                        >
+                          {CUT_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <select
+                          value={row.size}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) => (i === idx ? { ...r, size: e.target.value } : r))
+                            )
+                          }
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-bold"
+                        >
+                          {SIZE_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={row.qty}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) =>
+                                i === idx ? { ...r, qty: Math.max(1, Number(e.target.value) || 1) } : r
+                              )
+                            )
+                          }
+                          className="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-mono"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) =>
+                                i === idx ? { ...r, name: e.target.value.toUpperCase() } : r
+                              )
+                            )
+                          }
+                          className="w-full min-w-[140px] bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-bold"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          maxLength={3}
+                          value={row.number}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) => (i === idx ? { ...r, number: e.target.value } : r))
+                            )
+                          }
+                          className="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900 font-black text-center"
+                        />
+                      </td>
+                      <td className="p-2 text-right space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveRosterIndex(idx);
+                            setIsRosterModalOpen(false);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                            isPreviewed
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                          }`}
+                        >
+                          Ver en 3D
+                        </button>
+                        {roster.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateRoster(roster.filter((_, i) => i !== idx))}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 inline" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pegado rápido desde Excel / CSV */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+            <span className="text-xs font-bold text-slate-700 block">
+              Pegado Rápido desde Excel / WhatsApp (`NOMBRE, NÚMERO, TALLA, CANTIDAD`)
+            </span>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <textarea
+                rows={2}
+                value={csvQuickInput}
+                onChange={(e) => setCsvQuickInput(e.target.value)}
+                placeholder={'JORDAN, 23, XL, 1\nPIPPEN, 33, L, 1'}
+                className="flex-1 rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-sky-500 shadow-2xs"
+              />
+              <button
+                type="button"
+                onClick={handleImportCsvRoster}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shrink-0 cursor-pointer shadow-xs"
+              >
+                Importar Filas
+              </button>
+            </div>
+          </div>
+        </div>
+      </LightDismissModal>
+
+      {/* ==================== MODAL 2: MIS BOCETOS GUARDADOS ==================== */}
+      <LightDismissModal
+        isOpen={isDraftsModalOpen}
+        onClose={() => setIsDraftsModalOpen(false)}
+        titleId="drafts-modal-title"
+        subtitle="Almacenamiento Local Instantáneo"
+        title={`Mis Bocetos Guardados (${savedDrafts.length})`}
+        maxWidthClass="max-w-2xl"
+      >
+        {savedDrafts.length === 0 ? (
+          <p className="text-sm text-slate-500 py-6 text-center">
+            Aún no has guardado bocetos. Pulsa el botón «Guardar» en la barra inferior para conservar versiones de tus uniformes.
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {savedDrafts.map((dr) => (
+              <div
+                key={dr.draftId}
+                className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex rounded-lg overflow-hidden border border-slate-300 shrink-0">
+                    {(dr.colors || []).map((hex, i) => (
+                      <span key={i} style={{ background: hex || '#1e293b' }} className="w-3.5 h-8 block" />
+                    ))}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-black text-slate-900 truncate">
+                      {dr.productName} — Patrón «{dr.patternId}»
+                    </div>
+                    <div className="text-[11px] font-mono text-slate-500">{dr.savedAt}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadDraft(dr)}
+                    className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black"
+                  >
+                    Cargar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDraft(dr.draftId)}
+                    className="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </LightDismissModal>
+
+      {/* ==================== MODAL 3: REVISIÓN TÉCNICA DEL DISEÑO ==================== */}
+      <LightDismissModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        titleId="review-modal-title"
+        subtitle="Auditoría Automática Pre-Impresión Sublimación 300 DPI"
+        title="Revisión Técnica del Diseño"
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="space-y-3">
+          {designReviewChecks.checks.map((chk, i) => (
+            <div
+              key={i}
+              className={`p-3.5 rounded-2xl border flex items-start gap-3 ${
+                chk.ok
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                  : 'bg-rose-500/10 border-rose-500/35 text-rose-200'
+              }`}
+            >
+              {chk.ok ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <div className="text-xs font-black">{chk.title}</div>
+                <div className="text-[11px] opacity-85 mt-0.5">{chk.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </LightDismissModal>
+
+      {/* ==================== MODAL 4: MENÚ INTERACTIVO DE DEPORTES Y PRENDAS (CABALLERO / DAMA) ==================== */}
+      <LightDismissModal
+        isOpen={isGarmentMenuOpen}
+        onClose={() => setIsGarmentMenuOpen(false)}
+        titleId="garment-menu-title"
+        title={genderModule === 'men' ? 'Catálogo Caballero: Deportes & Liga MX' : 'Catálogo Dama: Patronaje Femenino'}
+        subtitle={
+          genderModule === 'men'
+            ? 'Personaliza desde cero tus prendas o carga los 18 uniformes inspirados en la Liga MX'
+            : 'Prendas con patronaje ergonómico adaptado a la morfología femenina'
+        }
+        maxWidthClass="max-w-4xl"
+      >
+        <div className="space-y-6">
+          {/* Segment switch inside modal: Caballero vs Dama */}
+          <div className="flex items-center justify-center p-1 bg-slate-100 rounded-2xl border border-slate-200 max-w-sm mx-auto">
+            <button
+              id="modal-tab-caballero"
+              type="button"
+              onClick={() => handleGenderSwitch('men')}
+              className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                genderModule === 'men'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ♂ Segmento Caballero
+            </button>
+            <button
+              id="modal-tab-dama"
+              type="button"
+              onClick={() => handleGenderSwitch('women')}
+              className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                genderModule === 'women'
+                  ? 'bg-fuchsia-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ♀ Segmento Dama
+            </button>
+          </div>
+
+          {/* ==================== SECCIÓN CABALLERO ==================== */}
+          {genderModule === 'men' && (
+            <div className="space-y-5">
+              {/* Sub-navegador Caballero: Personaliza a tu Gusto vs Inspirados en la Liga MX */}
+              <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-3 gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    id="btn-men-tab-custom"
+                    type="button"
+                    onClick={() => setGarmentMenuMenSection('custom')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                      garmentMenuMenSection === 'custom'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Palette className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Personaliza a tu Gusto</span>
+                  </button>
+                  <button
+                    id="btn-men-tab-ligamx"
+                    type="button"
+                    onClick={() => setGarmentMenuMenSection('ligamx')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                      garmentMenuMenSection === 'ligamx'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <span>🇲🇽 Inspirados en la Liga MX</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                        garmentMenuMenSection === 'ligamx'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-emerald-700 text-white'
+                      }`}
+                    >
+                      18
+                    </span>
+                  </button>
+                </div>
+
+                <span className="text-[11px] font-mono text-slate-500 font-semibold hidden sm:inline">
+                  {garmentMenuMenSection === 'custom' ? 'Moldes CAD en blanco' : '18 Clubes Primera División'}
+                </span>
+              </div>
+
+              {/* VISTA 1: PERSONALIZA A TU GUSTO (MOLDES CAD EN BLANCO) */}
+              {garmentMenuMenSection === 'custom' && (
+                <div className="space-y-5">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed flex items-center justify-between gap-3">
+                    <div>
+                      <strong className="text-slate-900">Personalización Completa desde Cero:</strong> Selecciona una prenda para diseñar tus propios cortes, armonías de colores, escudos y patrocinadores en 3D.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGarmentMenuMenSection('ligamx')}
+                      className="text-xs font-black text-emerald-700 hover:text-emerald-800 underline shrink-0 cursor-pointer"
+                    >
+                      Ver Liga MX (18) →
+                    </button>
+                  </div>
+
+                  {/* Fútbol */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Fútbol Matchday (2 Piezas)
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {menFootball.map((p) => {
+                        const isCur = design.productModelId === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onSwitchProduct(p.id);
+                              setIsGarmentMenuOpen(false);
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                              isCur
+                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                              <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {isCur ? 'Activo en 3D' : 'Cargar'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Baloncesto */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-600" />
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Baloncesto Arena (2 Piezas)
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {menBasketball.map((p) => {
+                        const isCur = design.productModelId === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onSwitchProduct(p.id);
+                              setIsGarmentMenuOpen(false);
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                              isCur
+                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                              <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {isCur ? 'Activo en 3D' : 'Cargar'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Chaqueta */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Chaquetas Técnicas &amp; Paseo
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {menJackets.map((p) => {
+                        const isCur = design.productModelId === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onSwitchProduct(p.id);
+                              setIsGarmentMenuOpen(false);
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                              isCur
+                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                              <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {isCur ? 'Activo en 3D' : 'Cargar'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* E-Sports & Complementos */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        E-Sports Pro &amp; Complementos Club
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[...menEsports, ...accessoryProducts].map((p) => {
+                        const isCur = design.productModelId === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onSwitchProduct(p.id);
+                              setIsGarmentMenuOpen(false);
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                              isCur
+                                ? 'bg-sky-50 border-2 border-sky-600 text-sky-950 shadow-sm'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                              <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              isCur ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {isCur ? 'Activo en 3D' : 'Cargar'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Banner inferior para ir a Kits Oficiales Pro */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white border border-indigo-800/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                    <div className="space-y-0.5 text-center sm:text-left">
+                      <h5 className="text-xs font-black text-amber-300 flex items-center gap-1.5 justify-center sm:justify-start">
+                        <span>⭐</span>
+                        <span>Kits Oficiales Pro (60 Uniformes)</span>
+                      </h5>
+                      <p className="text-[11px] text-slate-300">
+                        🇲🇽 36 de Liga MX + 🏆 24 de Champions League (Locales y Visitantes con patrocinadores oficiales).
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProKitsCollectionTab('ligamx');
+                          setGarmentMenuMenSection('ligamx');
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-xs cursor-pointer transition-all flex items-center gap-1"
+                      >
+                        <span>🇲🇽</span>
+                        <span>Liga MX (36)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProKitsCollectionTab('ucl');
+                          setGarmentMenuMenSection('ligamx');
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-xs cursor-pointer transition-all flex items-center gap-1 ring-2 ring-amber-400/50"
+                      >
+                        <span>⭐</span>
+                        <span>Champions (24)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA 2: COLECCIÓN KITS OFICIALES PRO (LIGA MX Y CHAMPIONS LEAGUE) */}
+              {garmentMenuMenSection === 'ligamx' && (
+                <div className="space-y-4">
+                  {/* Segmented Selector entre Liga MX y Champions League */}
+                  <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setProKitsCollectionTab('ligamx')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        proKitsCollectionTab === 'ligamx'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <span>🇲🇽</span>
+                      <span>Liga MX Pro (36 Uniformes)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProKitsCollectionTab('ucl')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        proKitsCollectionTab === 'ucl'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <span>⭐</span>
+                      <span>UEFA Champions League (24 Uniformes)</span>
+                    </button>
+                  </div>
+
+                  {/* Banner explicativo */}
+                  <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                    proKitsCollectionTab === 'ligamx'
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{proKitsCollectionTab === 'ligamx' ? '🇲🇽' : '⭐'}</span>
+                        <h4 className={`text-xs font-black uppercase tracking-wide ${
+                          proKitsCollectionTab === 'ligamx' ? 'text-emerald-950' : 'text-blue-950'
+                        }`}>
+                          {proKitsCollectionTab === 'ligamx'
+                            ? 'Liga MX (18 Clubes • 36 Uniformes Locales y Visita)'
+                            : 'UEFA Champions League (12 Clubes Gigantes • 24 Uniformes)'}
+                        </h4>
+                      </div>
+                      <p className={`text-[11px] leading-relaxed ${
+                        proKitsCollectionTab === 'ligamx' ? 'text-emerald-800' : 'text-blue-800'
+                      }`}>
+                        {proKitsCollectionTab === 'ligamx'
+                          ? 'Uniformes oficiales de Primera División con escudos vectoriales y patrocinadores auténticos (Caliente, Cemento Cruz Azul, DHL, Cemex, etc.).'
+                          : 'Los 12 gigantes de Europa (Real Madrid, Barca, Man City, Bayern, PSG, Arsenal, Liverpool, Inter, Juventus, Dortmund, Atlético, Milan) con patrocinadores oficiales.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGarmentMenuMenSection('custom')}
+                      className="text-xs font-bold text-slate-700 hover:text-slate-900 underline shrink-0 cursor-pointer"
+                    >
+                      ← Personaliza a tu gusto
+                    </button>
+                  </div>
+
+                  {/* Selector de Edición (Local vs Visitante) y Búsqueda */}
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
+                    {/* Switcher Local vs Visitante */}
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setMexicoKitEditionFilter('local')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                          mexicoKitEditionFilter === 'local'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>🏠</span>
+                        <span>Local ({proKitsCollectionTab === 'ligamx' ? 18 : 12})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMexicoKitEditionFilter('visitante')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                          mexicoKitEditionFilter === 'visitante'
+                            ? 'bg-sky-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>✈️</span>
+                        <span>Visitante ({proKitsCollectionTab === 'ligamx' ? 18 : 12})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMexicoKitEditionFilter('all')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          mexicoKitEditionFilter === 'all'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Todos ({proKitsCollectionTab === 'ligamx' ? 36 : 24})
+                      </button>
+                    </div>
+
+                    {/* Barra de Búsqueda */}
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={mexicoKitSearch}
+                        onChange={(e) => setMexicoKitSearch(e.target.value)}
+                        placeholder="Buscar por club, estado o corte..."
+                        className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-emerald-500 focus:outline-none"
+                      />
+                      {mexicoKitSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setMexicoKitSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filtros de Región */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                      {[
+                        { id: 'all', label: 'Todas las Regiones' },
+                        { id: 'cdmx', label: 'CDMX (3)' },
+                        { id: 'jalisco', label: 'Jalisco (2)' },
+                        { id: 'norte', label: 'Norte (5)' },
+                        { id: 'centro_bajio', label: 'Centro / Bajío (8)' },
+                      ].map((reg) => (
+                        <button
+                          key={reg.id}
+                          type="button"
+                          onClick={() => setMexicoKitRegionFilter(reg.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer ${
+                            mexicoKitRegionFilter === reg.id
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {reg.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Grid de Uniformes con Miniatura Realista 2D */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[58vh] overflow-y-auto pr-1">
+                    {(proKitsCollectionTab === 'ligamx' ? filteredMexicoKitsInMenu : filteredUclKitsInMenu).map((kit) => (
+                      <div
+                        key={kit.id}
+                        className="p-3 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all flex flex-col justify-between gap-3 group"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Miniatura Vectorial Realista de la Camiseta */}
+                          <div className="p-1.5 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-emerald-50/50 transition-colors flex items-center justify-center shrink-0">
+                            <JerseyThumbnailMiniature kit={kit} size={54} />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[9px] font-mono uppercase font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                                {kit.location}
+                              </span>
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                  kit.edition === 'local'
+                                    ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
+                                    : 'text-sky-700 bg-sky-50 border border-sky-200/60'
+                                }`}
+                              >
+                                {kit.edition === 'local' ? '🏠 Local' : '✈️ Visita'}
+                              </span>
+                            </div>
+
+                            <h4
+                              className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors mt-1 leading-snug line-clamp-1"
+                              title={kit.name}
+                            >
+                              {kit.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-tight">
+                              {kit.description}
+                            </p>
+                            <div className="mt-1 text-[10px] font-mono text-slate-400">
+                              Inspiración: <strong className="text-slate-700">{kit.clubAlias}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                          <div className="text-[10px] font-mono text-slate-400">
+                            Corte: <strong className="text-slate-600">{kit.patternId}</strong>
+                          </div>
+                          <button
+                            id={`btn-menu-kit-${kit.id}`}
+                            type="button"
+                            onClick={() => {
+                              handleApplyMexicoKit(kit);
+                              setIsGarmentMenuOpen(false);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold transition-all cursor-pointer shadow-xs hover:scale-102 flex items-center gap-1"
+                          >
+                            <span>Cargar en 3D</span>
+                            <span>→</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {filteredMexicoKitsInMenu.length === 0 && (
+                    <div className="py-8 text-center text-slate-500 text-xs bg-slate-50 rounded-2xl border border-slate-200">
+                      No se encontraron uniformes con ese filtro. Prueba borrando el texto de búsqueda.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== SECCIÓN DAMA ==================== */}
+          {genderModule === 'women' && (
+            <div className="space-y-5">
+              <div className="p-3.5 rounded-2xl bg-fuchsia-50 border border-fuchsia-200 text-xs text-fuchsia-950 leading-relaxed">
+                <strong>Patronaje Anatómico Dama:</strong> Moldes independientes diseñados especialmente para la silueta femenina, con sisa adaptada, cintura entallada y costuras ergonómicas.
+              </div>
+
+              {/* Fútbol Dama */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Fútbol Dama (Patronaje Entallado Femenino)
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {womenFootball.map((p) => {
+                    const isCur = design.productModelId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          onSwitchProduct(p.id);
+                          setIsGarmentMenuOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          isCur
+                            ? 'bg-fuchsia-50 border-2 border-fuchsia-600 text-fuchsia-950 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                          isCur ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {isCur ? 'Activo en 3D' : 'Cargar'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {/* Short Fútbol Matchday compatible */}
+                  {menFootball.filter((p) => p.garmentCategory === 'shorts').map((p) => {
+                    const isCur = design.productModelId === p.id;
+                    return (
+                      <button
+                        key={`w_short_${p.id}`}
+                        type="button"
+                        onClick={() => {
+                          onSwitchProduct(p.id);
+                          setIsGarmentMenuOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          isCur
+                            ? 'bg-fuchsia-50 border-2 border-fuchsia-600 text-fuchsia-950 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-xs font-black text-slate-900 block">{p.name} (Corte Matchday Unisex)</span>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                          isCur ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {isCur ? 'Activo en 3D' : 'Cargar'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Baloncesto Dama */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-fuchsia-600" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Baloncesto Dama (Patronaje Anatómico Femenino)
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {womenBasketball.map((p) => {
+                    const isCur = design.productModelId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          onSwitchProduct(p.id);
+                          setIsGarmentMenuOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          isCur
+                            ? 'bg-fuchsia-50 border-2 border-fuchsia-600 text-fuchsia-950 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                          isCur ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {isCur ? 'Activo en 3D' : 'Cargar'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Chaqueta Dama */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Chaquetas Técnicas Dama (Corte Entallado)
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {womenJackets.map((p) => {
+                    const isCur = design.productModelId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          onSwitchProduct(p.id);
+                          setIsGarmentMenuOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          isCur
+                            ? 'bg-fuchsia-50 border-2 border-fuchsia-600 text-fuchsia-950 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-xs font-black text-slate-900 block">{p.name}</span>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                          isCur ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {isCur ? 'Activo en 3D' : 'Cargar'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </LightDismissModal>
+
+      {/* ==================== MODAL: COLECCIÓN KITS OFICIALES PRO (60 UNIFORMES) ==================== */}
+      <LightDismissModal
+        isOpen={isMexicoKitsModalOpen}
+        onClose={() => setIsMexicoKitsModalOpen(false)}
+        titleId="mexico-kits-modal-title"
+        subtitle="Colección Pro Vectorial • 36 Liga MX + 24 UEFA Champions League (Locales y Visitantes)"
+        title="⭐ Colección de Kits Oficiales Pro (60 Uniformes)"
+        maxWidthClass="max-w-5xl"
+      >
+        <div className="space-y-4">
+          {/* Segmented Tab: Liga MX vs Champions League */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+            <button
+              type="button"
+              onClick={() => setProKitsCollectionTab('ligamx')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                proKitsCollectionTab === 'ligamx'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+              }`}
+            >
+              <span>🇲🇽</span>
+              <span>Liga MX Pro (36 Kits)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setProKitsCollectionTab('ucl')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                proKitsCollectionTab === 'ucl'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+              }`}
+            >
+              <span>⭐</span>
+              <span>UEFA Champions League (24 Kits)</span>
+            </button>
+          </div>
+
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              {proKitsCollectionTab === 'ligamx' ? (
+                <><strong>Liga MX Temporada 2026/2027:</strong> Los 18 clubes de Primera División en versiones Local y Visitante con patrocinadores y escudos oficiales de alta definición.</>
+              ) : (
+                <><strong>UEFA Champions League 2026/2027:</strong> Los 12 clubes gigantes de Europa en versiones Local y Visitante (Real Madrid, Barca, Man City, Bayern, PSG, Arsenal, Liverpool, Inter, Juventus, Dortmund, Atlético, Milan).</>
+              )}
+            </div>
+            {/* Switcher Local vs Visitante en Modal */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-blue-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMexicoKitEditionFilter('local')}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  mexicoKitEditionFilter === 'local'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>🏠</span>
+                <span>Local ({proKitsCollectionTab === 'ligamx' ? '18' : '12'})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMexicoKitEditionFilter('visitante')}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  mexicoKitEditionFilter === 'visitante'
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>✈️</span>
+                <span>Visitante ({proKitsCollectionTab === 'ligamx' ? '18' : '12'})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMexicoKitEditionFilter('all')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mexicoKitEditionFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Todos ({proKitsCollectionTab === 'ligamx' ? '36' : '24'})
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+            {(proKitsCollectionTab === 'ligamx' ? filteredMexicoKitsInMenu : filteredUclKitsInMenu).map((kit) => (
+              <button
+                key={kit.id}
+                id={`btn-kit-${kit.id}`}
+                type="button"
+                onClick={() => handleApplyOfficialKit(kit)}
+                className="p-3 rounded-2xl bg-white border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between gap-3 shadow-xs cursor-pointer group"
+              >
+                <div className="flex items-start gap-3">
+                  {/* Miniatura Vectorial Realista de la Camiseta */}
+                  <div className="p-1.5 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-blue-50/50 transition-colors flex items-center justify-center shrink-0">
+                    <JerseyThumbnailMiniature kit={kit} size={54} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] font-mono uppercase font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                        {kit.location}
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          kit.edition === 'local'
+                            ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
+                            : 'text-sky-700 bg-sky-50 border border-sky-200/60'
+                        }`}
+                      >
+                        {kit.edition === 'local' ? '🏠 Local' : '✈️ Visita'}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs font-black text-slate-900 group-hover:text-blue-600 transition-colors mt-1 leading-snug line-clamp-1" title={kit.name}>
+                      {kit.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-tight">
+                      {kit.description}
+                    </p>
+                    <div className="mt-1 text-[10px] font-mono text-slate-400">
+                      Inspiración: <strong className="text-slate-700">{kit.clubAlias}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Corte: <strong className="text-slate-600">{kit.patternId}</strong>
+                  </span>
+                  <span className="text-xs font-bold text-blue-600 group-hover:underline flex items-center gap-1">
+                    <span>Cargar en 3D</span>
+                    <span>→</span>
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </LightDismissModal>
+
+      {/* ==================== MODAL 6: PLANTILLA 2D DE CONFECCIÓN Y CORTE A ESCALA REAL 1:1 ==================== */}
+      <ProductionMoldModal
+        isOpen={isProductionMoldModalOpen}
+        onClose={() => setIsProductionMoldModalOpen(false)}
+        design={{
+          ...design,
+          primaryColor: proColorZoneMap.c1 || proColorZoneMap.c2 || design.primaryColor,
+          secondaryColor: proColorZoneMap.c6 || proColorZoneMap.c3 || design.secondaryColor,
+          accentColor: proColorZoneMap.c7 || proColorZoneMap.c5 || design.accentColor,
+          proPatternId,
+          proColorZoneMap,
+        }}
+        roster={roster}
+        artworkRegistry={artworkRegistry}
+        onProceedToOrder={() => {
+          setIsProductionMoldModalOpen(false);
+          onOpenProductionModal?.();
+        }}
+      />
+
+      {/* ==================== MODAL DE MOCKUPS REDES SOCIALES & COMPARTIR ==================== */}
+      <SocialMediaMockupModal
+        isOpen={isSocialMediaModalOpen}
+        onClose={() => setIsSocialMediaModalOpen(false)}
+        design={design}
+        product={currentProduct}
+        activePlayer={activePlayer}
+        canvasSnapshotRef={canvasSnapshotRef}
+      />
+
+      {/* ==================== MODAL 7: MI GALERÍA INTERNA DE DISEÑOS GUARDADOS ==================== */}
+      <UserDesignGalleryModal
+        isOpen={isGalleryModalOpen}
+        onClose={() => setIsGalleryModalOpen(false)}
+        currentDesign={design}
+        currentProduct={currentProduct}
+        currentRoster={roster}
+        unitPrice={unitPrice}
+        totalUnits={totalUnits}
+        totalPrice={totalPrice}
+        onLoadDesignFromGallery={handleLoadFromGallery}
+        canvasSnapshotRef={canvasSnapshotRef}
+      />
+
+      {/* ==================== MODAL 8: REGISTRO / ACCESO DE CUENTA DE CLUB ==================== */}
+      <UserAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          if (pendingAuthActionRef.current === 'save_draft') {
+            executeSaveDraft();
+          }
+          pendingAuthActionRef.current = null;
+        }}
+        actionLabel="guardar y registrar tus diseños de equipaciones"
+      />
+
+      {/* ==================== BURBUJA FLOTANTE TÁCTIL (FAB) EXCLUSIVA PARA MÓVIL ==================== */}
+      {/* Botón flotante siempre visible y cómodo al pulgar en la esquina inferior derecha */}
+      <div className="sm:hidden fixed bottom-5 right-4 z-40 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setIsMobileFabOpen(!isMobileFabOpen)}
+          aria-label="Abrir menú de herramientas y plantilla"
+          className="relative w-14 h-14 rounded-full bg-slate-900 text-white shadow-2xl border-2 border-sky-400 flex items-center justify-center cursor-pointer active:scale-95 transition-all group"
+        >
+          {isMobileFabOpen ? (
+            <X className="w-6 h-6 text-white" />
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <Layers className="w-6 h-6 text-sky-400 group-hover:scale-110 transition-transform" />
+              {galleryCount > 0 && (
+                <span className="absolute -top-2.5 -right-2.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center border border-slate-900">
+                  {galleryCount}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Menú emergente de la burbuja móvil */}
+      {isMobileFabOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 sm:hidden transition-opacity"
+            onClick={() => setIsMobileFabOpen(false)}
+          />
+          <div className="fixed bottom-22 right-4 left-4 sm:hidden z-50 bg-white rounded-3xl p-4 shadow-2xl border border-slate-200 animate-in fade-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-black">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                    Herramientas de Estudio
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Acceso rápido y visor de corte
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileFabOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Opciones en rejilla táctil */}
+            <div className="grid grid-cols-2 gap-2 my-3">
+              {/* 1. Plantilla 2D Completa */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProductionMoldModalOpen(true);
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-3 rounded-2xl bg-blue-50/90 hover:bg-blue-100/90 border border-blue-200/90 text-left flex flex-col justify-between gap-1 transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <Scissors className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full">
+                    Patrón 1:1
+                  </span>
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900">Plantilla 2D</div>
+                  <div className="text-[10px] text-slate-500">Moldes de confección</div>
+                </div>
+              </button>
+
+              {/* 2. Auto-Rotación 3D 360° */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoRotate((r) => !r);
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-3 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100/90 border border-emerald-200/90 text-left flex flex-col justify-between gap-1 transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                    <RotateCw className={`w-4 h-4 ${autoRotate ? 'animate-spin' : ''}`} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                    {autoRotate ? 'Girando' : 'Girar 360°'}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900">
+                    Inspección 3D
+                  </div>
+                  <div className="text-[10px] text-slate-500">Giro continuo</div>
+                </div>
+              </button>
+
+              {/* 3. Guardar Diseño */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleSaveDraft();
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center shrink-0">
+                  <Save className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900 truncate">Guardar</div>
+                  <div className="text-[10px] text-slate-500 truncate">Guardar diseño</div>
+                </div>
+              </button>
+
+              {/* 4. Mi Galería */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGalleryModalOpen(true);
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <FolderHeart className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900 truncate">Mi Galería</div>
+                  <div className="text-[10px] text-slate-500 truncate">{galleryCount} guardados</div>
+                </div>
+              </button>
+
+              {/* 5. Ejemplares / Tallas */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRosterModalOpen(true);
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900 truncate">Ejemplares</div>
+                  <div className="text-[10px] text-slate-500 truncate">{roster.length} jugadores</div>
+                </div>
+              </button>
+
+              {/* 6. Revisión Técnica */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReviewModalOpen(true);
+                  setIsMobileFabOpen(false);
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <ClipboardCheck className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900 truncate">Revisión</div>
+                  <div className="text-[10px] text-slate-500 truncate">Costuras y resolución</div>
+                </div>
+              </button>
+            </div>
+
+            {/* Botón Compartir + Finalizar Equipación */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-600 px-1">
+                <span>{totalUnits} prendas ({currentProduct.name})</span>
+                <span className="text-slate-900 font-black text-sm">${totalPrice.toFixed(2)} USD</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href);
+                    }
+                    showToast('Enlace de diseño copiado para compartir');
+                    setIsMobileFabOpen(false);
+                  }}
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer"
+                  title="Compartir enlace"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-fab-open-mold"
+                  onClick={() => {
+                    setIsProductionMoldModalOpen(true);
+                    setIsMobileFabOpen(false);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <Scissors className="w-4 h-4 text-emerald-200" />
+                  <span>Ver Plantilla 2D (Confección)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

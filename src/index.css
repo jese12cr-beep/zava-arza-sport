@@ -1,0 +1,438 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  --arza-bg: #ffffff;
+  --arza-surface: #f5f5f5;
+  --arza-ink: #111111;
+  --arza-muted: #525252;
+  --arza-border: #e5e5e5;
+  --arza-volt: #c8ff00;
+}
+
+/* ARZA SPORT Editorial Typography (Barlow Condensed + Inter) */
+.font-display-hero,
+.font-headline-lg,
+.font-headline-md,
+.font-headline-sm {
+  font-family: 'Barlow Condensed', 'Inter', sans-serif;
+  text-wrap: balance;
+}
+
+.font-body-lg,
+.font-body-md,
+.font-body-sm {
+  font-family: 'Inter', sans-serif;
+  text-wrap: pretty;
+}
+
+.font-spec-code,
+.font-label-caps {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-athletic-num {
+  font-family: 'Teko', sans-serif;
+  letter-spacing: 0.02em;
+  line-height: 0.85;
+}
+
+.font-bebas {
+  font-family: 'Bebas Neue', cursive;
+}
+
+.font-teko {
+  font-family: 'Teko', sans-serif;
+}
+
+.font-chakra {
+  font-family: 'Chakra Petch', sans-serif;
+}
+
+/* Manejadores dedicados de arrastre 2D y 3D (Pointer Events + Safari fallback) */
+.decal-drag-handle,
+.garment-3d-drag-surface {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.decal-drag-handle {
+  cursor: grab;
+}
+
+.decal-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Tabla responsiva de Roster con Container Queries y encabezados Sticky */
+.roster-table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(440px, 60vh);
+  container-type: inline-size;
+}
+
+.roster-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  --label-2: "Corte";
+  --label-3: "Talla";
+  --label-4: "Cant.";
+  --label-5: "Nombre Espalda";
+  --label-6: "Dorsal";
+  --label-7: "Acción";
+}
+
+.roster-data-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.roster-data-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  background: #0f172a;
+}
+
+@container (width < 600px) {
+  .roster-data-table,
+  .roster-data-table thead,
+  .roster-data-table tbody,
+  .roster-data-table tr,
+  .roster-data-table th,
+  .roster-data-table td {
+    display: block;
+  }
+
+  .roster-data-table thead {
+    display: none;
+  }
+
+  .roster-data-table tr {
+    margin-block-end: 0.85rem;
+    border: 1px solid #1e293b;
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .roster-data-table tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: #1e293b;
+  }
+
+  .roster-data-table td::before {
+    font-weight: 700;
+    color: #94a3b8;
+    font-size: 0.7rem;
+    margin-inline-end: 0.5rem;
+  }
+
+  .roster-data-table td:nth-child(2)::before { content: var(--label-2) ": "; }
+  .roster-data-table td:nth-child(3)::before { content: var(--label-3) ": "; }
+  .roster-data-table td:nth-child(4)::before { content: var(--label-4) ": "; }
+  .roster-data-table td:nth-child(5)::before { content: var(--label-5) ": "; }
+  .roster-data-table td:nth-child(6)::before { content: var(--label-6) ": "; }
+  .roster-data-table td:nth-child(7)::before { content: var(--label-7) ": "; }
+}
+
+/* Custom scrollbar for design panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+/* 1. Contraste automático Pantone/CM5 (contrast-color + Relative Color Syntax fallback) */
+.pantone-dynamic-chip {
+  --swatch-bg: #1d4ed8;
+  background-color: var(--swatch-bg);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+}
+
+@supports (color: oklch(from red l c h)) {
+  .pantone-dynamic-chip {
+    --threshold: 0.623;
+    --l: max(0, sign(var(--threshold) - l));
+    color: oklch(from var(--swatch-bg) var(--l) 0 h);
+    text-shadow: none;
+  }
+}
+
+@supports (color: contrast-color(red)) {
+  .pantone-dynamic-chip {
+    color: contrast-color(var(--swatch-bg));
+    text-shadow: none;
+  }
+}
+
+/* 2. Controles deslizantes nativos de precisión (.studio-range) */
+input[type="range"].studio-range {
+  --slider-track-size: 0.42rem;
+  --slider-thumb-size: 1.05rem;
+  --slider-track-radius: 999px;
+  --slider-thumb-radius: 50%;
+  --slider-track-color: #1e293b;
+  --slider-fill-color: #fbbf24;
+  --slider-thumb-color: #fbbf24;
+  --slider-direction: to right;
+  --attr-min: attr(min type(<number>), 0);
+  --attr-max: attr(max type(<number>), 100);
+  --control-value: attr(value type(<number>), 50);
+  --slider-progress: calc(
+    progress(var(--control-value), var(--attr-min), var(--attr-max)) * 100%
+  );
+
+  appearance: none;
+  inline-size: 100%;
+  block-size: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].studio-range:dir(rtl) {
+  --slider-direction: to left;
+}
+
+@supports not (opacity: progress(1, 0, 100)) {
+  input[type="range"].studio-range {
+    --slider-progress: calc(
+      (var(--control-value) - var(--attr-min)) /
+      (var(--attr-max) - var(--attr-min)) * 100%
+    );
+  }
+}
+
+input[type="range"].studio-range::-webkit-slider-runnable-track {
+  block-size: var(--slider-track-size);
+  border: 0;
+  border-radius: var(--slider-track-radius);
+  background: linear-gradient(
+    var(--slider-direction),
+    var(--slider-fill-color) var(--slider-progress),
+    var(--slider-track-color) var(--slider-progress)
+  );
+}
+
+input[type="range"].studio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  margin-block-start: calc(
+    (var(--slider-track-size) - var(--slider-thumb-size)) / 2
+  );
+  border: 2px solid #020617;
+  border-radius: var(--slider-thumb-radius);
+  background: var(--slider-thumb-color);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+}
+
+input[type="range"].studio-range::-moz-range-track {
+  block-size: var(--slider-track-size);
+  border: 0;
+  border-radius: var(--slider-track-radius);
+  background: var(--slider-track-color);
+}
+
+input[type="range"].studio-range::-moz-range-progress {
+  block-size: var(--slider-track-size);
+  border-radius: var(--slider-track-radius);
+  background: var(--slider-fill-color);
+}
+
+input[type="range"].studio-range::-moz-range-thumb {
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  border: 2px solid #020617;
+  border-radius: var(--slider-thumb-radius);
+  background: var(--slider-thumb-color);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+}
+
+input[type="range"].studio-range:focus-visible {
+  outline: 2px solid var(--slider-fill-color);
+  outline-offset: 3px;
+}
+
+/* 3. Pausado eficiente de WebGL fuera de pantalla (content-visibility) */
+.garment-3d-stage {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 520px;
+}
+
+/* 4. Barra de pestañas Owayo con indicador deslizante por CSS Anchor Positioning */
+ul.owayo-tabs {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul.owayo-tabs::before {
+  content: '';
+  position: absolute;
+  position-anchor: --active-owayo-tab;
+  /* DO NOT use position-area, which can not be transitioned. */
+  inset-block-start: calc(anchor(bottom) - 3px);
+  inset-inline-start: anchor(left);
+  inset-inline-end: anchor(right);
+  block-size: 3px;
+  background: #fbbf24;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ul.owayo-tabs::before {
+    transition: inset 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+ul.owayo-tabs li.active {
+  anchor-name: --active-owayo-tab;
+}
+
+@supports not (position-anchor: auto) {
+  ul.owayo-tabs::before {
+    display: none;
+  }
+  ul.owayo-tabs li.active {
+    border-bottom: 3px solid #fbbf24;
+  }
+}
+
+/* 5. Controles Switch nativos progresivos (<input type="checkbox" switch>) */
+input[type="checkbox"][switch] {
+  accent-color: var(--accent-color, #fbbf24);
+  margin: 0;
+  cursor: pointer;
+}
+
+input[type="checkbox"][switch]:focus-visible {
+  outline: 3px solid var(--focus-color, #38bdf8);
+  outline-offset: 4px;
+}
+
+/* 6. Backdrop unificado para diálogos modales (<dialog closedby="any">) */
+dialog::backdrop {
+  background-color: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+/* 7. Cuadrícula de transparencia para previsualización de PNG/SVG y mesa de patronaje */
+.checkered-preview {
+  background-color: #1e293b;
+  background-image:
+    linear-gradient(45deg, #0f172a 25%, transparent 25%),
+    linear-gradient(-45deg, #0f172a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0f172a 75%),
+    linear-gradient(-45deg, transparent 75%, #0f172a 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* 8. Bloqueo estricto contra copia no autorizada, arrastre y guardado de recursos de confección */
+.protected-graphics,
+.protected-graphics canvas,
+.protected-graphics svg,
+.protected-graphics img,
+.protected-graphics image {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 9. ARZA SPORT Storefront Minimalist Accessibility, Typography & Grid */
+:where(a:any-link, button, summary, [tabindex]):focus-visible {
+  outline: 3px solid #111111;
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .catalog-subgrid-card,
+  .arza-card {
+    border: 1px solid CanvasText;
+  }
+  :where(a:any-link, button):focus-visible {
+    outline: 3px solid Highlight;
+  }
+}
+
+.tabular-nums-pro {
+  font-variant-numeric: tabular-nums;
+}
+
+.arza-hero-headline {
+  font-size: clamp(2.5rem, 1.5rem + 4.2vw, 5.25rem);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.arza-section-headline {
+  font-size: clamp(1.85rem, 1.35rem + 1.8vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.arza-popover-nav:is(:popover-open, .\:popover-open) {
+  display: flex;
+}
+
+.catalog-fluid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+  gap: 2rem 1.5rem;
+}
+
+.catalog-fluid-grid > * {
+  min-width: 0;
+}
+
+@supports (grid-template-rows: subgrid) {
+  .catalog-subgrid-card {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

@@ -1,0 +1,19 @@
+{
+  "name": "ARZA SPORT™ App — Grupo Zava Indumentaria 3D",
+  "short_name": "ARZA SPORT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "orientation": "portrait-primary",
+  "description": "Aplicación oficial de ARZA SPORT (Grupo Zava) para diseño 3D y patronaje 2D de equipaciones deportivas.",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

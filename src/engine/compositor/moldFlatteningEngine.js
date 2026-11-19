@@ -1,0 +1,2009 @@
+/**
+ * ATLETIQ — moldFlatteningEngine.js
+ * Motor de Aplanado y Proyección 3D a 2D para Confección Textil Industrial (Escala 1:1).
+ *
+ * Basado en ingeniería inversa (REA) de los sistemas de patronaje y exportación RIP
+ * (Adobe Illustrator CC / Photoshop / CLO3D / Gerber Accumark).
+ *
+ * Proyecta con exactitud milimétrica sobre las coordenadas UV y el pliego de corte
+ * extraído del archivo maestro MOLDE CAMISA.svg (3543.31 x 3401.57 px = 1250 x 1200 mm a 72 DPI).
+ */
+
+import {
+  composeGarmentPartCanvas,
+  loadFishDesignMasks,
+  resolveActiveFishDesignMeta,
+  resolvedFishMasksCache,
+} from './fishPartCompositor';
+import { resolveAssetUrl } from '../../utils/assetUrl';
+import { preloadLigaMxCrest } from './ligaMxKitsEngine';
+import { preloadUclCrest } from './uclKitsEngine';
+import { preloadSponsorLogo } from './sponsorLogosEngine';
+import { getPartSpec, resolveMirlKeyForProduct } from '../core/boundingBoxMath.js';
+import {
+  getGarmentGradingData,
+  generateDynamicSizeBadgeSvg,
+  GRADING_SIZES,
+} from './patternGradingEngine';
+
+// ============================================================================
+// CONSTANTES Y TRAZOS MAESTROS DE "MOLDE CAMISA.SVG"
+// ============================================================================
+
+export const MOLD_CONSTANTS = {
+  VIEWBOX: '0 0 4400 3800',
+  CANVAS_WIDTH_MM: 1250,
+  CANVAS_HEIGHT_MM: 1200,
+  DPI: 72,
+  MM_TO_PX: 2.834645669,
+  PIECES: {
+    FRONT: {
+      id: 'front',
+      name: 'Delantero / Frente',
+      tag: '[ 1. DELANTERO / FRENTE • TALLA M ]',
+      bounds: { x: 199.7, y: 1039.13, width: 1497.68, height: 2165.95 },
+      centerX: 948.54,
+      centerY: 2122.1,
+      crestX: 1163.54,
+      crestY: 1545,
+      crestRadius: 110,
+      frontNumX: 730,
+      frontNumY: 1630,
+    },
+    BACK: {
+      id: 'back',
+      name: 'Trasero / Espalda',
+      tag: '[ 2. TRASERO / ESPALDA • TALLA M ]',
+      bounds: { x: 1845.85, y: 1015.82, width: 1497.76, height: 2189.41 },
+      centerX: 2594.73,
+      centerY: 2110.53,
+      nameY: 1530,
+      numberY: 2050,
+    },
+    COLLAR: {
+      id: 'collar',
+      name: 'Tira de Cuello (Ribete)',
+      tag: '[ 3. TIRA DE CUELLO • TALLA M ]',
+      bounds: { x: 1699.46, y: 196.34, width: 144.35, height: 1397.62 },
+      centerX: 1771.64,
+      centerY: 895.15,
+    },
+    LEFT_SLEEVE: {
+      id: 'left_sleeve',
+      name: 'Manga Izquierda',
+      tag: '[ 4. MANGA IZQUIERDA • TALLA M ]',
+      bounds: { x: 310.11, y: 196.34, width: 1276.86, height: 686.33 },
+      centerX: 948.54,
+      centerY: 539.51,
+      cuffY: 800,
+    },
+    RIGHT_SLEEVE: {
+      id: 'right_sleeve',
+      name: 'Manga Derecha',
+      tag: '[ 5. MANGA DERECHA • TALLA M ]',
+      bounds: { x: 1956.3, y: 196.34, width: 1276.86, height: 686.33 },
+      centerX: 2594.73,
+      centerY: 539.51,
+      cuffY: 800,
+    },
+  },
+};
+
+export const MOLDE_PATHS = {
+  FRENTE:
+    'M1696.25,1839.99c-115.97-72.21-137.49-188.38-145.49-315.14-6.82-121.39,16.51-249.79,59.6-363.19l-412.37-122.53c-3.95,79.49-28.89,164.03-73.84,230.11-25.15,36.14-56.09,67-92.41,89.5-50.93,31.55-115.47,31.55-166.39,0-36.32-22.5-67.26-53.36-92.42-89.5-44.94-66.08-69.89-150.62-73.84-230.11l-412.37,122.53c43.09,113.4,66.42,241.8,59.6,363.19-8,126.76-29.51,242.93-145.49,315.14l-1.13,1358.15c237.54,7.64,511.01,6.93,748.84,6.91,237.83.02,511.3.73,748.84-6.91L1696.25,1839.99Z',
+  TRASERO:
+    'M3342.55,1839.49c-120.49-74.57-145.36-205.39-138.05-337.6,8.42-122,26.92-247.98,57.83-366.38l-402.45-119.69c-32.38,42.84-72.11,90.62-122.03,113.24-42.57,18.25-97.01,28.35-143.12,30.47-46.11-2.12-100.55-12.22-143.11-30.47-49.93-22.62-89.66-70.4-122.03-113.24l-402.45,119.69c30.9,118.4,49.4,244.38,57.82,366.38,7.31,132.21-17.56,263.03-138.04,337.6l-1.07,1358.15,150.24,4.33c152.53,2.95,335.49,2.65,487.7,3.26h221.88c152.11-.61,335.3-.31,487.7-3.26l150.24-4.33L3342.55,1839.49Z',
+  MANGA_DERECHA:
+    'M3233.16,570.15l-25.72-10.63c-90.79-39.97-162.57-120.95-230.88-190.21-31.3-34.56-70.93-78.58-109.78-104.45-78.16-53.54-178.63-72.06-272.05-67.97-93.42-4.09-193.89,14.43-272.05,67.97-38.84,25.87-78.48,69.89-109.78,104.45-68.31,69.26-140.09,150.24-230.88,190.21l-25.72,10.63c36.15,43.9,58.86,103.48,78.87,156.04,11.56,30.09,24.45,72.15,31.54,103.61l-10.63,52.87h1077.3l-10.63-52.87c7.09-31.46,19.98-73.52,31.54-103.61C3174.3,673.63,3197.02,614.05,3233.16,570.15Z',
+  MANGA_IZQUIERDA:
+    'M1586.97,570.15l-25.72-10.63c-90.79-39.97-162.57-120.95-230.88-190.21-31.3-34.56-70.93-78.58-109.78-104.45-78.16-53.54-178.63-72.06-272.05-67.97-93.42-4.09-193.89,14.43-272.05,67.97-38.84,25.87-78.48,69.89-109.78,104.45-68.31,69.26-140.09,150.24-230.88,190.21l-25.72,10.63c36.15,43.9,58.86,103.48,78.87,156.04,11.56,30.09,24.45,72.15,31.54,103.61l-10.63,52.87h1077.3l-10.63-52.87c7.09-31.46,19.98-73.52,31.54-103.61C1528.11,673.63,1550.83,614.05,1586.97,570.15Z',
+  CUELLO_RECT:
+    'x="1072.82" y="822.98" width="1397.62" height="144.35" transform="translate(2666.7948 -876.4772) rotate(90)"',
+};
+
+export const MOLDE_CAMISA_STYLE = `
+  .st0 { fill: #333333; }
+  .st1 { stroke: #010101; fill: none; stroke-miterlimit: 10; }
+  .st2 { fill: none; }
+  .st3 { stroke: #1d1d1b; fill: none; stroke-miterlimit: 10; }
+  .st4 { fill: #ffed00; }
+  .st5 { fill: #009fe3; }
+  .st6 { fill: #5e4b14; }
+  .st7 { fill: #4d4d4d; }
+  .st8 { fill: #e6007e; }
+  .st9 { fill: #f6e81d; }
+  .st10 { fill: #f6ee8d; }
+  .st11 { fill: #616160; }
+`;
+
+export const MOLDE_CAMISA_BACKGROUND_INNER = `
+    <!-- 1. ICONO Y TEXTO: SCALE 1:1 -->
+    <g id="MARK_SCALE" transform="translate(120, 360)">
+      <g>
+        <path class="st0" d="M694.96,3313.86c2.14,1.15,5.5,2.25,8.95,2.25,3.71,0,5.68-1.54,5.68-3.89,0-2.2-1.7-3.49-5.98-5-5.96-2.11-9.85-5.36-9.85-10.57,0-6.09,5.11-10.72,13.51-10.72,4.07,0,7.01.8,9.12,1.79l-1.79,6.48c-1.41-.68-3.98-1.7-7.45-1.7s-5.2,1.63-5.2,3.46c0,2.27,1.98,3.27,6.61,5.02,6.33,2.36,9.26,5.65,9.26,10.69,0,5.97-4.57,11.09-14.4,11.09-4.05,0-8.1-1.11-10.09-2.22L694.96,3313.86Z"/>
+        <path class="st0" d="M750.21,3321.22c-1.45.71-4.83,1.54-9.13,1.54-12.37,0-18.75-7.73-18.75-17.91,0-12.18,8.73-18.92,19.51-18.92,4.2,0,7.39.81,8.8,1.58l-1.65,6.38c-1.61-.7-3.9-1.34-6.79-1.34-6.37,0-11.36,3.89-11.36,11.83,0,7.16,4.22,11.66,11.41,11.66,2.48,0,5.15-.49,6.75-1.16L750.21,3321.22Z"/>
+        <path class="st0" d="M765.36,3313.03l-2.52,9.17h-8.35l10.9-35.72h10.56l11.12,35.72h-8.7l-2.74-9.17H765.36ZM774.43,3307.01l-2.22-7.59c-.62-2.11-1.25-4.79-1.8-6.88h-.11c-.53,2.1-1.06,4.82-1.64,6.89l-2.13,7.58H774.43Z"/>
+        <path class="st0" d="M792.25,3286.48h8.07v28.95h14.22v6.77h-22.29V3286.48Z"/>
+        <path class="st0" d="M841.32,3307.09h-13.14v8.49h14.69v6.62h-22.77v-35.72h22.01v6.62h-13.93v7.44h13.14V3307.09Z"/>
+        <path class="st0" d="M871.27,3294.93h-.1l-6.55,3.11-1.34-6.04,9.14-4.25h6.65v34.45h-7.8V3294.93Z"/>
+        <path class="st0" d="M889.02,3300.82c0-2.82,1.95-4.85,4.74-4.85s4.68,1.98,4.71,4.85c0,2.79-1.87,4.83-4.73,4.83S889.02,3303.61,889.02,3300.82ZM889.02,3317.95c0-2.82,1.95-4.86,4.74-4.86s4.68,1.98,4.71,4.86c0,2.78-1.87,4.83-4.73,4.83S889.02,3320.73,889.02,3317.95Z"/>
+        <path class="st0" d="M916.61,3294.93h-.1l-6.55,3.11-1.33-6.04,9.13-4.25h6.65v34.45h-7.8V3294.93Z"/>
+      </g>
+      <g>
+        <path class="st0" d="M642.45,3269.93h-43.53c-8.07,0-14.63,6.57-14.63,14.63v43.53c0,8.07,6.56,14.63,14.63,14.63h43.53c8.06,0,14.62-6.56,14.62-14.63v-43.53C657.07,3276.5,650.51,3269.93,642.45,3269.93ZM651.07,3328.09c0,4.76-3.87,8.63-8.62,8.63h-43.53c-4.76,0-8.63-3.87-8.63-8.63v-43.53c0-4.76,3.87-8.63,8.63-8.63h43.53c4.75,0,8.62,3.87,8.62,8.63V3328.09Z"/>
+        <path class="st0" d="M639.65,3285.48h-18.41c-1.65,0-3,1.34-3,3s1.35,3,3,3h11.17l-26.58,26.58v-11.17c0-1.66-1.34-3-3-3s-3,1.34-3,3v18.41c0,1.66,1.35,3,3,3h18.41c1.66,0,3-1.34,3-3s-1.34-3-3-3h-11.16l26.57-26.58v11.17c0,1.66,1.35,3,3,3s3-1.34,3-3v-18.41C642.65,3286.82,641.31,3285.48,639.65,3285.48Z"/>
+      </g>
+    </g>
+
+    <!-- 2. ICONO Y TEXTO: CMYK COLOR -->
+    <g id="MARK_CMYK" transform="translate(500, 360)">
+      <g>
+        <path class="st0" d="M1696.11,3310.12q-.59,3.02-1.86,5.45t-3.21,4.19-4.47,2.71-5.62.95q-3.45,0-6.44-1.17-3-1.16-5.17-3.5-2.17-2.33-3.42-5.75-1.24-3.41-1.24-7.97,0-4.46,1.14-8.03,1.14-3.58,3.26-6.04,2.12-2.47,5.16-3.79,3.05-1.33,6.81-1.33,3.29,0,5.97.98,2.67.98,4.61,2.71,1.93,1.72,3.07,4.05,1.14,2.33,1.41,4.98h-7.37q-.74-3.02-2.86-4.69-2.12-1.67-4.77-1.67-4.61,0-6.79,3.31-2.17,3.32-2.17,9.09,0,5.89,2.15,9.15,2.14,3.26,6.44,3.26,3.28,0,5.27-1.78,1.99-1.77,2.73-5.11H1696.11Z"/>
+        <path class="st0" d="M1726.62,3322.2v-24.12l-6.57,24.12h-7.31l-6.52-24.01v24.01h-6.84v-35.19h10.81l6.36,25.81,6.36-25.81h10.6v35.19H1726.62Z"/>
+        <path class="st0" d="M1748.57,3322.2v-13.3l-12.19-21.89h8.59l7.42,14.31,6.84-14.31h8.48l-11.77,21.99v13.2H1748.57Z"/>
+        <path class="st0" d="M1792.2,3322.2l-10.44-15.85-3.92,3.87v11.98h-7.26v-35.19h7.26v14.31l13.46-14.31h9.54l-13.88,13.88,14.2,21.31H1792.2Z"/>
+        <path class="st0" d="M1849.55,3310.12q-.59,3.02-1.86,5.45t-3.2,4.19-4.48,2.71-5.62.95q-3.45,0-6.44-1.17-2.99-1.16-5.17-3.5-2.17-2.33-3.41-5.75-1.25-3.41-1.25-7.97,0-4.46,1.14-8.03,1.14-3.58,3.26-6.04,2.12-2.47,5.17-3.79,3.04-1.33,6.81-1.33,3.28,0,5.96.98,2.68.98,4.61,2.71,1.93,1.72,3.07,4.05,1.14,2.33,1.41,4.98h-7.37q-.74-3.02-2.86-4.69-2.12-1.67-4.77-1.67-4.61,0-6.78,3.31-2.18,3.32-2.18,9.09,0,5.89,2.15,9.15,2.15,3.26,6.44,3.26,3.28,0,5.27-1.78,1.99-1.77,2.73-5.11H1849.55Z"/>
+        <path class="st0" d="M1868.88,3323.42q-8.16,0-12.53-4.77t-4.37-13.73q0-4.45,1.11-8,1.11-3.55,3.28-6.02,2.18-2.46,5.3-3.76,3.13-1.3,7.21-1.3,4.03,0,7.18,1.3,3.16,1.3,5.28,3.79,2.12,2.49,3.23,6.07,1.11,3.58,1.11,8.08,0,9.12-4.32,13.73Q1877.04,3323.42,1868.88,3323.42ZM1868.88,3317.11q1.96,0,3.71-.71,1.75-.72,3.05-2.18,1.3-1.45,2.04-3.73.74-2.28.74-5.41,0-6.25-2.44-9.49-2.43-3.23-7.1-3.23-4.66,0-7.15,3.23-2.49,3.24-2.49,9.49,0,6.26,2.51,9.14Q1864.27,3317.11,1868.88,3317.11Z"/>
+        <path class="st0" d="M1889.57,3322.2v-35.19h7.37v28.78h17.44v6.41H1889.57Z"/>
+        <path class="st0" d="M1933.04,3323.42q-8.16,0-12.53-4.77t-4.37-13.73q0-4.45,1.11-8,1.11-3.55,3.29-6.02,2.17-2.46,5.3-3.76,3.12-1.3,7.2-1.3,4.03,0,7.18,1.3,3.16,1.3,5.28,3.79,2.12,2.49,3.23,6.07,1.11,3.58,1.11,8.08,0,9.12-4.31,13.73Q1941.2,3323.42,1933.04,3323.42ZM1933.04,3317.11q1.96,0,3.71-.71,1.75-.72,3.05-2.18,1.3-1.45,2.04-3.73.74-2.28.74-5.41,0-6.25-2.43-9.49-2.44-3.23-7.11-3.23-4.66,0-7.15,3.23-2.49,3.24-2.49,9.49,0,6.26,2.52,9.14Q1928.43,3317.11,1933.04,3317.11Z"/>
+        <path class="st0" d="M1974.25,3322.2v-9.06q0-2.55-1.17-3.63t-4.35-1.09h-7.84v13.78h-7.15v-35.19h17.86q2.43,0,4.42.77,1.99.76,3.42,2.12,1.43,1.35,2.2,3.23.77,1.88.77,4.05,0,2.87-1.35,5.06-1.36,2.2-3.9,3.11,2.33.74,3.31,2.27.98,1.54.98,4.62v9.96H1974.25ZM1960.89,3293.1v9.38h9.22q2.97,0,4.19-1.32,1.22-1.33,1.22-3.34,0-2.07-1.19-3.39-1.2-1.33-3.95-1.33H1960.89Z"/>
+      </g>
+      <g>
+        <path class="st11" d="M1617.43,3306.33c0,9.22-3.74,17.57-9.78,23.61-6.04,6.04-14.39,9.78-23.61,9.78v-33.39H1617.43Z"/>
+        <path class="st5" d="M1584.04,3272.94v33.39h-33.39c0-9.22,3.74-17.57,9.78-23.61C1566.47,3276.68,1574.82,3272.94,1584.04,3272.94Z"/>
+        <path class="st8" d="M1617.43,3306.33h-33.39v-33.39c9.22,0,17.57,3.74,23.61,9.78C1613.69,3288.76,1617.43,3297.11,1617.43,3306.33Z"/>
+        <path class="st4" d="M1584.04,3306.33v33.39c-18.44,0-33.39-14.95-33.39-33.39H1584.04Z"/>
+        <path class="st0" d="M1635.5,3303.33h-15.21c-1.45-17.68-15.58-31.81-33.26-33.26v-15.21c0-1.66-1.34-3-3-3s-3,1.34-3,3v15.21c-17.67,1.45-31.8,15.58-33.25,33.26h-15.21c-1.66,0-3,1.34-3,3s1.34,3,3,3h15.21c1.45,17.67,15.58,31.8,33.25,33.25v15.21c0,1.66,1.35,3,3,3s3-1.34,3-3v-15.21c17.68-1.45,31.81-15.58,33.26-33.25h15.21c1.66,0,3-1.35,3-3S1637.16,3303.33,1635.5,3303.33ZM1614.28,3303.33h-27.25v-27.25C1601.4,3277.5,1612.86,3288.96,1614.28,3303.33ZM1581.03,3276.08v27.25h-27.24C1555.21,3288.96,1566.67,3277.5,1581.03,3276.08ZM1553.79,3309.33h27.24v27.24C1566.67,3335.15,1555.21,3323.69,1553.79,3309.33ZM1587.03,3336.57v-27.24h27.25C1612.86,3323.69,1601.4,3335.15,1587.03,3336.57Z"/>
+      </g>
+    </g>
+
+    <!-- 3. ICONO Y TEXTO: READY TO PRINT -->
+    <g id="MARK_READY_TO_PRINT" transform="translate(700, 360)">
+      <g>
+        <path class="st0" d="M2642.96,3322.2v-9.06q0-2.55-1.17-3.63t-4.34-1.09h-7.85v13.78h-7.15v-35.19h17.86q2.44,0,4.42.77,1.99.76,3.42,2.12,1.43,1.35,2.2,3.23.77,1.88.77,4.05,0,2.87-1.35,5.06-1.35,2.2-3.9,3.11,2.33.74,3.31,2.27.99,1.54.99,4.62v9.96H2642.96ZM2629.6,3293.1v9.38h9.22q2.97,0,4.19-1.32,1.22-1.33,1.22-3.34,0-2.07-1.19-3.39-1.2-1.33-3.95-1.33H2629.6Z"/>
+        <path class="st0" d="M2655.05,3322.2v-35.19h25.87v6.15h-18.71v7.52h17.22v6.2h-17.22v9.07h19.55v6.25H2655.05Z"/>
+        <path class="st0" d="M2709.56,3322.2l-2.23-7.26h-12.98l-2.5,7.26h-7.79l12.57-35.19h8.53l12.4,35.19H2709.56ZM2700.81,3294.9h-.05l-4.51,14h8.96L2700.81,3294.9Z"/>
+        <path class="st0" d="M2720.43,3322.2v-35.19h13.62q3.55,0,6.57,1.19t5.17,3.42,3.37,5.4,1.22,7.21-1.09,7.34-3.1,5.67-4.82,3.66-6.2,1.3H2720.43ZM2733.68,3316.21q4.82,0,7-2.99,2.17-3,2.17-8.99,0-2.97-.53-5.09-.53-2.11-1.72-3.47-1.2-1.35-3.05-1.96-1.85-.61-4.5-.61h-5.46v23.11H2733.68Z"/>
+        <path class="st0" d="M2762.01,3322.2v-13.3l-12.18-21.89h8.58l7.42,14.31,6.84-14.31h8.48l-11.77,21.99v13.2H2762.01Z"/>
+        <path class="st0" d="M2808.34,3322.2v-29.04h-10.6v-6.15h28.62v6.15h-10.66v29.04H2808.34Z"/>
+        <path class="st0" d="M2844.77,3323.42q-8.16,0-12.54-4.77t-4.37-13.73q0-4.45,1.11-8,1.12-3.55,3.29-6.02,2.17-2.46,5.3-3.76,3.13-1.3,7.21-1.3,4.02,0,7.18,1.3,3.15,1.3,5.27,3.79,2.12,2.49,3.24,6.07,1.11,3.58,1.11,8.08,0,9.12-4.32,13.73Q2852.93,3323.42,2844.77,3323.42ZM2844.77,3317.11q1.96,0,3.71-.71,1.75-.72,3.05-2.18,1.29-1.45,2.04-3.73.74-2.28.74-5.41,0-6.25-2.44-9.49-2.44-3.23-7.1-3.23-4.67,0-7.16,3.23-2.49,3.24-2.49,9.49,0,6.26,2.52,9.14Q2840.16,3317.11,2844.77,3317.11Z"/>
+        <path class="st0" d="M2879.75,3322.2v-35.19h15.53q2.59,0,4.66.87t3.55,2.44,2.28,3.63.8,4.45-.8,4.43-2.28,3.5-3.55,2.27-4.66.83h-8.17v12.77H2879.75ZM2894.11,3303.44q3.18,0,4.59-1.46,1.4-1.46,1.4-3.79,0-2.23-1.4-3.66-1.41-1.43-4.59-1.43h-7v10.34H2894.11Z"/>
+        <path class="st0" d="M2929.88,3322.2v-9.06q0-2.55-1.17-3.63t-4.35-1.09h-7.84v13.78h-7.16v-35.19h17.87q2.43,0,4.42.77,1.99.76,3.42,2.12,1.43,1.35,2.2,3.23.77,1.88.77,4.05,0,2.87-1.35,5.06-1.36,2.2-3.9,3.11,2.33.74,3.31,2.27.98,1.54.98,4.62v9.96H2929.88ZM2916.52,3293.1v9.38h9.22q2.97,0,4.19-1.32,1.22-1.33,1.22-3.34,0-2.07-1.2-3.39-1.19-1.33-3.94-1.33H2916.52Z"/>
+        <path class="st0" d="M2942.02,3322.2v-35.19h7.36v35.19H2942.02Z"/>
+        <path class="st0" d="M2976.03,3322.2l-15.06-23.64v23.64h-6.83v-35.19h7.79l13.99,22.63v-22.63h6.89v35.19H2976.03Z"/>
+        <path class="st0" d="M2996.25,3322.2v-29.04h-10.6v-6.15h28.62v6.15h-10.65v29.04H2996.25Z"/>
+      </g>
+      <g>
+        <path class="st0" d="M2580.83,3283.29c-.66-4.18-3.42-7.67-7.18-9.32v-12.61c0-3.04-2.47-5.5-5.51-5.5h-35.05c-3.03,0-5.5,2.46-5.5,5.5v12.61c-3.76,1.65-6.52,5.14-7.19,9.32-4.53,1.41-7.83,5.64-7.83,10.63v30.46c0,6.14,5,11.14,11.14,11.14h3.88v14.7c0,3.63,2.95,6.58,6.58,6.58h32.9c3.63,0,6.58-2.95,6.58-6.58v-14.7h3.88c6.14,0,11.14-5,11.14-11.14v-30.46C2588.67,3288.93,2585.37,3284.7,2580.83,3283.29ZM2567.65,3261.86v11.07h-34.06v-11.07H2567.65ZM2532.52,3278.93h36.2c2.61,0,4.84,1.59,5.79,3.86h-47.79C2527.67,3280.52,2529.91,3278.93,2532.52,3278.93ZM2567.65,3350.22c0,.32-.26.58-.58.58h-32.9c-.32,0-.58-.26-.58-.58v-30.66c0-.31.26-.57.58-.57h32.9c.32,0,.58.26.58.57V3350.22ZM2582.67,3324.38c0,2.83-2.31,5.14-5.14,5.14h-3.88v-9.96c0-3.62-2.95-6.57-6.58-6.57h-32.9c-3.63,0-6.58,2.95-6.58,6.57v9.96h-3.88c-2.83,0-5.14-2.31-5.14-5.14v-30.46c0-2.83,2.31-5.13,5.14-5.13h53.82c2.83,0,5.14,2.3,5.14,5.13V3324.38Z"/>
+        <path class="st0" d="M2525.69,3294.58c-1.15,0-2.09.93-2.09,2.08s.94,2.09,2.09,2.09,2.09-.93,2.09-2.09S2526.84,3294.58,2525.69,3294.58Z"/>
+        <path class="st0" d="M2532.68,3294.58c-1.15,0-2.09.93-2.09,2.08s.94,2.09,2.09,2.09,2.08-.93,2.08-2.09S2533.83,3294.58,2532.68,3294.58Z"/>
+      </g>
+    </g>
+
+    <!-- 4. SELLO SUPERIOR: ESPACIO RESERVADO PARA SELLO DINÁMICO DE TALLA (SIN GHOSTING) -->
+    <g id="MARK_SIZE_M_PREMIUM"></g>
+
+    <!-- 5. FRANJAS SLASH SUPERIORES ///////// (GUÍAS DE ALINEACIÓN DE MANGAS) -->
+    <g id="MARK_SLEEVE_SLASHES">
+      <path class="st7" d="M2624.56,71.32h30.4l-22.31,61.31h-30.4L2624.56,71.32ZM2891.27,71.32l-22.32,61.31h3.7l22.32-61.31H2891.27ZM2815.61,132.63h9.04l22.32-61.31h-9.04L2815.61,132.63ZM1080.35,132.63h115.47v-61.31h-93.16L1080.35,132.63ZM744.34,132.63h14.38l22.31-61.31h-14.37L744.34,132.63ZM696.34,132.63h9.04l22.31-61.31h-9.03L696.34,132.63ZM792.34,132.63h19.72l22.32-61.31h-19.72L792.34,132.63ZM648.34,132.63h3.7l22.31-61.31h-3.69L648.34,132.63ZM1006.66,71.32l-22.32,61.31h41.09l22.31-61.31H1006.66ZM2571.22,71.32l-22.31,61.31h35.74l22.31-61.31H2571.22ZM958.66,71.32l-22.32,61.31h35.74l22.32-61.31H958.66ZM910.66,71.32l-22.32,61.31h30.4l22.32-61.31H910.66ZM840.34,132.63h25.06l22.32-61.31h-25.06L840.34,132.63ZM1054.66,71.32l-22.32,61.31h46.43l22.31-61.31H1054.66ZM2655.59,132.63h25.06l22.31-61.31h-25.05L2655.59,132.63ZM2517.88,71.32l-22.31,61.31h41.08l22.31-61.31H2517.88ZM2464.54,71.32l-22.31,61.31h46.42l22.31-61.31H2464.54ZM2347.49,71.32v61.31h93.16l22.31-61.31H2347.49ZM2762.27,132.63h14.38l22.32-61.31h-14.38L2762.27,132.63ZM2708.93,132.63h19.72l22.32-61.31h-19.72L2708.93,132.63Z"/>
+    </g>
+`;
+
+/**
+ * Resuelve y extrae el data URL (base64) de cualquier logotipo subido.
+ */
+export function getDecalImageDataUrl(decal, artworkRegistry = {}) {
+  if (!decal) return '';
+  const art = artworkRegistry?.[decal.artworkId];
+
+  // 1. DataUrl directo en el asset
+  if (art?.dataUrl && art.dataUrl.startsWith('data:')) {
+    return art.dataUrl;
+  }
+
+  // 2. DataUrl directo en el decal
+  if (decal.dataUrl && decal.dataUrl.startsWith('data:')) {
+    return decal.dataUrl;
+  }
+
+  // 3. Origen SVG
+  if (art?.svgSource) {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(art.svgSource)}`;
+  }
+
+  // 4. PreviewUrl ya formateado en base64
+  if (art?.previewUrl && art.previewUrl.startsWith('data:')) {
+    return art.previewUrl;
+  }
+  if (decal.previewUrl && decal.previewUrl.startsWith('data:')) {
+    return decal.previewUrl;
+  }
+  if (decal.url && decal.url.startsWith('data:')) {
+    return decal.url;
+  }
+
+  // 5. Extracción desde imagen viva en el DOM (canvas toDataURL)
+  const liveImg = art?.imageElement || decal?.imageElement;
+  if (typeof document !== 'undefined' && liveImg) {
+    try {
+      const w = liveImg.naturalWidth || liveImg.width || 800;
+      const h = liveImg.naturalHeight || liveImg.height || 800;
+      if (w > 0 && h > 0) {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(liveImg, 0, 0);
+        const dUrl = c.toDataURL('image/png');
+        if (art) art.dataUrl = dUrl;
+        decal.dataUrl = dUrl;
+        return dUrl;
+      }
+    } catch {
+      // Ignorar
+    }
+  }
+
+  // 6. Fallback a URL
+  return art?.previewUrl || decal.previewUrl || decal.url || '';
+}
+
+/**
+ * Genera el arte vectorial de un escudo de club en coordenadas de plantilla.
+ * Normaliza cualquier variante de ID (mx_america, america, club-america, etc.)
+ */
+export function renderClubCrestSvg(clubId, cx, cy, r, design) {
+  const primaryColor = design?.colorZones?.primary?.hex || '#FFF0B5';
+  const secondaryColor = design?.colorZones?.secondary?.hex || '#0A1A3A';
+  const accentsColor = design?.colorZones?.accents?.hex || '#FFC72C';
+
+  const cid = String(clubId || '').toLowerCase().replace(/[-_]/g, '');
+
+  // 1. AMÉRICA
+  if (cid.includes('america')) {
+    return `
+      <g id="crest_america" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r}" fill="#FFF0B5" stroke="#0B1B3D" stroke-width="${r * 0.14}" />
+        <path d="M${-r * 0.24},${-r * 0.55} L${r * 0.14},${-r * 0.52} L${r * 0.22},${-r * 0.2} L0,${-r * 0.05} L${-r * 0.04},${r * 0.08} L${r * 0.28},${r * 0.22} L${r * 0.18},${r * 0.6} L0,${r * 0.72} L${-r * 0.14},${r * 0.3} Z" fill="#003DA5" />
+        <text x="0" y="${r * 0.14}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.75}" fill="#C8102E">CA</text>
+      </g>
+    `;
+  }
+
+  // 2. TIGRES UANL
+  if (cid.includes('tigres') || cid.includes('uanl')) {
+    const s = r / 55;
+    return `
+      <g id="crest_tigres" transform="translate(${cx}, ${cy}) scale(${s})">
+        <path d="M-45,-48 L45,-48 L45,15 C45,45 0,58 0,58 C0,58 -45,45 -45,15 Z" fill="#0033A0" stroke="#FFC72C" stroke-width="7" stroke-linejoin="round" />
+        <rect x="-38" y="-42" width="76" height="15" fill="#FFC72C" rx="2" />
+        <text x="0" y="-32" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="11" fill="#0033A0" letter-spacing="1">TIGRES</text>
+        <text x="0" y="8" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="36" fill="#FFC72C">U</text>
+        <text x="0" y="32" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="10" fill="#FFFFFF" letter-spacing="2">UANL</text>
+      </g>
+    `;
+  }
+
+  // 3. CHIVAS DE GUADALAJARA
+  if (cid.includes('chivas') || cid.includes('guadalajara')) {
+    return `
+      <g id="crest_chivas" transform="translate(${cx}, ${cy})">
+        <path d="M0,${-r} L${r * 0.9},${-r * 0.5} L${r * 0.9},${r * 0.2} C${r * 0.9},${r * 0.7} 0,${r * 1.05} 0,${r * 1.05} C0,${r * 1.05} ${-r * 0.9},${r * 0.7} ${-r * 0.9},${r * 0.2} L${-r * 0.9},${-r * 0.5} Z" fill="#C8102E" stroke="#0B1B3D" stroke-width="${r * 0.12}" />
+        <rect x="${-r * 0.4}" y="${-r * 0.3}" width="${r * 0.25}" height="${r * 0.9}" fill="#FFFFFF" />
+        <rect x="${r * 0.15}" y="${-r * 0.3}" width="${r * 0.25}" height="${r * 0.9}" fill="#FFFFFF" />
+        <path d="M0,${-r} L${r * 0.85},${-r * 0.5} L${-r * 0.85},${-r * 0.5} Z" fill="#003DA5" />
+        <circle cx="0" cy="${-r * 0.58}" r="${r * 0.16}" fill="#FFC72C" />
+      </g>
+    `;
+  }
+
+  // 4. PUMAS UNAM
+  if (cid.includes('pumas') || cid.includes('unam')) {
+    return `
+      <g id="crest_pumas" transform="translate(${cx}, ${cy})">
+        <polygon points="0,${-r * 0.95} ${r * 0.9},${r * 0.7} ${-r * 0.9},${r * 0.7}" fill="#0A1A3A" stroke="#C89A3C" stroke-width="${r * 0.14}" stroke-linejoin="round" />
+        <polygon points="0,${-r * 0.5} ${r * 0.5},${r * 0.4} ${-r * 0.5},${r * 0.4}" fill="#C89A3C" />
+      </g>
+    `;
+  }
+
+  // 5. CRUZ AZUL
+  if (cid.includes('cruzazul')) {
+    return `
+      <g id="crest_cruz_azul" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#0033A0" stroke="#C8102E" stroke-width="${r * 0.12}" />
+        <circle cx="0" cy="0" r="${r * 0.72}" fill="#FFFFFF" />
+        <rect x="${-r * 0.42}" y="${-r * 0.14}" width="${r * 0.84}" height="${r * 0.28}" fill="#C8102E" />
+        <rect x="${-r * 0.14}" y="${-r * 0.42}" width="${r * 0.28}" height="${r * 0.84}" fill="#C8102E" />
+      </g>
+    `;
+  }
+
+  // 6. RAYADOS DE MONTERREY
+  if (cid.includes('rayados') || cid.includes('monterrey')) {
+    return `
+      <g id="crest_rayados" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#001A49" stroke="#FFFFFF" stroke-width="${r * 0.1}" />
+        <rect x="${-r * 0.5}" y="${-r * 0.35}" width="${r * 0.22}" height="${r * 0.8}" fill="#FFFFFF" />
+        <rect x="${r * 0.28}" y="${-r * 0.35}" width="${r * 0.22}" height="${r * 0.8}" fill="#FFFFFF" />
+        <text x="0" y="${-r * 0.42}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.4}" fill="#FFFFFF">M</text>
+      </g>
+    `;
+  }
+
+  // 7. ATLAS FC
+  if (cid.includes('atlas')) {
+    return `
+      <g id="crest_atlas" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#C8102E" stroke="#FFFFFF" stroke-width="${r * 0.08}" />
+        <path d="M0,${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} Z" fill="#000000" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.7}" fill="#FFFFFF">A</text>
+      </g>
+    `;
+  }
+
+  // 8. PUEBLA
+  if (cid.includes('puebla')) {
+    return `
+      <g id="crest_puebla" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#FFFFFF" stroke="#003DA5" stroke-width="${r * 0.12}" />
+        <path d="M${-r * 0.7},${-r * 0.3} L${r * 0.7},${r * 0.5} L${r * 0.45},${r * 0.8} L${-r * 0.95},0 Z" fill="#003DA5" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.58}" fill="#FFC72C">PUE</text>
+      </g>
+    `;
+  }
+
+  // 9. SANTOS LAGUNA
+  if (cid.includes('santos') || cid.includes('laguna')) {
+    return `
+      <g id="crest_santos" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="${r * 0.08}" r="${r * 0.8}" fill="#007A33" stroke="#FFFFFF" stroke-width="${r * 0.1}" />
+        <rect x="${-r * 0.7}" y="${-r * 0.18}" width="${r * 1.4}" height="${r * 0.22}" fill="#FFFFFF" />
+        <rect x="${-r * 0.7}" y="${r * 0.22}" width="${r * 1.4}" height="${r * 0.22}" fill="#FFFFFF" />
+        <polygon points="${-r * 0.45},${-r * 0.55} ${-r * 0.6},${-r * 0.88} ${-r * 0.2},${-r * 0.75} 0,${-r * 0.95} ${r * 0.2},${-r * 0.75} ${r * 0.6},${-r * 0.88} ${r * 0.45},${-r * 0.55}" fill="#FFC72C" />
+      </g>
+    `;
+  }
+
+  // 10. DEPORTIVO TOLUCA
+  if (cid.includes('toluca') || cid.includes('diablos')) {
+    return `
+      <g id="crest_toluca" transform="translate(${cx}, ${cy})">
+        <ellipse cx="0" cy="0" rx="${r * 0.8}" ry="${r * 0.92}" fill="#C8102E" stroke="#FFFFFF" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.55}" fill="#FFFFFF">CDT</text>
+      </g>
+    `;
+  }
+
+  // 11. CLUB LEÓN
+  if (cid.includes('leon') || cid.includes('fiera')) {
+    return `
+      <g id="crest_leon" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#006341" stroke="#FFC72C" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.52}" fill="#FFC72C">LEÓN</text>
+      </g>
+    `;
+  }
+
+  // 12. PACHUCA
+  if (cid.includes('pachuca') || cid.includes('tuzos')) {
+    return `
+      <g id="crest_pachuca" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#0B1B3D" stroke="#D1D5DB" stroke-width="${r * 0.12}" />
+        <rect x="${-r * 0.45}" y="${-r * 0.75}" width="${r * 0.28}" height="${r * 1.5}" fill="#FFFFFF" />
+        <rect x="${r * 0.17}" y="${-r * 0.75}" width="${r * 0.28}" height="${r * 1.5}" fill="#FFFFFF" />
+        <text x="0" y="${-r * 0.42}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.4}" fill="#FFC72C">TUZOS</text>
+      </g>
+    `;
+  }
+
+  // 13. NECAXA
+  if (cid.includes('necaxa') || cid.includes('rayos')) {
+    return `
+      <g id="crest_necaxa" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#C8102E" stroke="#FFFFFF" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.75}" fill="#FFFFFF">N</text>
+      </g>
+    `;
+  }
+
+  // 14. QUERÉTARO
+  if (cid.includes('queretaro') || cid.includes('gallos')) {
+    return `
+      <g id="crest_queretaro" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#003DA5" stroke="#000000" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.75}" fill="#FFFFFF">Q</text>
+      </g>
+    `;
+  }
+
+  // 15. ATLÉTICO DE SAN LUIS
+  if (cid.includes('sanluis') || cid.includes('atletico')) {
+    return `
+      <g id="crest_san_luis" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#C8102E" stroke="#003DA5" stroke-width="${r * 0.12}" />
+        <rect x="${-r * 0.4}" y="${-r * 0.7}" width="${r * 0.25}" height="${r * 1.4}" fill="#FFFFFF" />
+        <rect x="${r * 0.15}" y="${-r * 0.7}" width="${r * 0.25}" height="${r * 1.4}" fill="#FFFFFF" />
+      </g>
+    `;
+  }
+
+  // 16. TIJUANA XOLOS
+  if (cid.includes('xolos') || cid.includes('tijuana')) {
+    return `
+      <g id="crest_xolos" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#C8102E" stroke="#0A0A0A" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.48}" fill="#FFFFFF">XOLOS</text>
+      </g>
+    `;
+  }
+
+  // 17. FC JUÁREZ
+  if (cid.includes('juarez') || cid.includes('bravos')) {
+    return `
+      <g id="crest_juarez" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.25} C${r * 0.8},${r * 0.7} 0,${r * 0.95} 0,${r * 0.95} C0,${r * 0.95} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.25} Z" fill="#7ED957" stroke="#C8102E" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.42}" fill="#C8102E">BRAVOS</text>
+      </g>
+    `;
+  }
+
+  // 18. MAZATLÁN FC
+  if (cid.includes('mazatlan')) {
+    return `
+      <g id="crest_mazatlan" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#4B0082" stroke="#00F5D4" stroke-width="${r * 0.12}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.55}" fill="#00F5D4">MZT</text>
+      </g>
+    `;
+  }
+
+
+  // =========================================================================
+  // UEFA CHAMPIONS LEAGUE CLUB CRESTS
+  // =========================================================================
+
+  // UCL 1: REAL MADRID
+  if (cid.includes('real_madrid') || cid.includes('madrid')) {
+    return `
+      <g id="crest_real_madrid" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="${r * 0.12}" r="${r * 0.78}" fill="#FFFFFF" stroke="#001A49" stroke-width="${r * 0.08}" />
+        <line x1="${-r * 0.5}" y1="${-r * 0.4}" x2="${r * 0.5}" y2="${r * 0.6}" stroke="#001A49" stroke-width="${r * 0.22}" />
+        <text x="0" y="${r * 0.16}" text-anchor="middle" dominant-baseline="middle" font-family="Georgia, serif" font-weight="900" font-size="${r * 0.45}" fill="#FEBE10">MCF</text>
+        <polygon points="${-r * 0.5},${-r * 0.65} ${-r * 0.25},${-r * 0.9} 0,${-r * 0.7} ${r * 0.25},${-r * 0.9} ${r * 0.5},${-r * 0.65} ${r * 0.4},${-r * 0.55} ${-r * 0.4},${-r * 0.55}" fill="#FEBE10" stroke="#001A49" stroke-width="${r * 0.04}" />
+      </g>
+    `;
+  }
+
+  // UCL 2: FC BARCELONA
+  if (cid.includes('barcelona') || cid.includes('barca')) {
+    return `
+      <g id="crest_barcelona" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.8} L${r * 0.8},${-r * 0.8} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#004D98" stroke="#EDBB00" stroke-width="${r * 0.08}" />
+        <rect x="${-r * 0.75}" y="${-r * 0.75}" width="${r * 0.75}" height="${r * 0.75}" fill="#FFFFFF" />
+        <line x1="${-r * 0.375}" y1="${-r * 0.75}" x2="${-r * 0.375}" y2="0" stroke="#A50044" stroke-width="${r * 0.15}" />
+        <line x1="${-r * 0.75}" y1="${-r * 0.375}" x2="0" y2="${-r * 0.375}" stroke="#A50044" stroke-width="${r * 0.15}" />
+        <rect x="0" y="${-r * 0.75}" width="${r * 0.75}" height="${r * 0.75}" fill="#EDBB00" />
+        <line x1="${r * 0.2}" y1="${-r * 0.75}" x2="${r * 0.2}" y2="0" stroke="#A50044" stroke-width="${r * 0.1}" />
+        <line x1="${r * 0.55}" y1="${-r * 0.75}" x2="${r * 0.55}" y2="0" stroke="#A50044" stroke-width="${r * 0.1}" />
+        <rect x="${-r * 0.8}" y="${-r * 0.1}" width="${r * 1.6}" height="${r * 0.2}" fill="#EDBB00" />
+        <text x="0" y="${r * 0.02}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.18}" fill="#004D98">FCB</text>
+        <rect x="${-r * 0.35}" y="${r * 0.1}" width="${r * 0.25}" height="${r * 0.75}" fill="#A50044" />
+        <rect x="${r * 0.1}" y="${r * 0.1}" width="${r * 0.25}" height="${r * 0.75}" fill="#A50044" />
+      </g>
+    `;
+  }
+
+  // UCL 3: MANCHESTER CITY
+  if (cid.includes('man_city') || cid.includes('mancity')) {
+    return `
+      <g id="crest_man_city" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.9}" fill="#6CABDD" stroke="#00285E" stroke-width="${r * 0.12}" />
+        <circle cx="0" cy="0" r="${r * 0.7}" fill="#FFFFFF" stroke="#00285E" stroke-width="${r * 0.05}" />
+        <path d="M${-r * 0.4},${-r * 0.1} L${r * 0.4},${-r * 0.1} L${r * 0.25},${r * 0.15} L${-r * 0.25},${r * 0.15} Z" fill="#FEBE10" />
+        <text x="0" y="${r * 0.42}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.25}" fill="#00285E">CITY</text>
+      </g>
+    `;
+  }
+
+  // UCL 4: BAYERN MÚNICH
+  if (cid.includes('bayern') || cid.includes('munchen')) {
+    return `
+      <g id="crest_bayern" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#DC052D" stroke="#0066B2" stroke-width="${r * 0.1}" />
+        <circle cx="0" cy="0" r="${r * 0.6}" fill="#0066B2" stroke="#FFFFFF" stroke-width="${r * 0.06}" />
+        <polygon points="0,${-r * 0.4} ${r * 0.3},0 0,${r * 0.4} ${-r * 0.3},0" fill="#FFFFFF" />
+        <text x="0" y="${r * 0.02}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.22}" fill="#DC052D">FCB</text>
+      </g>
+    `;
+  }
+
+  // UCL 5: PARIS SAINT-GERMAIN
+  if (cid.includes('psg') || cid.includes('paris')) {
+    return `
+      <g id="crest_psg" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.92}" fill="#004170" stroke="#FFFFFF" stroke-width="${r * 0.08}" />
+        <circle cx="0" cy="0" r="${r * 0.68}" fill="#FFFFFF" />
+        <polygon points="0,${-r * 0.55} ${r * 0.25},${r * 0.45} ${-r * 0.25},${r * 0.45}" fill="#DA291C" />
+        <path d="M${-r * 0.12},${r * 0.45} Q0,${r * 0.2} ${r * 0.12},${r * 0.45} Z" fill="#FFFFFF" />
+        <circle cx="0" cy="${r * 0.15}" r="${r * 0.08}" fill="#FEBE10" />
+      </g>
+    `;
+  }
+
+  // UCL 6: ARSENAL
+  if (cid.includes('arsenal') || cid.includes('gunners')) {
+    return `
+      <g id="crest_arsenal" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#EF0107" stroke="#9C824A" stroke-width="${r * 0.08}" />
+        <rect x="${-r * 0.5}" y="${r * 0.05}" width="${r}" height="${r * 0.16}" fill="#9C824A" rx="2" />
+        <circle cx="${-r * 0.25}" cy="${r * 0.18}" r="${r * 0.16}" fill="#023474" stroke="#9C824A" stroke-width="${r * 0.04}" />
+        <circle cx="${r * 0.25}" cy="${r * 0.18}" r="${r * 0.16}" fill="#023474" stroke="#9C824A" stroke-width="${r * 0.04}" />
+      </g>
+    `;
+  }
+
+  // UCL 7: LIVERPOOL
+  if (cid.includes('liverpool') || cid.includes('reds')) {
+    return `
+      <g id="crest_liverpool" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#C8102E" stroke="#00B2A9" stroke-width="${r * 0.08}" />
+        <polygon points="0,${-r * 0.45} ${r * 0.25},${-r * 0.1} ${r * 0.15},${r * 0.35} 0,${r * 0.45} ${-r * 0.15},${r * 0.35} ${-r * 0.25},${-r * 0.1}" fill="#F6EB61" />
+        <text x="0" y="${r * 0.75}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.22}" fill="#FFFFFF">L.F.C.</text>
+      </g>
+    `;
+  }
+
+  // UCL 8: INTER DE MILÁN
+  if (cid.includes('inter')) {
+    return `
+      <g id="crest_inter" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.9}" fill="#001EA0" stroke="#000000" stroke-width="${r * 0.12}" />
+        <circle cx="0" cy="0" r="${r * 0.68}" fill="#000000" stroke="#FFFFFF" stroke-width="${r * 0.06}" />
+        <text x="0" y="${r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.6}" fill="#FFFFFF">IM</text>
+      </g>
+    `;
+  }
+
+  // UCL 9: JUVENTUS
+  if (cid.includes('juventus') || cid.includes('juve')) {
+    return `
+      <g id="crest_juventus" transform="translate(${cx}, ${cy})">
+        <rect x="${-r * 0.7}" y="${-r * 0.85}" width="${r * 1.4}" height="${r * 1.7}" fill="#FFFFFF" rx="${r * 0.3}" stroke="#000000" stroke-width="${r * 0.08}" />
+        <path d="M${-r * 0.35},${-r * 0.55} L${-r * 0.1},${-r * 0.55} L${-r * 0.1},${r * 0.25} C${-r * 0.1},${r * 0.45} ${-r * 0.3},${r * 0.45} ${-r * 0.35},${r * 0.45}" stroke="#000000" stroke-width="${r * 0.18}" stroke-linecap="round" fill="none" />
+        <path d="M${r * 0.15},${-r * 0.55} L${r * 0.4},${-r * 0.55} L${r * 0.4},${r * 0.25} C${r * 0.4},${r * 0.55} ${-r * 0.05},${r * 0.55} ${-r * 0.15},${r * 0.55}" stroke="#000000" stroke-width="${r * 0.18}" stroke-linecap="round" fill="none" />
+      </g>
+    `;
+  }
+
+  // UCL 10: BORUSSIA DORTMUND
+  if (cid.includes('dortmund') || cid.includes('bvb')) {
+    return `
+      <g id="crest_dortmund" transform="translate(${cx}, ${cy})">
+        <circle cx="0" cy="0" r="${r * 0.9}" fill="#FDE100" stroke="#000000" stroke-width="${r * 0.12}" />
+        <text x="0" y="${-r * 0.05}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.42}" fill="#000000">BVB</text>
+        <text x="0" y="${r * 0.45}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.3}" fill="#000000">09</text>
+      </g>
+    `;
+  }
+
+  // UCL 11: ATLÉTICO DE MADRID
+  if (cid.includes('atletico') || cid.includes('atleti')) {
+    return `
+      <g id="crest_atletico" transform="translate(${cx}, ${cy})">
+        <path d="M${-r * 0.8},${-r * 0.85} L${r * 0.8},${-r * 0.85} L${r * 0.8},${r * 0.2} C${r * 0.8},${r * 0.7} 0,${r} 0,${r} C0,${r} ${-r * 0.8},${r * 0.7} ${-r * 0.8},${r * 0.2} Z" fill="#CB3524" stroke="#272E61" stroke-width="${r * 0.08}" />
+        <rect x="${-r * 0.75}" y="${-r * 0.75}" width="${r * 0.75}" height="${r * 0.75}" fill="#272E61" />
+        <circle cx="${-r * 0.375}" cy="${-r * 0.375}" r="${r * 0.2}" fill="#FFFFFF" />
+        <rect x="${-r * 0.45}" y="${0}" width="${r * 0.2}" height="${r * 0.85}" fill="#FFFFFF" />
+        <rect x="${0}" y="${0}" width="${r * 0.2}" height="${r * 0.85}" fill="#FFFFFF" />
+        <rect x="${r * 0.45}" y="${0}" width="${r * 0.2}" height="${r * 0.85}" fill="#FFFFFF" />
+      </g>
+    `;
+  }
+
+  // UCL 12: AC MILAN
+  if (cid.includes('milan') || cid.includes('rossoneri')) {
+    return `
+      <g id="crest_milan" transform="translate(${cx}, ${cy})">
+        <ellipse cx="0" cy="0" rx="${r * 0.65}" ry="${r * 0.95}" fill="#FFFFFF" stroke="#000000" stroke-width="${r * 0.08}" />
+        <line x1="${-r * 0.15}" y1="${-r * 0.4}" x2="${-r * 0.15}" y2="${r * 0.4}" stroke="#FB090B" stroke-width="${r * 0.12}" />
+        <line x1="${r * 0.15}" y1="${-r * 0.4}" x2="${r * 0.15}" y2="${r * 0.4}" stroke="#000000" stroke-width="${r * 0.12}" />
+        <line x1="${-r * 0.45}" y1="${r * 0.05}" x2="${r * 0.45}" y2="${r * 0.05}" stroke="#FB090B" stroke-width="${r * 0.08}" />
+        <text x="0" y="${-r * 0.62}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.22}" fill="#000000">ACM</text>
+        <text x="0" y="${r * 0.68}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', sans-serif" font-weight="900" font-size="${r * 0.18}" fill="#000000">1899</text>
+      </g>
+    `;
+  }
+
+  // 19. ESCUDO GENÉRICO DEPORTIVO (Para marcas o modelos sin escudo oficial)
+  return `
+    <g id="crest_custom_${cid || 'generic'}" transform="translate(${cx}, ${cy})">
+      <circle cx="0" cy="0" r="${r}" fill="${secondaryColor}" stroke="${accentsColor}" stroke-width="${r * 0.12}" />
+      <text x="0" y="${r * 0.04}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${r * 0.5}" fill="#FFFFFF">PRO</text>
+    </g>
+  `;
+}
+
+/**
+ * Renderiza cualquier decal colocado en 3D (PNG subido, escudo, texto o marca) sobre la pieza 2D.
+ */
+
+function renderSponsorSvg(sponsorId, cx, cy, w, h, tint, outline = null) {
+  const sp = (sponsorId || '').toLowerCase();
+  const textColor = tint || '#FFFFFF';
+  const strokeAttr = outline ? `stroke="${outline}" stroke-width="${Math.max(2, h * 0.09).toFixed(1)}" paint-order="stroke fill"` : '';
+
+  if (sp.includes('caliente')) {
+    return `
+      <g id="sponsor_caliente" transform="translate(${cx}, ${cy})">
+        <ellipse cx="${-w * 0.35}" cy="0" rx="${h * 0.4}" ry="${h * 0.4}" fill="#C8102E" />
+        <circle cx="${-w * 0.35}" cy="0" r="${h * 0.25}" fill="#FFFFFF" />
+        <text x="${-w * 0.15}" y="${h * 0.15}" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.55}" fill="${textColor}" ${strokeAttr}>caliente<tspan fill="#C8102E" font-size="${h * 0.4}">.mx</tspan></text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('cruz_azul')) {
+    return `
+      <g id="sponsor_cruz_azul" transform="translate(${cx}, ${cy})">
+        <rect x="${-w * 0.45}" y="${-h * 0.45}" width="${h * 0.9}" height="${h * 0.9}" fill="#FFFFFF" rx="4" />
+        <rect x="${-w * 0.45 + h * 0.1}" y="${-h * 0.35}" width="${h * 0.7}" height="${h * 0.7}" fill="#002B7F" />
+        <line x1="${-w * 0.45 + h * 0.45}" y1="${-h * 0.25}" x2="${-w * 0.45 + h * 0.45}" y2="${h * 0.25}" stroke="#C8102E" stroke-width="${h * 0.15}" />
+        <line x1="${-w * 0.45 + h * 0.2}" y1="0" x2="${-w * 0.45 + h * 0.7}" y2="0" stroke="#C8102E" stroke-width="${h * 0.15}" />
+        <text x="${-w * 0.45 + h * 1.1}" y="${h * 0.15}" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.45}" fill="${textColor}" ${strokeAttr}>CEMENTO CRUZ AZUL</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('dhl')) {
+    return `
+      <g id="sponsor_dhl" transform="translate(${cx}, ${cy})">
+        <polygon points="${-w * 0.45},${-h * 0.45} ${w * 0.45},${-h * 0.45} ${w * 0.38},${h * 0.45} ${-w * 0.52},${h * 0.45}" fill="#FFCC00" />
+        <text x="0" y="${h * 0.2}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-style="italic" font-size="${h * 0.7}" fill="#D40511">DHL</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('cemex')) {
+    return `
+      <g id="sponsor_cemex" transform="translate(${cx}, ${cy})">
+        <text x="0" y="${h * 0.2}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.6}" fill="${textColor}" ${strokeAttr} letter-spacing="3">CEMEX</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('codere')) {
+    return `
+      <g id="sponsor_codere" transform="translate(${cx}, ${cy})">
+        <circle cx="${-w * 0.32}" cy="0" r="${h * 0.35}" fill="#00A3E0" />
+        <text x="${-w * 0.15}" y="${h * 0.18}" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.55}" fill="${textColor}" ${strokeAttr}>codere</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('emirates') || sp.includes('fly')) {
+    return `
+      <g id="sponsor_emirates" transform="translate(${cx}, ${cy})">
+        <text x="0" y="${-h * 0.05}" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="${h * 0.35}" fill="${textColor}" ${strokeAttr}>Fly</text>
+        <text x="0" y="${h * 0.38}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.5}" fill="${textColor}" ${strokeAttr} letter-spacing="1">Emirates</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('spotify')) {
+    return `
+      <g id="sponsor_spotify" transform="translate(${cx}, ${cy})">
+        <circle cx="${-w * 0.35}" cy="0" r="${h * 0.38}" fill="#1DB954" />
+        <path d="M${-w * 0.35 - h * 0.2},${-h * 0.1} Q${-w * 0.35},${-h * 0.22} ${-w * 0.35 + h * 0.2},${-h * 0.1}" stroke="#FFFFFF" stroke-width="${h * 0.08}" stroke-linecap="round" fill="none" />
+        <path d="M${-w * 0.35 - h * 0.16},0 Q${-w * 0.35},${-h * 0.1} ${-w * 0.35 + h * 0.16},0" stroke="#FFFFFF" stroke-width="${h * 0.08}" stroke-linecap="round" fill="none" />
+        <path d="M${-w * 0.35 - h * 0.12},${h * 0.1} Q${-w * 0.35},${h * 0.02} ${-w * 0.35 + h * 0.12},${h * 0.1}" stroke="#FFFFFF" stroke-width="${h * 0.08}" stroke-linecap="round" fill="none" />
+        <text x="${-w * 0.15}" y="${h * 0.2}" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.58}" fill="${textColor}" ${strokeAttr}>Spotify</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('etihad')) {
+    return `
+      <g id="sponsor_etihad" transform="translate(${cx}, ${cy})">
+        <text x="0" y="${h * 0.1}" text-anchor="middle" font-family="Georgia, serif" font-weight="800" font-size="${h * 0.55}" fill="${textColor}" ${strokeAttr} letter-spacing="4">ETIHAD</text>
+        <text x="0" y="${h * 0.4}" text-anchor="middle" font-family="'Arial Black', sans-serif" font-weight="700" font-size="${h * 0.25}" fill="${textColor}" ${strokeAttr} letter-spacing="2">AIRWAYS</text>
+      </g>
+    `;
+  }
+
+  if (sp.includes('telekom') || sp.includes('t_mobile')) {
+    return `
+      <g id="sponsor_telekom" transform="translate(${cx}, ${cy})">
+        <circle cx="${-w * 0.2}" cy="0" r="${h * 0.1}" fill="${textColor}" />
+        <text x="0" y="${h * 0.3}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.9}" fill="${textColor}" ${strokeAttr}>T</text>
+        <circle cx="${w * 0.15}" cy="0" r="${h * 0.1}" fill="${textColor}" />
+        <circle cx="${w * 0.28}" cy="0" r="${h * 0.1}" fill="${textColor}" />
+      </g>
+    `;
+  }
+
+  if (sp.includes('jeep')) {
+    return `
+      <g id="sponsor_jeep" transform="translate(${cx}, ${cy})">
+        <text x="0" y="${h * 0.25}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.75}" fill="${textColor}" ${strokeAttr} letter-spacing="2">Jeep</text>
+      </g>
+    `;
+  }
+
+  // Fallback generic sponsor
+  const cleanName = sp.replace(/_/g, ' ').toUpperCase();
+  return `
+    <g id="sponsor_${sp}" transform="translate(${cx}, ${cy})">
+      <text x="0" y="${h * 0.2}" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="${h * 0.5}" fill="${textColor}" ${strokeAttr} letter-spacing="1">${cleanName}</text>
+    </g>
+  `;
+}
+
+export function renderDecalToSvg(decal, panelBounds, artworkRegistry, design) {
+  if (!decal) return '';
+
+  const normPanel =
+    decal.panel === 'left_sleeve' ? 'left_arm' :
+    decal.panel === 'right_sleeve' ? 'right_arm' :
+    (decal.panel || 'front');
+  const spec = getPartSpec(design?.productModelId || 'futbol_jersey_pro_vneck', normPanel);
+  const refW = spec?.widthMm || (normPanel === 'back' ? 633.28 : 519.25);
+  const refH = spec?.heightMm || (normPanel === 'back' ? 792.6 : 774.83);
+  const u = (decal.centerMm?.x ?? (refW / 2)) / refW;
+  const v = (decal.centerMm?.y ?? (refH / 3)) / refH;
+
+  const scaleX = panelBounds.width / refW;
+  const scaleY = panelBounds.height / refH;
+
+  const cx = panelBounds.x + u * panelBounds.width;
+  const cy = panelBounds.y + v * panelBounds.height;
+
+  const w = (decal.sizeMm?.width ?? 70) * (decal.scale ?? 1) * scaleX;
+  const h = (decal.sizeMm?.height ?? 70) * (decal.scale ?? 1) * scaleY;
+  const rot = decal.rotationDeg || 0;
+  const opacity = decal.opacity ?? 1;
+
+  const sx = decal.flipX ? -1 : 1;
+  const sy = decal.flipY ? -1 : 1;
+
+  // 1. LOGOTIPOS RASTER / VECTOR SUBIDOS (PNG / SVG / JPG)
+  if (decal.type === 'UPLOADED_RASTER' || decal.type === 'UPLOADED_VECTOR' || decal.artworkId) {
+    const imageSrc = getDecalImageDataUrl(decal, artworkRegistry);
+    if (imageSrc) {
+      return `
+        <g id="decal_${decal.id || 'custom'}" transform="translate(${cx}, ${cy}) rotate(${rot}) scale(${sx}, ${sy})" opacity="${opacity}">
+          <image xlink:href="${imageSrc}" href="${imageSrc}" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet" />
+        </g>
+      `;
+    }
+  }
+
+  // 2. TEXTOS FIJOS / PATROCINADORES EN TEXTO
+  if (decal.type === 'STATIC_TEXT' && decal.text) {
+    const fontSize = h * 0.85;
+    const fontFam = decal.fontFamily || "'Arial Black', Impact, sans-serif";
+    const fill = decal.fillHex || '#ffffff';
+    const stroke = decal.outlineHex || '#0b1b3d';
+    return `
+      <g id="text_${decal.id}" transform="translate(${cx}, ${cy}) rotate(${rot}) scale(${sx}, ${sy})" opacity="${opacity}">
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="${fontFam}" font-size="${fontSize}" font-weight="900" fill="${fill}" stroke="${stroke}" stroke-width="${fontSize * 0.12}" paint-order="stroke fill">${decal.text.toUpperCase()}</text>
+      </g>
+    `;
+  }
+
+  // 3. LOGOTIPO PATROCINADOR OFICIAL
+  if (decal.type === 'SPONSOR_LOGO') {
+    return renderSponsorSvg(decal.sponsorId, cx, cy, w, h, decal.tintHex || decal.color, decal.outlineHex || null);
+  }
+
+  // 4. ESCUDO DE CLUB O PRESET CREST (LIGA MX / UCL)
+  if (decal.type === 'LIGAMX_CREST' || decal.type === 'UCL_CREST' || decal.type === 'PRESET_CREST' || decal.clubId || decal.presetId) {
+    const club = decal.clubId || decal.presetId || design?.mexicoBaseClubId || design?.uclBaseClubId || '';
+    return renderClubCrestSvg(club, cx, cy, Math.min(w, h) / 2, design);
+  }
+
+  return '';
+}
+
+/**
+ * Genera el arte vectorial base de los patrones de Liga MX y modelos base.
+ * Sincronizado matemáticamente con ligaMxKitsEngine.js
+ */
+function renderSymmetricVerticalStripes(centerX, y, h, count, colors, totalW = 1520) {
+  const sw = totalW / count;
+  let svg = '';
+  for (let i = 0; i < count; i++) {
+    const col = colors[i % colors.length];
+    const x = centerX + (i - (count - 1) / 2) * sw - sw / 2;
+    svg += `<rect x="${x.toFixed(1)}" y="${y}" width="${(sw + 0.6).toFixed(1)}" height="${h}" fill="${col}" />\n`;
+  }
+  return svg;
+}
+
+function generateFrontAndBackGraphics(design, frenteCenterX, traseroCenterX, isAway) {
+  let graphicId = null;
+
+  (design?.decals || []).forEach((d) => {
+    if (d.type === 'LIGAMX_GRAPHIC' || d.type === 'UCL_GRAPHIC') {
+      if (d.panel === 'front' || !graphicId) graphicId = d.graphicId;
+    }
+  });
+
+  const kitKey = String(design?.mexicoKitId || design?.mexicoBaseClubId || '').toLowerCase();
+  const uclKey = String(design?.uclKitId || design?.uclBaseClubId || '').toLowerCase();
+  const patternKey = String(design?.patternId || '').toLowerCase();
+
+  if (!graphicId) {
+    if (kitKey.includes('america')) graphicId = 'mx_america_aztec_chevron';
+    else if (kitKey.includes('chivas')) graphicId = isAway ? 'mx_chivas_away_yoke' : 'mx_chivas_stripes';
+    else if (kitKey.includes('pumas')) graphicId = 'mx_pumas_giant_feline';
+    else if (kitKey.includes('tigres')) graphicId = 'mx_tigres_chest_bar';
+    else if (kitKey.includes('cruz_azul')) graphicId = 'mx_cruz_azul_front';
+    else if (kitKey.includes('rayados') || kitKey.includes('monterrey')) graphicId = isAway ? 'mx_rayados_away_stripes' : 'mx_rayados_stripes';
+    else if (kitKey.includes('atlas')) graphicId = isAway ? 'mx_atlas_away_sash' : 'mx_atlas_half_split';
+    else if (kitKey.includes('puebla')) graphicId = 'mx_puebla_franja_sash';
+    else if (kitKey.includes('santos')) graphicId = 'mx_santos_hoops';
+    else if (kitKey.includes('toluca')) graphicId = 'mx_toluca_demon_flame';
+    else if (kitKey.includes('leon')) graphicId = 'mx_leon_front';
+    else if (kitKey.includes('pachuca')) graphicId = isAway ? 'mx_pachuca_away_stripes' : 'mx_pachuca_stripes';
+    else if (kitKey.includes('necaxa')) graphicId = 'mx_necaxa_stripes';
+    else if (kitKey.includes('queretaro')) graphicId = 'mx_queretaro_stripes';
+    else if (kitKey.includes('san_luis') || kitKey.includes('sanluis')) graphicId = 'mx_san_luis_stripes';
+    else if (kitKey.includes('xolos') || kitKey.includes('tijuana')) graphicId = 'mx_xolos_claws';
+    else if (kitKey.includes('juarez')) graphicId = 'mx_juarez_x_slash';
+    else if (kitKey.includes('mazatlan')) graphicId = 'mx_mazatlan_front';
+    else if (uclKey.includes('psg') || uclKey.includes('paris')) graphicId = 'ucl_psg_hechter';
+    else if (uclKey.includes('inter')) graphicId = 'ucl_inter_stripes';
+    else if (uclKey.includes('juve')) graphicId = 'ucl_juventus_stripes';
+    else if (uclKey.includes('milan')) graphicId = 'ucl_milan_stripes';
+    else if (uclKey.includes('atleti')) graphicId = 'ucl_atletico_stripes';
+    else if (uclKey.includes('bayern')) graphicId = 'ucl_bayern_stripes';
+    else if (uclKey.includes('barca') || uclKey.includes('barcelona')) graphicId = 'ucl_barcelona_halves';
+    else if (uclKey.includes('liverpool')) graphicId = 'ucl_liverpool_pinstripes';
+    else if (uclKey.includes('madrid')) graphicId = 'ucl_real_madrid_stripes';
+    else if (uclKey.includes('city')) graphicId = 'ucl_man_city_stripes';
+    else if (uclKey.includes('dortmund') || uclKey.includes('bvb')) graphicId = 'ucl_dortmund_blocks';
+    else if (uclKey.includes('arsenal')) graphicId = 'ucl_arsenal_cannon';
+    else if (patternKey) graphicId = patternKey;
+  }
+
+  const primaryColor = design?.colorZones?.primary?.hex || '#FFF0B5';
+  const secondaryColor = design?.colorZones?.secondary?.hex || '#0A1A3A';
+  const accentsColor = design?.colorZones?.accents?.hex || '#FFC72C';
+
+  let frontGraphicSvg = '';
+  let backGraphicSvg = '';
+
+  // 1. CLUB AMÉRICA: CHEVRON AZTECA TRICOLOR CON PLUMAJE
+  if (graphicId === 'mx_america_aztec_chevron') {
+    const vApexX = frenteCenterX;
+    const vApexY = 1860;
+    const vLeftWingX = 180;
+    const vLeftWingY = 1460;
+    const vRightWingX = 1715;
+    const vRightWingY = 1460;
+
+    const yokeColor = isAway ? '#FFF0B5' : secondaryColor;
+    const redColor = '#C8102E';
+    const blueColor = isAway ? '#C8102E' : '#003DA5';
+    const yellowColor = isAway ? '#0A1A3A' : '#F5A800';
+
+    const yokePath = `M170,1010 L1725,1010 L${vRightWingX},${vRightWingY} L${vApexX},${vApexY} L${vLeftWingX},${vLeftWingY} Z`;
+
+    const count = 9;
+    let tRow1 = '';
+    let tRow2 = '';
+    let tRow3 = '';
+
+    for (let i = 0; i < count; i++) {
+      const t0 = i / count;
+      const t1 = (i + 1) / count;
+
+      const lx0 = vLeftWingX + t0 * (vApexX - vLeftWingX);
+      const ly0 = vLeftWingY + t0 * (vApexY - vLeftWingY);
+      const lx1 = vLeftWingX + t1 * (vApexX - vLeftWingX);
+      const ly1 = vLeftWingY + t1 * (vApexY - vLeftWingY);
+      const lmidX = (lx0 + lx1) / 2;
+      const lmidY = (ly0 + ly1) / 2;
+
+      const rx0 = vApexX + t0 * (vRightWingX - vApexX);
+      const ry0 = vApexY - t0 * (vApexY - vRightWingY);
+      const rx1 = vApexX + t1 * (vRightWingX - vApexX);
+      const ry1 = vApexY - t1 * (vApexY - vRightWingY);
+      const rmidX = (rx0 + rx1) / 2;
+      const rmidY = (ry0 + ry1) / 2;
+
+      const r1H = 65;
+      tRow1 += `<polygon points="${lx0.toFixed(1)},${ly0.toFixed(1)} ${lx1.toFixed(1)},${ly1.toFixed(1)} ${lmidX.toFixed(1)},${(lmidY + r1H).toFixed(1)}" fill="${redColor}" />`;
+      tRow1 += `<polygon points="${rx0.toFixed(1)},${ry0.toFixed(1)} ${rx1.toFixed(1)},${ry1.toFixed(1)} ${rmidX.toFixed(1)},${(rmidY + r1H).toFixed(1)}" fill="${redColor}" />`;
+
+      const r2H = 115;
+      tRow2 += `<polygon points="${lx0.toFixed(1)},${(ly0 + 40).toFixed(1)} ${lx1.toFixed(1)},${(ly1 + 40).toFixed(1)} ${lmidX.toFixed(1)},${(lmidY + r2H).toFixed(1)}" fill="${blueColor}" />`;
+      tRow2 += `<polygon points="${rx0.toFixed(1)},${(ry0 + 40).toFixed(1)} ${rx1.toFixed(1)},${(ry1 + 40).toFixed(1)} ${rmidX.toFixed(1)},${(rmidY + r2H).toFixed(1)}" fill="${blueColor}" />`;
+
+      const r3H = 160;
+      tRow3 += `<polygon points="${lx0.toFixed(1)},${(ly0 + 80).toFixed(1)} ${lx1.toFixed(1)},${(ly1 + 80).toFixed(1)} ${lmidX.toFixed(1)},${(lmidY + r3H).toFixed(1)}" fill="${yellowColor}" />`;
+      tRow3 += `<polygon points="${rx0.toFixed(1)},${(ry0 + 80).toFixed(1)} ${rx1.toFixed(1)},${(ry1 + 80).toFixed(1)} ${rmidX.toFixed(1)},${(rmidY + r3H).toFixed(1)}" fill="${yellowColor}" />`;
+    }
+
+    const apexDiamond = `
+      <polygon points="${vApexX},${vApexY + 45} ${vApexX + 50},${vApexY + 125} ${vApexX},${vApexY + 205} ${vApexX - 50},${vApexY + 125}" fill="${redColor}" />
+      <polygon points="${vApexX},${vApexY + 65} ${vApexX + 35},${vApexY + 125} ${vApexX},${vApexY + 185} ${vApexX - 35},${vApexY + 125}" fill="${blueColor}" />
+    `;
+
+    frontGraphicSvg = `
+      <path d="${yokePath}" fill="${yokeColor}" />
+      ${tRow1}
+      ${tRow2}
+      ${tRow3}
+      ${apexDiamond}
+    `;
+
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="1560" height="420" fill="${yokeColor}" />
+      <line x1="1815" y1="1405" x2="3375" y2="1405" stroke="${redColor}" stroke-width="14" />
+      <line x1="1815" y1="1425" x2="3375" y2="1425" stroke="${blueColor}" stroke-width="12" />
+    `;
+  }
+
+  // 2. CHIVAS: RAYAS VERTICALES ROJIBLANCAS (CENTRADAS 1:1)
+  else if (graphicId === 'mx_chivas_stripes') {
+    const sFront = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 9, ['#C8102E', '#FFFFFF'], 1520);
+    const sBack = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 9, ['#C8102E', '#FFFFFF'], 1520);
+    frontGraphicSvg = `
+      ${sFront}
+      <rect x="170" y="1010" width="1560" height="380" fill="#0B1B3D" />
+    `;
+    backGraphicSvg = `
+      ${sBack}
+      <rect x="1815" y="985" width="1560" height="380" fill="#0B1B3D" />
+    `;
+  }
+  else if (graphicId === 'mx_chivas_away_bar' || graphicId === 'mx_chivas_away_yoke') {
+    frontGraphicSvg = `
+      <rect x="170" y="1010" width="1560" height="360" fill="#0B1B3D" />
+      <line x1="170" y1="1370" x2="1730" y2="1370" stroke="#C8102E" stroke-width="14" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="1560" height="360" fill="#0B1B3D" />
+      <line x1="1815" y1="1345" x2="3375" y2="1345" stroke="#C8102E" stroke-width="14" />
+    `;
+  }
+
+  // 3. PUMAS UNAM: CABEZA FELINA GIGANTE EN PECHO
+  else if (graphicId === 'mx_pumas_giant_feline' || graphicId === 'mx_pumas_puma_face') {
+    const pumaColor = isAway ? '#0A1A3A' : '#C89A3C';
+    const bgPuma = isAway ? '#C89A3C' : primaryColor;
+    const px = frenteCenterX;
+    const py = 2050;
+    const s = 3.6;
+
+    frontGraphicSvg = `
+      <g id="pumas_giant_feline" transform="translate(${px}, ${py}) scale(${s})">
+        <path d="M${-70},${-115} C${-35},${-95} ${35},${-95} ${70},${-115} C${115},${-100} ${125},${-50} ${115},0 C${105},55 ${55},110 0,125 C${-55},110 ${-105},55 ${-115},0 C${-125},${-50} ${-115},${-100} ${-70},${-115} Z" fill="${pumaColor}" stroke="#E2C889" stroke-width="4" />
+        <polygon points="${-52},${-42} ${-24},${-22} ${-50},${-10}" fill="${bgPuma}" />
+        <polygon points="${52},${-42} ${24},${-22} ${50},${-10}" fill="${bgPuma}" />
+        <polygon points="0,${-6} ${22},24 0,48 ${-22},24" fill="${bgPuma}" />
+        <line x1="-60" y1="18" x2="-28" y2="35" stroke="${bgPuma}" stroke-width="4" stroke-linecap="round" />
+        <line x1="60" y1="18" x2="28" y2="35" stroke="${bgPuma}" stroke-width="4" stroke-linecap="round" />
+      </g>
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="1560" height="260" fill="${pumaColor}" opacity="0.85" />
+    `;
+  }
+
+  // 4. TIGRES UANL: BANDA DE PECHO AZUL Y ORO CON SLASHES
+  else if (graphicId === 'mx_tigres_chest_bar') {
+    const barColor = isAway ? '#FFC72C' : '#003DA5';
+    const textColor = isAway ? '#003DA5' : '#FFC72C';
+    const slashesLeft = `
+      <line x1="${frenteCenterX - 360}" y1="1770" x2="${frenteCenterX - 390}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+      <line x1="${frenteCenterX - 325}" y1="1770" x2="${frenteCenterX - 355}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+      <line x1="${frenteCenterX - 290}" y1="1770" x2="${frenteCenterX - 320}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+    `;
+    const slashesRight = `
+      <line x1="${frenteCenterX + 290}" y1="1770" x2="${frenteCenterX + 320}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+      <line x1="${frenteCenterX + 325}" y1="1770" x2="${frenteCenterX + 355}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+      <line x1="${frenteCenterX + 360}" y1="1770" x2="${frenteCenterX + 390}" y2="1910" stroke="${textColor}" stroke-width="12" stroke-linecap="round" />
+    `;
+    frontGraphicSvg = `
+      <rect x="170" y="1720" width="1560" height="230" fill="${barColor}" />
+      <rect x="170" y="1710" width="1560" height="12" fill="#FFFFFF" />
+      <rect x="170" y="1950" width="1560" height="12" fill="#FFFFFF" />
+      <text x="${frenteCenterX}" y="1845" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="115" letter-spacing="18" fill="${textColor}">TIGRES</text>
+      ${slashesLeft}
+      ${slashesRight}
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="1720" width="1560" height="230" fill="${barColor}" />
+      <rect x="1815" y="1710" width="1560" height="12" fill="#FFFFFF" />
+      <rect x="1815" y="1950" width="1560" height="12" fill="#FFFFFF" />
+    `;
+  }
+
+  // 5. CRUZ AZUL: AZUL REAL CON ACENTOS ROJO/BLANCO
+  else if (graphicId === 'mx_cruz_azul_front' || graphicId === 'mx_cruz_azul_stripes' || graphicId === 'mx_cruz_azul_away') {
+    const accentCol = isAway ? '#0033A0' : '#C8102E';
+    frontGraphicSvg = `
+      <rect x="170" y="1010" width="1560" height="16" fill="${accentCol}" />
+      <rect x="170" y="1026" width="1560" height="12" fill="#FFFFFF" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="1560" height="16" fill="${accentCol}" />
+      <rect x="1815" y="1001" width="1560" height="12" fill="#FFFFFF" />
+    `;
+  }
+
+  // 6. RAYADOS DE MONTERREY: FRANJAS VERTICALES MARINAS (CENTRADAS)
+  else if (graphicId === 'mx_rayados_stripes') {
+    const navy = '#001A49';
+    const sFront = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [navy, '#FFFFFF'], 1520);
+    const sBack = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [navy, '#FFFFFF'], 1520);
+    frontGraphicSvg = `
+      ${sFront}
+      <rect x="170" y="1010" width="1560" height="380" fill="${navy}" />
+    `;
+    backGraphicSvg = `
+      ${sBack}
+      <rect x="1815" y="985" width="1560" height="380" fill="${navy}" />
+    `;
+  }
+  else if (graphicId === 'mx_rayados_away_stripes' || graphicId === 'mx_rayados_away_mountain') {
+    const navy = '#001A49';
+    let pFront = '';
+    let pBack = '';
+    for (let i = -6; i <= 6; i++) {
+      const fx = frenteCenterX + i * 115;
+      const bx = traseroCenterX + i * 115;
+      pFront += `<line x1="${fx.toFixed(1)}" y1="1010" x2="${fx.toFixed(1)}" y2="3235" stroke="${navy}" stroke-width="8" />`;
+      pBack += `<line x1="${bx.toFixed(1)}" y1="985" x2="${bx.toFixed(1)}" y2="3235" stroke="${navy}" stroke-width="8" />`;
+    }
+    frontGraphicSvg = pFront;
+    backGraphicSvg = pBack;
+  }
+
+  // 7. ATLAS FC: MITAD Y MITAD (50/50 ROJO Y NEGRO)
+  else if (graphicId === 'mx_atlas_half_split' || graphicId === 'mx_atlas_50_50') {
+    frontGraphicSvg = `
+      <rect x="170" y="1010" width="${(frenteCenterX - 170).toFixed(1)}" height="2225" fill="#BA0C2F" />
+      <rect x="${frenteCenterX.toFixed(1)}" y="1010" width="${(1730 - frenteCenterX).toFixed(1)}" height="2225" fill="#0A0A0A" />
+      <line x1="${frenteCenterX.toFixed(1)}" y1="1010" x2="${frenteCenterX.toFixed(1)}" y2="3235" stroke="#FFFFFF" stroke-width="4" opacity="0.3" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="${(traseroCenterX - 1815).toFixed(1)}" height="2250" fill="#BA0C2F" />
+      <rect x="${traseroCenterX.toFixed(1)}" y="985" width="${(3375 - traseroCenterX).toFixed(1)}" height="2250" fill="#0A0A0A" />
+      <line x1="${traseroCenterX.toFixed(1)}" y1="985" x2="${traseroCenterX.toFixed(1)}" y2="3235" stroke="#FFFFFF" stroke-width="4" opacity="0.3" />
+    `;
+  }
+  else if (graphicId === 'mx_atlas_away_sash') {
+    frontGraphicSvg = `
+      <polygon points="${frenteCenterX + 350},1010 ${frenteCenterX + 700},1010 ${frenteCenterX - 450},3235 ${frenteCenterX - 800},3235" fill="#BA0C2F" />
+      <polygon points="${frenteCenterX + 700},1010 ${frenteCenterX + 780},1010 ${frenteCenterX - 370},3235 ${frenteCenterX - 450},3235" fill="#0A0A0A" />
+    `;
+    backGraphicSvg = `
+      <polygon points="${traseroCenterX - 700},985 ${traseroCenterX - 350},985 ${traseroCenterX + 800},3235 ${traseroCenterX + 450},3235" fill="#BA0C2F" />
+      <polygon points="${traseroCenterX - 780},985 ${traseroCenterX - 700},985 ${traseroCenterX + 450},3235 ${traseroCenterX + 370},3235" fill="#0A0A0A" />
+    `;
+  }
+
+  // 8. CLUB PUEBLA: FRANJA DIAGONAL CRUZADA CONTINUA
+  else if (graphicId === 'mx_puebla_franja_sash' || graphicId === 'mx_puebla_sash' || graphicId === 'mx_puebla_franja_sash_back') {
+    const sashBlue = isAway ? '#FFFFFF' : '#003DA5';
+    const sashBorder = isAway ? '#003DA5' : '#C89A3C';
+    frontGraphicSvg = `
+      <polygon points="${frenteCenterX + 350},1010 ${frenteCenterX + 700},1010 ${frenteCenterX - 450},3235 ${frenteCenterX - 800},3235" fill="${sashBlue}" />
+      <polygon points="${frenteCenterX + 320},1010 ${frenteCenterX + 350},1010 ${frenteCenterX - 800},3235 ${frenteCenterX - 830},3235" fill="${sashBorder}" />
+      <polygon points="${frenteCenterX + 700},1010 ${frenteCenterX + 730},1010 ${frenteCenterX - 420},3235 ${frenteCenterX - 450},3235" fill="${sashBorder}" />
+    `;
+    backGraphicSvg = `
+      <polygon points="${traseroCenterX - 700},985 ${traseroCenterX - 350},985 ${traseroCenterX + 800},3235 ${traseroCenterX + 450},3235" fill="${sashBlue}" />
+      <polygon points="${traseroCenterX - 730},985 ${traseroCenterX - 700},985 ${traseroCenterX + 450},3235 ${traseroCenterX + 420},3235" fill="${sashBorder}" />
+      <polygon points="${traseroCenterX - 350},985 ${traseroCenterX - 320},985 ${traseroCenterX + 830},3235 ${traseroCenterX + 800},3235" fill="${sashBorder}" />
+    `;
+  }
+
+  // 9. SANTOS LAGUNA: FRANJAS HORIZONTALES (HOOPS)
+  else if (graphicId === 'mx_santos_hoops') {
+    const green = isAway ? '#00843D' : '#007A33';
+    let hoops = '';
+    for (let y = 1100; y < 3100; y += 220) {
+      hoops += `<rect x="170" y="${y}" width="1560" height="110" fill="${green}" />`;
+    }
+    frontGraphicSvg = hoops;
+    let bHoops = '';
+    for (let y = 1100; y < 3100; y += 220) {
+      bHoops += `<rect x="1815" y="${y}" width="1560" height="110" fill="${green}" />`;
+    }
+    backGraphicSvg = bHoops;
+  }
+
+  // 10. TOLUCA: LLAMAS DEMONÍACAS
+  else if (graphicId === 'mx_toluca_demon_flame' || graphicId === 'mx_toluca_front' || graphicId === 'mx_toluca_away_flame') {
+    const darkRed = isAway ? '#C8102E' : '#8B0000';
+    let flames = '';
+    for (let y = 1800; y < 3200; y += 200) {
+      let pts = `M 170,${y} `;
+      for (let x = 170; x <= 1730; x += 130) {
+        pts += `L ${x + 65},${y - 110} L ${x + 130},${y} `;
+      }
+      pts += `L 1730,${y + 100} L 170,${y + 100} Z`;
+      flames += `<path d="${pts}" fill="${darkRed}" opacity="0.35" />`;
+    }
+    frontGraphicSvg = flames;
+    backGraphicSvg = flames.replace(/170/g, '1815').replace(/1730/g, '3375');
+  }
+
+  // 11. CLUB LEÓN: ESMERALDA CON VIVOS DORADOS
+  else if (graphicId === 'mx_leon_front' || graphicId === 'mx_leon_claws' || graphicId === 'mx_leon_away_stripes') {
+    const gold = '#FFC72C';
+    frontGraphicSvg = `<rect x="170" y="1010" width="1560" height="24" fill="${gold}" />`;
+    backGraphicSvg = `<rect x="1815" y="985" width="1560" height="24" fill="${gold}" />`;
+  }
+
+  // 12. PACHUCA: FRANJAS VERTICALES MARINO Y PLATA (CENTRADAS)
+  else if (graphicId === 'mx_pachuca_stripes') {
+    const navy = '#0B1B3D';
+    const silver = '#FFFFFF';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [navy, silver], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [navy, silver], 1520);
+  }
+  else if (graphicId === 'mx_pachuca_away_stripes') {
+    let pFront = '';
+    let pBack = '';
+    for (let i = -6; i <= 6; i++) {
+      const fx = frenteCenterX + i * 110;
+      const bx = traseroCenterX + i * 110;
+      pFront += `<line x1="${fx.toFixed(1)}" y1="1010" x2="${fx.toFixed(1)}" y2="3235" stroke="#0B1B3D" stroke-width="7" />`;
+      pBack += `<line x1="${bx.toFixed(1)}" y1="985" x2="${bx.toFixed(1)}" y2="3235" stroke="#0B1B3D" stroke-width="7" />`;
+    }
+    frontGraphicSvg = pFront;
+    backGraphicSvg = pBack;
+  }
+
+  // 13. NECAXA: RAYAS ROJIBLANCAS CON RAYO ZIG-ZAG (CENTRADAS)
+  else if (graphicId === 'mx_necaxa_stripes' || graphicId === 'mx_necaxa_away_lightning') {
+    const sFront = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, ['#C8102E', '#FFFFFF'], 1520);
+    const sBack = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, ['#C8102E', '#FFFFFF'], 1520);
+    const lightning = `
+      <polyline points="${frenteCenterX - 280},1600 ${frenteCenterX - 50},1780 ${frenteCenterX - 140},1840 ${frenteCenterX + 160},2100" fill="none" stroke="#FFC72C" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+    `;
+    frontGraphicSvg = sFront + lightning;
+    backGraphicSvg = sBack;
+  }
+
+  // 14. QUERÉTARO: FRANJAS AZUL Y NEGRO (CENTRADAS)
+  else if (graphicId === 'mx_queretaro_stripes') {
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, ['#003DA5', '#0A0A0A'], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, ['#003DA5', '#0A0A0A'], 1520);
+  }
+
+  // 15. ATLÉTICO DE SAN LUIS: FRANJAS ROJIBLANCAS CON YUGO (CENTRADAS)
+  else if (graphicId === 'mx_san_luis_stripes' || graphicId === 'mx_atletico_san_luis_stripes') {
+    const sFront = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, ['#C8102E', '#FFFFFF'], 1520);
+    const sBack = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, ['#C8102E', '#FFFFFF'], 1520);
+    frontGraphicSvg = sFront + `<rect x="170" y="1010" width="1560" height="280" fill="#003DA5" />`;
+    backGraphicSvg = sBack + `<rect x="1815" y="985" width="1560" height="280" fill="#003DA5" />`;
+  }
+
+  // 16. TIJUANA XOLOS: ZARPAZO Y GARRAS
+  else if (graphicId === 'mx_xolos_claws' || graphicId === 'mx_tijuana_xolos' || graphicId === 'mx_xolos_away_claws') {
+    const red = '#C8102E';
+    const black = '#111111';
+    frontGraphicSvg = `
+      <polygon points="170,2200 800,1500 1100,1800 1730,1200 1730,3235 170,3235" fill="${red}" />
+      <polygon points="${frenteCenterX - 180},1600 ${frenteCenterX - 130},2050 ${frenteCenterX - 160},2050 ${frenteCenterX - 210},1600" fill="${black}" />
+      <polygon points="${frenteCenterX},1500 ${frenteCenterX + 50},2100 ${frenteCenterX + 20},2100 ${frenteCenterX - 30},1500" fill="${black}" />
+      <polygon points="${frenteCenterX + 180},1600 ${frenteCenterX + 230},2050 ${frenteCenterX + 200},2050 ${frenteCenterX + 150},1600" fill="${black}" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="1560" height="260" fill="${red}" />
+    `;
+  }
+
+  // 17. FC JUÁREZ: "X" GIGANTE NEÓN / ROJO / NEGRO
+  else if (graphicId === 'mx_juarez_x_slash' || graphicId === 'mx_juarez_front') {
+    const red = '#C8102E';
+    const black = '#111111';
+    const neon = '#7ED957';
+    frontGraphicSvg = `
+      <g id="juarez_x_slash">
+        <polygon points="170,1200 400,1010 1730,2850 1500,3040" fill="${black}" />
+        <line x1="170" y1="1200" x2="1500" y2="3040" stroke="${neon}" stroke-width="12" />
+        <line x1="400" y1="1010" x2="1730" y2="2850" stroke="${neon}" stroke-width="12" />
+        <polygon points="1730,1200 1500,1010 170,2850 400,3040" fill="${red}" />
+        <line x1="1730" y1="1200" x2="400" y2="3040" stroke="${neon}" stroke-width="12" />
+        <line x1="1500" y1="1010" x2="170" y2="2850" stroke="${neon}" stroke-width="12" />
+      </g>
+    `;
+    backGraphicSvg = frontGraphicSvg.replace(/170,/g, '1815,').replace(/1730,/g, '3375,');
+  }
+
+  // 18. MAZATLÁN FC: MORADO REAL CON OLA NEÓN CYAN
+  else if (graphicId === 'mx_mazatlan_front' || graphicId === 'mx_mazatlan_cannon' || graphicId === 'mx_mazatlan_away_waves') {
+    const cyan = '#00F5D4';
+    frontGraphicSvg = `
+      <path d="M 170,2600 Q 550,2300 950,2600 T 1730,2600 L 1730,3235 L 170,3235 Z" fill="${cyan}" opacity="0.3" />
+      <path d="M 170,2700 Q 550,2400 950,2700 T 1730,2700 L 1730,3235 L 170,3235 Z" fill="#4B0082" />
+    `;
+    backGraphicSvg = `
+      <path d="M 1815,2600 Q 2195,2300 2595,2600 T 3375,2600 L 3375,3235 L 1815,3235 Z" fill="${cyan}" opacity="0.3" />
+      <path d="M 1815,2700 Q 2195,2400 2595,2700 T 3375,2700 L 3375,3235 L 1815,3235 Z" fill="#4B0082" />
+    `;
+  }
+
+  // =========================================================================
+  // PATRONES UEFA CHAMPIONS LEAGUE (CENTRADOS Y COMPLETOS)
+  // =========================================================================
+
+  // UCL 1. PARIS SAINT-GERMAIN: HECHTER CENTRAL
+  else if (graphicId === 'ucl_psg_hechter') {
+    const isWhite = isAway || primaryColor.toLowerCase() === '#ffffff';
+    const red = '#DA291C';
+    const borderCol = isWhite ? '#001C44' : '#FFFFFF';
+    const hw = 380;
+    const bw = 20;
+    frontGraphicSvg = `
+      <rect x="${(frenteCenterX - hw / 2).toFixed(1)}" y="1010" width="${hw}" height="2225" fill="${red}" />
+      <rect x="${(frenteCenterX - hw / 2 - bw).toFixed(1)}" y="1010" width="${bw}" height="2225" fill="${borderCol}" />
+      <rect x="${(frenteCenterX + hw / 2).toFixed(1)}" y="1010" width="${bw}" height="2225" fill="${borderCol}" />
+    `;
+    backGraphicSvg = `
+      <rect x="${(traseroCenterX - hw / 2).toFixed(1)}" y="985" width="${hw}" height="2250" fill="${red}" />
+      <rect x="${(traseroCenterX - hw / 2 - bw).toFixed(1)}" y="985" width="${bw}" height="2250" fill="${borderCol}" />
+      <rect x="${(traseroCenterX + hw / 2).toFixed(1)}" y="985" width="${bw}" height="2250" fill="${borderCol}" />
+    `;
+  }
+
+  // UCL 2. INTER DE MILÁN: FRANJAS NERAZZURRI
+  else if (graphicId === 'ucl_inter_stripes') {
+    const blue = '#0057B8';
+    const black = '#000000';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 9, [blue, black], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 9, [blue, black], 1520);
+  }
+
+  // UCL 3. JUVENTUS: FRANJAS BIANCONERI
+  else if (graphicId === 'ucl_juventus_stripes') {
+    const black = '#000000';
+    const white = '#FFFFFF';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [white, black], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [white, black], 1520);
+  }
+
+  // UCL 4. ATLÉTICO DE MADRID: RAYAS ROJIBLANCAS
+  else if (graphicId === 'ucl_atletico_stripes') {
+    const red = '#CB3524';
+    const white = '#FFFFFF';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [red, white], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [red, white], 1520);
+  }
+
+  // UCL 5. AC MILAN: FRANJAS ROSSONERI
+  else if (graphicId === 'ucl_milan_stripes') {
+    const red = '#FB090B';
+    const black = '#000000';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 9, [red, black], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 9, [red, black], 1520);
+  }
+
+  // UCL 6. FC BARCELONA: 50/50 BLAUGRANA (Costuras espejadas en Espalda)
+  else if (graphicId === 'ucl_barcelona_halves') {
+    const blue = '#004D98';
+    const grana = '#A50044';
+    const gold = '#EDBB00';
+    const primaryHex = design?.colorZones?.primary?.hex?.toLowerCase();
+    const barcaAway = isAway || primaryHex === '#111111' || primaryHex === '#000000';
+    if (barcaAway) {
+      frontGraphicSvg = `
+        <defs>
+          <linearGradient id="fcbAwayL" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${blue}" stop-opacity="1"/><stop offset="100%" stop-color="${blue}" stop-opacity="0"/></linearGradient>
+          <linearGradient id="fcbAwayR" x1="100%" y1="0%" x2="0%" y2="0%"><stop offset="0%" stop-color="${grana}" stop-opacity="1"/><stop offset="100%" stop-color="${grana}" stop-opacity="0"/></linearGradient>
+        </defs>
+        <rect x="170" y="1010" width="320" height="2225" fill="url(#fcbAwayL)" />
+        <rect x="1410" y="1010" width="320" height="2225" fill="url(#fcbAwayR)" />
+      `;
+      backGraphicSvg = `
+        <defs>
+          <linearGradient id="fcbAwayBackL" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${grana}" stop-opacity="1"/><stop offset="100%" stop-color="${grana}" stop-opacity="0"/></linearGradient>
+          <linearGradient id="fcbAwayBackR" x1="100%" y1="0%" x2="0%" y2="0%"><stop offset="0%" stop-color="${blue}" stop-opacity="1"/><stop offset="100%" stop-color="${blue}" stop-opacity="0"/></linearGradient>
+        </defs>
+        <rect x="1815" y="985" width="320" height="2250" fill="url(#fcbAwayBackL)" />
+        <rect x="3055" y="985" width="320" height="2250" fill="url(#fcbAwayBackR)" />
+      `;
+    } else {
+      frontGraphicSvg = `
+        <rect x="170" y="1010" width="${(frenteCenterX - 170).toFixed(1)}" height="2225" fill="${blue}" />
+        <rect x="${frenteCenterX.toFixed(1)}" y="1010" width="${(1730 - frenteCenterX).toFixed(1)}" height="2225" fill="${grana}" />
+        <line x1="${frenteCenterX.toFixed(1)}" y1="1010" x2="${frenteCenterX.toFixed(1)}" y2="3235" stroke="${gold}" stroke-width="8" />
+      `;
+      backGraphicSvg = `
+        <rect x="1815" y="985" width="${(traseroCenterX - 1815).toFixed(1)}" height="2250" fill="${grana}" />
+        <rect x="${traseroCenterX.toFixed(1)}" y="985" width="${(3375 - traseroCenterX).toFixed(1)}" height="2250" fill="${blue}" />
+        <line x1="${traseroCenterX.toFixed(1)}" y1="985" x2="${traseroCenterX.toFixed(1)}" y2="3235" stroke="${gold}" stroke-width="8" />
+      `;
+    }
+  }
+
+  // UCL 7. BAYERN MÚNICH: TRIPLE ROJO BÁVARO
+  else if (graphicId === 'ucl_bayern_stripes') {
+    const redDark = '#8B0000';
+    const redLight = '#DC052D';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 5, [redLight, redDark], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 5, [redLight, redDark], 1520);
+  }
+
+  // UCL 8. LIVERPOOL FC: PINSTRIPES RETRO
+  else if (graphicId === 'ucl_liverpool_pinstripes') {
+    const gold = '#F6EB61';
+    let pFront = '';
+    let pBack = '';
+    const pCount = 7;
+    const step = 1500 / pCount;
+    for (let i = 1; i < pCount; i++) {
+      const fx = frenteCenterX + (i - pCount / 2) * step;
+      const bx = traseroCenterX + (i - pCount / 2) * step;
+      pFront += `<line x1="${fx.toFixed(1)}" y1="1010" x2="${fx.toFixed(1)}" y2="3235" stroke="${gold}" stroke-width="6" opacity="0.85" />\n`;
+      pBack += `<line x1="${bx.toFixed(1)}" y1="985" x2="${bx.toFixed(1)}" y2="3235" stroke="${gold}" stroke-width="6" opacity="0.85" />\n`;
+    }
+    frontGraphicSvg = pFront;
+    backGraphicSvg = pBack;
+  }
+
+  // UCL 9. MANCHESTER CITY: STRIPES NEÓN / CELESTE
+  else if (graphicId === 'ucl_man_city_stripes') {
+    const navy = '#001A49';
+    const neon = '#D1FE00';
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [navy, neon], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [navy, neon], 1520);
+  }
+
+  // UCL 10. REAL MADRID: TRES LÍNEAS EN HOMBROS (IZQUIERDO Y DERECHO)
+  else if (graphicId === 'ucl_real_madrid_stripes') {
+    const gold = '#C5A059';
+    const col = isAway ? '#FFFFFF' : gold;
+    frontGraphicSvg = `
+      <rect x="${frenteCenterX - 560}" y="1010" width="12" height="190" fill="${col}" />
+      <rect x="${frenteCenterX - 520}" y="1010" width="12" height="190" fill="${col}" />
+      <rect x="${frenteCenterX - 480}" y="1010" width="12" height="190" fill="${col}" />
+      <rect x="${frenteCenterX + 468}" y="1010" width="12" height="190" fill="${col}" />
+      <rect x="${frenteCenterX + 508}" y="1010" width="12" height="190" fill="${col}" />
+      <rect x="${frenteCenterX + 548}" y="1010" width="12" height="190" fill="${col}" />
+    `;
+    backGraphicSvg = `
+      <rect x="${traseroCenterX - 560}" y="985" width="12" height="190" fill="${col}" />
+      <rect x="${traseroCenterX - 520}" y="985" width="12" height="190" fill="${col}" />
+      <rect x="${traseroCenterX - 480}" y="985" width="12" height="190" fill="${col}" />
+      <rect x="${traseroCenterX + 468}" y="985" width="12" height="190" fill="${col}" />
+      <rect x="${traseroCenterX + 508}" y="985" width="12" height="190" fill="${col}" />
+      <rect x="${traseroCenterX + 548}" y="985" width="12" height="190" fill="${col}" />
+    `;
+  }
+
+  // UCL 11. DORTMUND: BLOQUES RETRO
+  else if (graphicId === 'ucl_dortmund_blocks') {
+    const black = '#000000';
+    frontGraphicSvg = `
+      <rect x="${frenteCenterX - 450}" y="1010" width="80" height="750" fill="${black}" />
+      <rect x="${frenteCenterX - 150}" y="1010" width="80" height="750" fill="${black}" />
+      <rect x="${frenteCenterX + 150}" y="1010" width="80" height="750" fill="${black}" />
+      <rect x="${frenteCenterX + 450}" y="1010" width="80" height="750" fill="${black}" />
+    `;
+    backGraphicSvg = `
+      <rect x="${traseroCenterX - 450}" y="985" width="80" height="750" fill="${black}" />
+      <rect x="${traseroCenterX - 150}" y="985" width="80" height="750" fill="${black}" />
+      <rect x="${traseroCenterX + 150}" y="985" width="80" height="750" fill="${black}" />
+      <rect x="${traseroCenterX + 450}" y="985" width="80" height="750" fill="${black}" />
+    `;
+  }
+
+  // UCL 12. ARSENAL: PANELES LATERALES
+  else if (graphicId === 'ucl_arsenal_cannon') {
+    const white = '#FFFFFF';
+    const navy = '#023474';
+    frontGraphicSvg = `
+      <rect x="170" y="1010" width="190" height="2225" fill="${white}" />
+      <rect x="1540" y="1010" width="190" height="2225" fill="${white}" />
+      <rect x="360" y="1010" width="14" height="2225" fill="${navy}" />
+      <rect x="1526" y="1010" width="14" height="2225" fill="${navy}" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="985" width="190" height="2250" fill="${white}" />
+      <rect x="3185" y="985" width="190" height="2250" fill="${white}" />
+      <rect x="2005" y="985" width="14" height="2250" fill="${navy}" />
+      <rect x="3171" y="985" width="14" height="2250" fill="${navy}" />
+    `;
+  }
+
+  // ==========================================================================
+  // PATRONES ESTÁNDAR / LÍNEA DEPORTIVA COMERCIAL (CENTRADOS)
+  // ==========================================================================
+
+  // A. RAYAS VERTICALES CLÁSICAS
+  else if (graphicId === 'classic_stripes' || graphicId === 'stripes-vertical') {
+    frontGraphicSvg = renderSymmetricVerticalStripes(frenteCenterX, 1010, 2225, 7, [primaryColor, secondaryColor], 1520);
+    backGraphicSvg = renderSymmetricVerticalStripes(traseroCenterX, 985, 2250, 7, [primaryColor, secondaryColor], 1520);
+  }
+
+  // B. BANDA EN EL PECHO (CHEST BAND)
+  else if (graphicId === 'chest_band' || graphicId === 'stripes-horizontal') {
+    frontGraphicSvg = `
+      <rect x="170" y="1720" width="1560" height="260" fill="${secondaryColor}" />
+      <rect x="170" y="1705" width="1560" height="15" fill="${accentsColor}" />
+      <rect x="170" y="1980" width="1560" height="15" fill="${accentsColor}" />
+    `;
+    backGraphicSvg = `
+      <rect x="1815" y="1695" width="1560" height="260" fill="${secondaryColor}" />
+      <rect x="1815" y="1680" width="1560" height="15" fill="${accentsColor}" />
+      <rect x="1815" y="1955" width="1560" height="15" fill="${accentsColor}" />
+    `;
+  }
+
+  // C. BANDA DIAGONAL (SASH) - Continua sobre el hombro
+  else if (graphicId === 'diagonal_sash' || graphicId === 'sash') {
+    frontGraphicSvg = `
+      <polygon points="${frenteCenterX + 350},1010 ${frenteCenterX + 700},1010 ${frenteCenterX - 450},3235 ${frenteCenterX - 800},3235" fill="${secondaryColor}" />
+      <polygon points="${frenteCenterX + 320},1010 ${frenteCenterX + 350},1010 ${frenteCenterX - 800},3235 ${frenteCenterX - 830},3235" fill="${accentsColor}" />
+      <polygon points="${frenteCenterX + 700},1010 ${frenteCenterX + 730},1010 ${frenteCenterX - 420},3235 ${frenteCenterX - 450},3235" fill="${accentsColor}" />
+    `;
+    backGraphicSvg = `
+      <polygon points="${traseroCenterX - 700},985 ${traseroCenterX - 350},985 ${traseroCenterX + 800},3235 ${traseroCenterX + 450},3235" fill="${secondaryColor}" />
+      <polygon points="${traseroCenterX - 730},985 ${traseroCenterX - 700},985 ${traseroCenterX + 450},3235 ${traseroCenterX + 420},3235" fill="${accentsColor}" />
+      <polygon points="${traseroCenterX - 350},985 ${traseroCenterX - 320},985 ${traseroCenterX + 830},3235 ${traseroCenterX + 800},3235" fill="${accentsColor}" />
+    `;
+  }
+
+  // D. DEGRADADO CYBER / GEOMÉTRICO
+  else if (graphicId === 'cyber_gradient' || graphicId === 'geometric-fade') {
+    let fBlocks = '';
+    let bBlocks = '';
+    for (let y = 1400; y < 3100; y += 120) {
+      const op = Math.min(1, ((y - 1400) / 1700)).toFixed(2);
+      fBlocks += `<rect x="170" y="${y}" width="1560" height="90" fill="${secondaryColor}" opacity="${op}" />`;
+      bBlocks += `<rect x="1815" y="${y - 25}" width="1560" height="90" fill="${secondaryColor}" opacity="${op}" />`;
+    }
+    frontGraphicSvg = fBlocks;
+    backGraphicSvg = bBlocks;
+  }
+
+  // E. CHEVRON EN V / LÍNEAS DE VELOCIDAD (CENTRADAS)
+  else if (graphicId === 'chevron_v' || graphicId === 'diagonal-speed') {
+    let fChev = '';
+    let bChev = '';
+    for (let y = 1400; y < 2700; y += 220) {
+      fChev += `<polyline points="170,${y - 120} ${frenteCenterX},${y + 80} 1730,${y - 120}" fill="none" stroke="${secondaryColor}" stroke-width="45" stroke-linecap="round" stroke-linejoin="round" />`;
+      bChev += `<polyline points="1815,${y - 145} ${traseroCenterX},${y + 55} 3375,${y - 145}" fill="none" stroke="${secondaryColor}" stroke-width="45" stroke-linecap="round" stroke-linejoin="round" />`;
+    }
+    frontGraphicSvg = fChev;
+    backGraphicSvg = bChev;
+  }
+
+  // F. MITAD Y MITAD (HALF SPLIT)
+  else if (graphicId === 'half_split') {
+    frontGraphicSvg = `<rect x="${frenteCenterX.toFixed(1)}" y="1010" width="${(1730 - frenteCenterX).toFixed(1)}" height="2225" fill="${secondaryColor}" />`;
+    backGraphicSvg = `<rect x="${traseroCenterX.toFixed(1)}" y="985" width="${(3375 - traseroCenterX).toFixed(1)}" height="2250" fill="${secondaryColor}" />`;
+  }
+
+  // G. MATRIZ HEXAGONAL TECH (HONEYCOMB)
+  else if (graphicId === 'hex_matrix' || graphicId === 'honeycomb') {
+    let hexPattern = '';
+    for (let y = 1200; y < 3000; y += 180) {
+      for (let x = 250; x < 1650; x += 180) {
+        hexPattern += `<polygon points="${x},${y - 40} ${x + 40},${y - 20} ${x + 40},${y + 20} ${x},${y + 40} ${x - 40},${y + 20} ${x - 40},${y - 20}" fill="${secondaryColor}" opacity="0.18" />`;
+      }
+    }
+    frontGraphicSvg = hexPattern;
+    backGraphicSvg = hexPattern.replace(/points="(\d+)/g, (m, p1) => `points="${Number(p1) + 1645}`);
+  }
+
+  return { frontGraphicSvg, backGraphicSvg };
+}
+
+/**
+ * Precarga y decodifica todos los logotipos subidos (PNG/SVG/WebP) en el DOM
+ * para asegurar que estén 100% disponibles en memoria antes de la composición y exportación.
+ */
+export async function preloadDesignArtworkImages(design, artworkRegistry = {}) {
+  if (typeof document === 'undefined') return;
+  const decals = design?.decals || [];
+  const promises = [];
+
+  for (const decal of decals) {
+    if (decal.type === 'LIGAMX_CREST') {
+      const clubId = decal.clubId || decal.presetId || design?.mexicoBaseClubId;
+      if (clubId) promises.push(preloadLigaMxCrest(clubId).catch(() => null));
+    } else if (decal.type === 'UCL_CREST') {
+      const clubId = decal.clubId || decal.presetId || design?.uclBaseClubId;
+      if (clubId) promises.push(preloadUclCrest(clubId).catch(() => null));
+    } else if (decal.type === 'SPONSOR_LOGO' && decal.sponsorId) {
+      promises.push(preloadSponsorLogo(decal.sponsorId, decal.tintHex || decal.color || null).catch(() => null));
+    }
+
+    if (
+      decal.type === 'UPLOADED_RASTER' ||
+      decal.type === 'UPLOADED_VECTOR' ||
+      decal.artworkId ||
+      decal.dataUrl ||
+      decal.previewUrl
+    ) {
+      const art = artworkRegistry?.[decal.artworkId] || decal;
+      const src = art.dataUrl || decal.dataUrl || art.previewUrl || decal.previewUrl;
+      if (!src) continue;
+
+      if (!art.imageElement || !art.imageElement.complete || art.imageElement.naturalWidth === 0) {
+        const p = new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            art.imageElement = img;
+            decal.imageElement = img;
+            resolve(img);
+          };
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
+        promises.push(p);
+      }
+    }
+  }
+
+  if (design?.mexicoBaseClubId) {
+    promises.push(preloadLigaMxCrest(design.mexicoBaseClubId).catch(() => null));
+  }
+  if (design?.uclBaseClubId) {
+    promises.push(preloadUclCrest(design.uclBaseClubId).catch(() => null));
+  }
+
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
+}
+
+/**
+ * Compone las texturas 3D en alta resolución (1536x1536) para cada pieza del patrón textil
+ * utilizando directamente el motor de renderizado 3D (composeGarmentPartCanvas).
+ * Esto transfiere el 100% de los gráficos, escudos oficiales, dorsales, nombres y logos subidos por el usuario.
+ */
+export function composeDirect3DTextures(design, activePlayer = {}, artworkRegistry = {}, masksMap = null) {
+  if (typeof document === 'undefined') return null;
+
+  const activeFish = resolveActiveFishDesignMeta(design);
+  const activeMasksMap =
+    masksMap ||
+    (activeFish?.fileUrl
+      ? resolvedFishMasksCache.get(activeFish.fileUrl) ||
+        resolvedFishMasksCache.get(resolveAssetUrl(activeFish.fileUrl))
+      : null);
+
+  // Sincronizar y montar cualquier imagen de decal no inicializada
+  const decals = design?.decals || [];
+  for (const decal of decals) {
+    if (decal.artworkId || decal.dataUrl || decal.previewUrl) {
+      const art = artworkRegistry?.[decal.artworkId] || decal;
+      if (!art.imageElement && (art.dataUrl || decal.dataUrl || art.previewUrl || decal.previewUrl)) {
+        const img = new Image();
+        img.src = art.dataUrl || decal.dataUrl || art.previewUrl || decal.previewUrl;
+        art.imageElement = img;
+        decal.imageElement = img;
+      }
+    }
+  }
+
+  const mirlKey = resolveMirlKeyForProduct(design?.productModelId);
+  const PLIEGO_PARTS_BY_MIRL = {
+    football_f3_ka: {
+      front: 'Front',
+      back: 'Back',
+      left_sleeve: 'LeftArm',
+      right_sleeve: 'RightArm',
+      collar: 'Collar',
+    },
+    football_f3w_women: {
+      front: 'Front',
+      back: 'Back',
+      left_sleeve: 'LeftArm',
+      right_sleeve: 'RightArm',
+      collar: 'Collar',
+    },
+    football_shorts_fp3: {
+      left_leg: 'LeftLeg',
+      right_leg: 'RightLeg',
+    },
+    basketball_b6_hero: {
+      front: 'Front',
+      back: 'Back',
+      collar: 'Krageneinfass',
+      left_armhole: 'Aermelbandlinks',
+      right_armhole: 'Aermelbandrechts',
+    },
+    basketball_b7w_epic_women: {
+      front: 'Front',
+      back: 'Back',
+      left_side: 'Seitenteillinks',
+      right_side: 'Seitenteilrechts',
+      collar: 'Collar',
+      left_armhole: 'Aermelbandlinks',
+      right_armhole: 'Aermelbandrechts',
+    },
+    basketball_shorts_bp6: {
+      left_leg: 'LeftLeg',
+      right_leg: 'RightLeg',
+    },
+    basketball_shorts_bp7w_women: {
+      left_front: 'LinkesBeinvorne',
+      right_front: 'RechtesBeinvorne',
+      left_back: 'LinkesBeinhinten',
+      right_back: 'RechtesBeinhinten',
+      left_stripe: 'Seitenstreifenlinks',
+      right_stripe: 'Seitenstreifenrechts',
+      waistband: 'Aufnaeher',
+    },
+    jacket_softshell_601m_men: {
+      front_left: 'FrontLeftPart',
+      front_right: 'FrontRightPart',
+      back: 'Back',
+      left_sleeve: 'LeftArm',
+      right_sleeve: 'RightArm',
+      collar_ext: 'CollarOutside',
+      collar_int: 'CollarInside',
+      left_side: 'Seitenteillinks',
+      right_side: 'Seitenteilrechts',
+      left_underarm: 'Unterarmstreifenlinks',
+      right_underarm: 'Unterarmstreifenrechts',
+    },
+    jacket_softshell_601w_women: {
+      front_left: 'FrontLeftPart',
+      front_right: 'FrontRightPart',
+      back: 'Back',
+      left_sleeve: 'LeftArm',
+      right_sleeve: 'RightArm',
+      collar_ext: 'CollarOutside',
+      collar_int: 'CollarInside',
+      left_side: 'Seitenteillinks',
+      right_side: 'Seitenteilrechts',
+      left_underarm: 'Unterarmstreifenlinks',
+      right_underarm: 'Unterarmstreifenrechts',
+    },
+  };
+
+  const parts = PLIEGO_PARTS_BY_MIRL[mirlKey] || PLIEGO_PARTS_BY_MIRL.football_f3_ka;
+
+  const result = {};
+  let successCount = 0;
+  for (const [key, partName] of Object.entries(parts)) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1536;
+      canvas.height = 1536;
+      composeGarmentPartCanvas(canvas, partName, design, activePlayer, artworkRegistry, activeMasksMap, null);
+      const dataUrl = canvas.toDataURL('image/png');
+      result[key] = dataUrl;
+      result[partName] = dataUrl;
+      successCount++;
+    } catch (e) {
+      console.warn(`[moldFlatteningEngine] Direct texture composition for ${partName} fallback:`, e);
+    }
+  }
+  return successCount > 0 ? result : null;
+}
+
+/**
+ * Carga de forma asíncrona los mapas .fish (patrones y franjas) y precarga imágenes de decals
+ * para generar las texturas directas completas con 100% fidelidad visual.
+ */
+export async function composeDirect3DTexturesAsync(design, activePlayer = {}, artworkRegistry = {}) {
+  await preloadDesignArtworkImages(design, artworkRegistry);
+  let masksMap = null;
+  const activeFish = resolveActiveFishDesignMeta(design);
+  if (activeFish?.fileUrl) {
+    try {
+      masksMap = await loadFishDesignMasks(activeFish.fileUrl);
+    } catch (e) {
+      console.warn('[moldFlatteningEngine] Error loading fish masks:', e);
+    }
+  }
+  return composeDirect3DTextures(design, activePlayer, artworkRegistry, masksMap);
+}
+
+/**
+ * Genera la cadena completa SVG de la Plantilla de Producción Textil 1:1.
+ */
+export function generateProductionMoldSvgString(design, activePlayer = {}, options = {}) {
+  const {
+    showCutLines = true,
+    showLabels = true,
+    artworkRegistry = {},
+  } = options;
+
+  // Escalado anatómico de patronaje industrial
+  const targetSize = options.size || activePlayer?.size || "M";
+  const grading = getGarmentGradingData(design?.productModelId || "futbol_jersey_pro_vneck", targetSize);
+  const activeSize = grading.size;
+  const scaleX = grading.scaleX;
+  const scaleY = grading.scaleY;
+
+  const directTextures =
+    options.directTextures ||
+    (typeof document !== 'undefined' ? composeDirect3DTextures(design, activePlayer, artworkRegistry) : null);
+
+  const isAway =
+    design?.mexicoKitId?.includes('away') || design?.uclKitId?.includes('away') ||
+    design?.colorZones?.primary?.hex?.toLowerCase() === '#0b1b3d' ||
+    design?.colorZones?.primary?.hex?.toLowerCase() === '#0a1a3a';
+
+  const primaryColor = design?.colorZones?.primary?.hex || '#FFF0B5';
+  const secondaryColor = design?.colorZones?.secondary?.hex || '#0A1A3A';
+  const collarColor = design?.colorZones?.collar?.hex || secondaryColor;
+  const sleevesColor = design?.colorZones?.sleeves?.hex || primaryColor;
+
+  const playerName = (activePlayer?.name || design?.sampleName || 'JUGADOR').toUpperCase();
+  const playerNumber = String(activePlayer?.number || design?.sampleNumber || '10');
+
+  const frenteCenterX = MOLD_CONSTANTS.PIECES.FRONT.centerX;
+  const traseroCenterX = MOLD_CONSTANTS.PIECES.BACK.centerX;
+
+  const slots = design?.variableSlots || {};
+  const frontNumberEnabled = Boolean(slots.playerNumberFront?.enabled);
+  const backNameEnabled = slots.playerNameBack?.enabled !== false;
+  const backNumberEnabled = slots.playerNumberBack?.enabled !== false;
+
+  const { frontGraphicSvg, backGraphicSvg } = generateFrontAndBackGraphics(
+    design,
+    frenteCenterX,
+    traseroCenterX,
+    isAway
+  );
+
+  // -------------------------------------------------------------
+  // PROYECCIÓN DE DECALS Y LOGOS SOBRE CADA PIEZA
+  // -------------------------------------------------------------
+  const frenteBounds = MOLD_CONSTANTS.PIECES.FRONT.bounds;
+  const traseroBounds = MOLD_CONSTANTS.PIECES.BACK.bounds;
+  const leftSleeveBounds = MOLD_CONSTANTS.PIECES.LEFT_SLEEVE.bounds;
+  const rightSleeveBounds = MOLD_CONSTANTS.PIECES.RIGHT_SLEEVE.bounds;
+
+  const allDecals = design?.decals || [];
+
+  // Front Decals
+  const frontDecals = allDecals.filter((d) => d.panel === 'front' && d.type !== 'LIGAMX_GRAPHIC' && d.type !== 'UCL_GRAPHIC');
+  let frontDecalsSvg = frontDecals
+    .map((d) => renderDecalToSvg(d, frenteBounds, artworkRegistry, design))
+    .join('\n');
+
+  // Fallback de escudo si no hay decal en el pecho pero sí un club seleccionado
+  const hasCrestDecal = frontDecals.some(
+    (d) => d.type === 'LIGAMX_CREST' || d.type === 'UCL_CREST' || d.type === 'PRESET_CREST' || d.type === 'UPLOADED_RASTER' || d.type === 'UPLOADED_VECTOR'
+  );
+  if (!hasCrestDecal && (design?.mexicoBaseClubId || design?.mexicoKitId || design?.uclBaseClubId || design?.uclKitId)) {
+    const club = design.mexicoBaseClubId || design.mexicoKitId || design.uclBaseClubId || design.uclKitId;
+    frontDecalsSvg += '\n' + renderClubCrestSvg(
+      club,
+      MOLD_CONSTANTS.PIECES.FRONT.crestX,
+      MOLD_CONSTANTS.PIECES.FRONT.crestY,
+      MOLD_CONSTANTS.PIECES.FRONT.crestRadius,
+      design
+    );
+  }
+
+  // Back Decals
+  const backDecals = allDecals.filter((d) => d.panel === 'back' && d.type !== 'LIGAMX_GRAPHIC' && d.type !== 'UCL_GRAPHIC');
+  const backDecalsSvg = backDecals
+    .map((d) => renderDecalToSvg(d, traseroBounds, artworkRegistry, design))
+    .join('\n');
+
+  // Sleeve Decals (soporta aliases left_sleeve/left_arm y right_sleeve/right_arm)
+  const leftSleeveDecals = allDecals.filter((d) => d.panel === 'left_sleeve' || d.panel === 'left_arm');
+  const leftSleeveDecalsSvg = leftSleeveDecals
+    .map((d) => renderDecalToSvg(d, leftSleeveBounds, artworkRegistry, design))
+    .join('\n');
+
+  const rightSleeveDecals = allDecals.filter((d) => d.panel === 'right_sleeve' || d.panel === 'right_arm');
+  const rightSleeveDecalsSvg = rightSleeveDecals
+    .map((d) => renderDecalToSvg(d, rightSleeveBounds, artworkRegistry, design))
+    .join('\n');
+
+  // Dorsal de pecho (solo si está activo en 3D)
+  let frontNumSvg = '';
+  if (frontNumberEnabled && playerNumber) {
+    const fnX = MOLD_CONSTANTS.PIECES.FRONT.frontNumX;
+    const fnY = MOLD_CONSTANTS.PIECES.FRONT.frontNumY;
+    frontNumSvg = `
+      <text x="${fnX}" y="${fnY}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="130" fill="${primaryColor}" stroke="${secondaryColor}" stroke-width="12" paint-order="stroke fill">${playerNumber}</text>
+    `;
+  }
+
+  // Nombre y Dorsal de Espalda
+  let backNameSvg = '';
+  if (backNameEnabled && playerName) {
+    const ny = MOLD_CONSTANTS.PIECES.BACK.nameY;
+    backNameSvg = `
+      <text x="${traseroCenterX}" y="${ny}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="145" letter-spacing="6" fill="${secondaryColor}" stroke="#ffffff" stroke-width="14" paint-order="stroke fill">${playerName}</text>
+    `;
+  }
+
+  let backNumberSvg = '';
+  if (backNumberEnabled && playerNumber) {
+    const numY = MOLD_CONSTANTS.PIECES.BACK.numberY;
+    backNumberSvg = `
+      <text x="${traseroCenterX}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="620" fill="${secondaryColor}" stroke="#ffffff" stroke-width="32" paint-order="stroke fill">${playerNumber}</text>
+    `;
+  }
+
+  // Ribete de mangas
+  const sleeveTrimHeight = 85;
+
+  // Sangrado y centrado milimétrico de texturas directas de 3D
+  const frontImageX = frenteBounds.x - 20;
+  const frontImageY = frenteBounds.y - 20;
+  const frontImageW = frenteBounds.width + 40;
+  const frontImageH = frenteBounds.height + 40;
+
+  const backImageX = traseroBounds.x - 20;
+  const backImageY = traseroBounds.y - 20;
+  const backImageW = traseroBounds.width + 40;
+  const backImageH = traseroBounds.height + 40;
+
+  // Ápice de manga: LeftArm U = 0.445, RightArm U = 0.555 (sincronizado con 3D UV y costura de sisa)
+  const leftSleeveWidthWithBleed = leftSleeveBounds.width * 1.15;
+  const leftSleeveImageX = frenteCenterX - 0.445 * leftSleeveWidthWithBleed;
+  const leftSleeveImageY = leftSleeveBounds.y - 25;
+  const leftSleeveImageH = leftSleeveBounds.height + 50;
+
+  const rightSleeveWidthWithBleed = rightSleeveBounds.width * 1.15;
+  const rightSleeveImageX = traseroCenterX - 0.555 * rightSleeveWidthWithBleed;
+  const rightSleeveImageY = rightSleeveBounds.y - 25;
+  const rightSleeveImageH = rightSleeveBounds.height + 50;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="${MOLD_CONSTANTS.VIEWBOX}" preserveAspectRatio="xMidYMid meet">
+  <!-- Generator: ATLETIQ Industrial Sublimation Engine (Adobe Illustrator 1:1) -->
+  <defs>
+    <style>
+      ${MOLDE_CAMISA_STYLE}
+      image { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+      .cut-line { stroke: #010101; stroke-width: 2.2; fill: none; stroke-miterlimit: 10; }
+      .piece-tag { font-family: 'Arial Black', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 2px; fill: #475569; }
+    </style>
+    <clipPath id="clip-frente">
+      <path d="${MOLDE_PATHS.FRENTE}" />
+    </clipPath>
+    <clipPath id="clip-trasero">
+      <path d="${MOLDE_PATHS.TRASERO}" />
+    </clipPath>
+    <clipPath id="clip-manga-der">
+      <path d="${MOLDE_PATHS.MANGA_DERECHA}" />
+    </clipPath>
+    <clipPath id="clip-manga-izq">
+      <path d="${MOLDE_PATHS.MANGA_IZQUIERDA}" />
+    </clipPath>
+  </defs>
+
+  <!-- 1. CAPA MASTER DE PATRONAJE (FONDO ORIGINAL ADOBE ILLUSTRATOR) -->
+  <g id="BACKGROUND">
+    ${MOLDE_CAMISA_BACKGROUND_INNER}
+    ${generateDynamicSizeBadgeSvg(activeSize, 4150, 160)}
+  </g>
+
+  <!-- 2. CAPA DE PRODUCCIÓN TEXTIL 1:1 (DISEÑO Y PIEZAS APLANADAS DIRECTO DE 3D) -->
+  <g id="DESIGN">
+    <!-- ==================== PIEZA 1: DELANTERO / FRENTE ==================== -->
+    <g id="PIECE_FRENTE" transform="translate(1050, 2260) scale(${scaleX}, ${scaleY}) translate(-948.54, -2122.1)">
+      <g clip-path="url(#clip-frente)">
+        ${
+          directTextures?.front
+            ? `<image href="${directTextures.front}" xlink:href="${directTextures.front}" x="${frontImageX}" y="${frontImageY}" width="${frontImageW}" height="${frontImageH}" preserveAspectRatio="none" />`
+            : `<!-- Fondo Base con Sangrado 10mm -->
+        <rect x="170" y="1010" width="1560" height="2225" fill="${primaryColor}" />
+        <!-- Patrón Gráfico Oficial -->
+        ${frontGraphicSvg}
+        <!-- Logotipos y Escudos Proyectados -->
+        ${frontDecalsSvg}
+        <!-- Dorsal Pecho (solo si está activo en 3D) -->
+        ${frontNumSvg}`
+        }
+      </g>
+
+      <!-- Trazo de Corte Físico (Línea de confección) -->
+      ${showCutLines ? `<path class="cut-line" d="${MOLDE_PATHS.FRENTE}" />` : ''}
+
+      <!-- Identificación de Pieza -->
+      ${showLabels ? `<text x="${frenteCenterX}" y="3255" text-anchor="middle" class="piece-tag">[ 1. DELANTERO / FRENTE • TALLA ${activeSize} ]</text>` : ''}
+    </g>
+
+    <!-- ==================== PIEZA 2: TRASERO / ESPALDA ==================== -->
+    <g id="PIECE_TRASERO" transform="translate(3350, 2260) scale(${scaleX}, ${scaleY}) translate(-2594.73, -2110.53)">
+      <g clip-path="url(#clip-trasero)">
+        ${
+          directTextures?.back
+            ? `<image href="${directTextures.back}" xlink:href="${directTextures.back}" x="${backImageX}" y="${backImageY}" width="${backImageW}" height="${backImageH}" preserveAspectRatio="none" />`
+            : `<!-- Fondo Base con Sangrado 10mm -->
+        <rect x="1815" y="985" width="1560" height="2250" fill="${primaryColor}" />
+        <!-- Yugo Posterior Superior -->
+        ${backGraphicSvg}
+        <!-- Decals Posteriores (Patrocinadores espalda) -->
+        ${backDecalsSvg}
+        <!-- Nombre de Jugador -->
+        ${backNameSvg}
+        <!-- Dorsal de Jugador Atlético (250 mm) -->
+        ${backNumberSvg}`
+        }
+      </g>
+
+      <!-- Trazo de Corte Físico -->
+      ${showCutLines ? `<path class="cut-line" d="${MOLDE_PATHS.TRASERO}" />` : ''}
+
+      <!-- Identificación de Pieza -->
+      ${showLabels ? `<text x="${traseroCenterX}" y="3255" text-anchor="middle" class="piece-tag">[ 2. TRASERO / ESPALDA • TALLA ${activeSize} ]</text>` : ''}
+    </g>
+
+    <!-- ==================== PIEZA 3: MANGA IZQUIERDA ==================== -->
+    <g id="PIECE_MANGA_IZQUIERDA" transform="translate(1050, 520) scale(${scaleX}, ${scaleY}) translate(-948.54, -539.51)">
+      <g clip-path="url(#clip-manga-izq)">
+        ${
+          directTextures?.left_sleeve
+            ? `<image href="${directTextures.left_sleeve}" xlink:href="${directTextures.left_sleeve}" x="${leftSleeveImageX}" y="${leftSleeveImageY}" width="${leftSleeveWidthWithBleed}" height="${leftSleeveImageH}" preserveAspectRatio="none" />`
+            : `<!-- Fondo Manga con Sangrado -->
+        <rect x="280" y="165" width="1335" height="745" fill="${sleevesColor}" />
+        <!-- Ribete de Puño -->
+        <rect x="280" y="${882.7 - sleeveTrimHeight}" width="1335" height="${sleeveTrimHeight + 20}" fill="${secondaryColor}" />
+        <!-- Decals Manga Izquierda -->
+        ${leftSleeveDecalsSvg}`
+        }
+      </g>
+
+      <!-- Trazo de Corte Físico -->
+      ${showCutLines ? `<path class="cut-line" d="${MOLDE_PATHS.MANGA_IZQUIERDA}" />` : ''}
+
+      <!-- Identificación -->
+      ${showLabels ? `<text x="${frenteCenterX}" y="920" text-anchor="middle" class="piece-tag">[ 3. MANGA IZQUIERDA • TALLA ${activeSize} ]</text>` : ''}
+    </g>
+
+    <!-- ==================== PIEZA 4: MANGA DERECHA ==================== -->
+    <g id="PIECE_MANGA_DERECHA" transform="translate(3350, 520) scale(${scaleX}, ${scaleY}) translate(-2594.73, -539.51)">
+      <g clip-path="url(#clip-manga-der)">
+        ${
+          directTextures?.right_sleeve
+            ? `<image href="${directTextures.right_sleeve}" xlink:href="${directTextures.right_sleeve}" x="${rightSleeveImageX}" y="${rightSleeveImageY}" width="${rightSleeveWidthWithBleed}" height="${rightSleeveImageH}" preserveAspectRatio="none" />`
+            : `<!-- Fondo Manga con Sangrado -->
+        <rect x="1925" y="165" width="1335" height="745" fill="${sleevesColor}" />
+        <!-- Ribete de Puño -->
+        <rect x="1925" y="${882.7 - sleeveTrimHeight}" width="1335" height="${sleeveTrimHeight + 20}" fill="${secondaryColor}" />
+        <!-- Decals Manga Derecha -->
+        ${rightSleeveDecalsSvg}`
+        }
+      </g>
+
+      <!-- Trazo de Corte Físico -->
+      ${showCutLines ? `<path class="cut-line" d="${MOLDE_PATHS.MANGA_DERECHA}" />` : ''}
+
+      <!-- Identificación -->
+      ${showLabels ? `<text x="${traseroCenterX}" y="920" text-anchor="middle" class="piece-tag">[ 4. MANGA DERECHA • TALLA ${activeSize} ]</text>` : ''}
+    </g>
+
+    <!-- ==================== PIEZA 5: TIRA DE CUELLO / RIBETE ==================== -->
+    <g id="PIECE_CUELLO" transform="translate(2200, 950) scale(${scaleX}, ${scaleY}) translate(-1771.64, -895.15)">
+      <rect x="1700" y="200" width="140" height="1400" fill="${collarColor}" />
+      ${showCutLines ? `<rect x="1700" y="200" width="140" height="1400" class="cut-line" />` : ''}
+      ${showLabels ? `<text x="1770" y="900" text-anchor="middle" transform="rotate(-90 1770 900)" class="piece-tag">[ 5. TIRA DE CUELLO • TALLA ${activeSize} ]</text>` : ''}
+    </g>
+  </g>
+</svg>`;
+}
+
+/**
+ * Descarga directamente la plantilla SVG generada en el navegador del usuario.
+ */
+export function downloadProductionMoldSvg(design, activePlayer = {}, filename = null, options = {}) {
+  const svgMarkup = generateProductionMoldSvgString(design, activePlayer, options);
+  const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = (design?.clubAlias || design?.mexicoKitId || 'PLANTILLA').replace(/\s+/g, '_').toUpperCase();
+  const activeSize = options.size || activePlayer?.size || "M";
+  a.download = filename || `${safeName}_PLANTILLA_CONFECCION_TALLA_${activeSize}_1A1.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
