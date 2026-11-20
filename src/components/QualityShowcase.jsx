@@ -1,7 +1,17 @@
-import React from 'react';
-import { ShieldCheck, Wind, Sparkles, Zap, Scissors } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShieldCheck, Wind, Sparkles, Zap, Scissors, ArrowUpRight, Layers } from 'lucide-react';
+import { FABRIC_WEAVES } from '../engine/core/designStore';
+import FabricSwatchThumb from './brand/FabricSwatchThumb';
 
-export default function QualityShowcase() {
+const SWATCH_COLORS = [
+  { hex: '#111111', label: 'Carbón ARZA' },
+  { hex: '#fa5400', label: 'Naranja ARZA' },
+  { hex: '#059669', label: 'Esmeralda' },
+  { hex: '#0033a0', label: 'Azul Real' },
+];
+
+export default function QualityShowcase({ onOpenTexturesInStudio }) {
+  const [swatchHex, setSwatchHex] = useState('#fa5400');
   const specs = [
     {
       icon: Wind,
@@ -30,7 +40,7 @@ export default function QualityShowcase() {
   ];
 
   return (
-    <section id="fabric-quality" className="py-16 sm:py-24 bg-[#F5F5F5] border-t border-neutral-200">
+    <section id="fabric-quality" className="scroll-mt-28 py-16 sm:py-24 bg-[#F5F5F5] border-t border-neutral-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div className="space-y-2 max-w-2xl">
@@ -81,6 +91,85 @@ export default function QualityShowcase() {
               </div>
             );
           })}
+        </div>
+
+        {/* Muestrario Interactivo de Texturas de Tela Reales (4 Tejidos PBR 3D) */}
+        <div className="mt-10 p-6 sm:p-8 rounded-3xl bg-white border border-neutral-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#C24100]">
+                <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Muestrario Macro de Telas Reales</span>
+              </span>
+              <h3 className="font-display-hero text-xl sm:text-2xl font-extrabold uppercase text-[#111111] mt-1">
+                4 Texturas de Tejido Aplicables en el Configurador 3D
+              </h3>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-100 border border-neutral-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 mr-1">
+                  Color muestra:
+                </span>
+                {SWATCH_COLORS.map((c) => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    aria-label={c.label}
+                    aria-pressed={swatchHex === c.hex}
+                    onClick={() => setSwatchHex(c.hex)}
+                    className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
+                      swatchHex === c.hex
+                        ? 'scale-115 ring-2 ring-offset-1 ring-[#111111] border-white'
+                        : 'border-black/20 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: c.hex }}
+                  />
+                ))}
+              </div>
+
+              {onOpenTexturesInStudio && (
+                <button
+                  type="button"
+                  onClick={onOpenTexturesInStudio}
+                  className="px-4 min-h-10 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Probar Texturas en Paso 2</span>
+                  <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {FABRIC_WEAVES.map((w) => (
+              <div
+                key={w.id}
+                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 flex flex-col justify-between gap-3 hover:border-[#FA5400] transition-colors"
+              >
+                <div className="relative rounded-xl overflow-hidden">
+                  <FabricSwatchThumb
+                    bumpUrl={w.bumpUrl}
+                    tintHex={swatchHex}
+                    tileSize={58}
+                    className="w-full h-28 rounded-xl"
+                  />
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-white text-[10px] font-mono font-bold backdrop-blur-xs">
+                    {w.gsm || 150} g/m²
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-sm font-extrabold text-neutral-950 leading-snug">
+                    {w.shortName || w.name}
+                  </div>
+                  <p className="text-[11px] text-neutral-600 leading-relaxed mt-1">
+                    {w.subtitle || w.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

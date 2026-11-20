@@ -51,6 +51,7 @@ import LayerStack25DViewer from '../../engine/compositor/LayerStack25DViewer';
 import UserDesignGalleryModal from './UserDesignGalleryModal';
 import UserAuthModal from '../auth/UserAuthModal';
 import ArzaLogo, { buildArzaLogoSvgString } from '../brand/ArzaLogo';
+import FabricSwatchThumb from '../brand/FabricSwatchThumb';
 import { useAuth } from '../../engine/auth/authManager';
 import {
   LIGA_MX_PRESETS,
@@ -1874,6 +1875,21 @@ export default function HybridStudioWorkspace({
             </div>
           )}
 
+          {/* Marca de agua oficial ARZA SPORT en esquina superior derecha del lienzo */}
+          {viewportMode !== '2d_pliego' && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none select-none absolute z-[15] top-12 right-3 sm:top-16 sm:right-5 xl:top-4 xl:right-5 opacity-35 sm:opacity-40 transition-opacity duration-200"
+            >
+              <ArzaLogo
+                theme="light"
+                variant="stacked"
+                decorative
+                className="h-9 sm:h-11 xl:h-12 w-auto saturate-75 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+              />
+            </div>
+          )}
+
           {/* Selector rápido inferior de jugador de muestra + Auto-giro */}
           <div
             className={`pointer-events-auto absolute hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 border border-slate-300 text-[11px] backdrop-blur-sm shadow-xs text-slate-800 ${
@@ -2403,18 +2419,28 @@ export default function HybridStudioWorkspace({
                         key={w.id}
                         type="button"
                         onClick={() => onCommitDesign({ ...design, fabricWeaveId: w.id }, true)}
-                        className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-colors ${
+                        className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between gap-2.5 cursor-pointer transition-colors ${
                           design.fabricWeaveId === w.id
                             ? 'arza-pill-glass-green font-bold'
                             : 'bg-white/75 border-slate-200 text-slate-700 hover:border-emerald-300'
                         }`}
                       >
-                        <div>
-                          <div className="text-xs font-bold">{w.name}</div>
-                          <div className="text-[10px] text-slate-500">{w.subtitle}</div>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FabricSwatchThumb
+                            bumpUrl={w.bumpUrl}
+                            tintHex={design.colorZones?.primary?.hex || '#1e293b'}
+                            tileSize={34}
+                            className="w-9 h-9 rounded-lg"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold truncate">{w.name}</div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {w.subtitle || w.desc}
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
-                          {w.gsm}g
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
+                          {w.gsm || 150}g
                         </span>
                       </button>
                     ))}

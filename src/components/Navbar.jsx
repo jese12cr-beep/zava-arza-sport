@@ -81,6 +81,7 @@ export default function Navbar({
   const navLinks = [
     { href: '#como-funciona', label: 'En 4 Pasos' },
     { href: '#drops-catalog', label: 'Moldes (13)' },
+    { href: '#fabric-quality', label: 'Telas' },
   ];
 
   const handleCloseCollapsedMenu = () => {
@@ -154,39 +155,35 @@ export default function Navbar({
               </li>
             ))}
 
-            {!isWide && (
-              <>
-                {onOpenGallery && (
-                  <li className="pt-1.5 mt-1 border-t border-neutral-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleCloseCollapsedMenu();
-                        onOpenGallery();
-                      }}
-                      className="w-full px-3.5 min-h-11 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-900 text-xs font-bold flex items-center gap-2 cursor-pointer"
-                    >
-                      <FolderHeart className="w-4 h-4 text-[#C24100]" aria-hidden="true" />
-                      <span>Guardados ({galleryCount})</span>
-                    </button>
-                  </li>
-                )}
-                {onOpenQuoteModal && (
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleCloseCollapsedMenu();
-                        onOpenQuoteModal();
-                      }}
-                      className="w-full px-3.5 min-h-11 rounded-xl bg-[#111111] text-white text-xs font-bold flex items-center gap-2 cursor-pointer"
-                    >
-                      <FileText className="w-4 h-4 text-[#FA5400]" aria-hidden="true" />
-                      <span>Cotización de Club</span>
-                    </button>
-                  </li>
-                )}
-              </>
+            {onOpenGallery && (
+              <li className="arza-collapsed-only pt-1.5 mt-1 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCloseCollapsedMenu();
+                    onOpenGallery();
+                  }}
+                  className="w-full px-3.5 min-h-11 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-900 text-xs font-bold flex items-center gap-2 cursor-pointer"
+                >
+                  <FolderHeart className="w-4 h-4 text-[#C24100]" aria-hidden="true" />
+                  <span>Guardados ({galleryCount})</span>
+                </button>
+              </li>
+            )}
+            {onOpenQuoteModal && (
+              <li className="arza-collapsed-only">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCloseCollapsedMenu();
+                    onOpenQuoteModal();
+                  }}
+                  className="w-full px-3.5 min-h-11 rounded-xl bg-[#111111] text-white text-xs font-bold flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-[#FA5400]" aria-hidden="true" />
+                  <span>Cotización de Club</span>
+                </button>
+              </li>
             )}
           </ul>
 

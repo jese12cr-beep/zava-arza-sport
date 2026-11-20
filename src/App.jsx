@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import HowItWorks from './components/HowItWorks';
 import ProductCatalog from './components/ProductCatalog';
+import QualityShowcase from './components/QualityShowcase';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import ShopifyIntegrationGuide from './components/ShopifyIntegrationGuide';
@@ -341,6 +342,7 @@ export default function App() {
               onSelectProduct={handleSelectCatalogProduct}
               onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
+            <QualityShowcase onOpenTexturesInStudio={() => handleOpenGuidedWizard(2)} />
           </main>
           <Footer onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)} />
         </div>

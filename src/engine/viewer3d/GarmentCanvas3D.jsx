@@ -1276,8 +1276,8 @@ export default function GarmentCanvas3D({
         </span>
       </div>
 
-      {/* Selector rápido de vistas 3D: Barra horizontal centrada en móvil, a la derecha en desktop */}
-      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 flex items-center justify-center sm:justify-end gap-1.5 z-10 overflow-x-auto no-scrollbar py-0.5">
+      {/* Selector rápido de vistas 3D: Centrado en móvil y desktop XL para despejar esquina superior derecha */}
+      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 xl:left-1/2 xl:right-auto xl:-translate-x-1/2 flex items-center justify-center sm:justify-end xl:justify-center gap-1.5 z-10 overflow-x-auto no-scrollbar py-0.5">
         {quickCameraButtons.map((btn) => (
           <button
             key={btn.id}

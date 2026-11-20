@@ -583,7 +583,8 @@ dialog::backdrop {
   flex-direction: column;
 }
 
-.arza-site-header.is-wide .arza-menu-button {
+.arza-site-header.is-wide .arza-menu-button,
+.arza-site-header.is-wide .arza-collapsed-only {
   display: none;
 }
 

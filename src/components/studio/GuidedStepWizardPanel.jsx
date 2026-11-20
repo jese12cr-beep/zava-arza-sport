@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import ArzaLogo from '../brand/ArzaLogo';
+import FabricSwatchThumb from '../brand/FabricSwatchThumb';
 import {
   COLOR_HARMONY_SUGGESTIONS,
   ENGINE_PRODUCTS,
@@ -23,6 +24,14 @@ import {
   ZONE_SURFACE_PATTERNS,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
+
+function wizardRangeVars(val, min, max) {
+  return {
+    '--attr-min': min,
+    '--attr-max': max,
+    '--control-value': val,
+  };
+}
 
 const WIZARD_STEPS = [
   {
@@ -34,8 +43,8 @@ const WIZARD_STEPS = [
   {
     step: 2,
     shortLabel: 'Diseño',
-    title: 'Paso 2 de 4 · Diseño y Forma',
-    subtitle: 'Escoge el corte gráfico y el estilo de cuello.',
+    title: 'Paso 2 de 4 · Diseño, Tela y Forma',
+    subtitle: 'Escoge el corte gráfico, textura de tela 3D y cuello.',
   },
   {
     step: 3,
@@ -501,7 +510,7 @@ export default function GuidedStepWizardPanel({
               })}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[245px] lg:overflow-y-auto lg:pr-1">
               {availableFishDesigns
                 .filter((d) => {
                   if (patternCategoryFilter === 'Todos') return true;
@@ -585,72 +594,116 @@ export default function GuidedStepWizardPanel({
               </div>
             )}
 
-            {/* Opciones técnicas secundarias ocultas hasta que el cliente las abra */}
-            <details className="rounded-2xl arza-glass-card p-3.5 group">
-              <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-800">
-                <span className="inline-flex items-center gap-1.5">
+            {/* Texturas Reales de Tela 3D y Trama Sublimada (siempre visibles en Paso 2) */}
+            <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
                   <Layers className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                  <span>Trama sublimada y tela técnica (opcional)</span>
+                  <span>Textura de Tela 3D (Tejido Real)</span>
                 </span>
-                <ChevronRight
-                  className="w-4 h-4 text-slate-500 transition-transform group-open:rotate-90"
-                  aria-hidden="true"
-                />
-              </summary>
+                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Micro-relieve
+                </span>
+              </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-3">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                    Textura sobre tela principal
-                  </span>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {ZONE_SURFACE_PATTERNS.map((pat) => (
-                      <button
-                        key={pat.id}
-                        type="button"
-                        aria-pressed={(design.surfacePatternId || 'none') === pat.id}
-                        onClick={() =>
-                          onCommitDesign({ ...design, surfacePatternId: pat.id }, true)
-                        }
-                        className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer ${
-                          (design.surfacePatternId || 'none') === pat.id
-                            ? 'arza-btn-glass-green'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
-                        }`}
-                      >
-                        {pat.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {FABRIC_WEAVES.map((w) => {
+                  const isWeaveSel = (design.fabricWeaveId || 'ts_tex_football') === w.id;
+                  const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      aria-pressed={isWeaveSel}
+                      onClick={() => {
+                        onCommitDesign({ ...design, fabricWeaveId: w.id }, true);
+                        onToast?.(`Tela ${w.shortName || w.name} aplicada`);
+                      }}
+                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                        isWeaveSel
+                          ? 'border-2 border-emerald-600 bg-emerald-50/70 shadow-xs'
+                          : 'bg-white/90 border-slate-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      <FabricSwatchThumb
+                        bumpUrl={w.bumpUrl}
+                        tintHex={swatchBg}
+                        tileSize={36}
+                        className="w-11 h-11 rounded-lg"
+                      />
 
-                <div>
-                  <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                    Tipo de tejido deportivo
-                  </span>
-                  <div className="space-y-1.5">
-                    {FABRIC_WEAVES.map((w) => (
-                      <button
-                        key={w.id}
-                        type="button"
-                        aria-pressed={design.fabricWeaveId === w.id}
-                        onClick={() =>
-                          onCommitDesign({ ...design, fabricWeaveId: w.id }, true)
-                        }
-                        className={`w-full p-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
-                          design.fabricWeaveId === w.id
-                            ? 'arza-pill-glass-green font-bold'
-                            : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-300'
-                        }`}
-                      >
-                        <div className="text-xs font-bold">{w.name}</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
-                          {w.desc}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11px] font-black text-slate-900 truncate">
+                            {w.shortName || w.name}
+                          </span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
+                            {w.gsm || 150}g
+                          </span>
                         </div>
-                      </button>
-                    ))}
-                  </div>
+                        <div className="text-[10px] text-slate-600 truncate mt-0.5">
+                          {w.subtitle || w.desc}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-800">
+                    Trama geométrica sublimada
+                  </span>
+                  {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                    <span className="text-[10px] font-mono font-bold text-emerald-700">
+                      {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
+                    </span>
+                  )}
                 </div>
+
+                <div className="grid grid-cols-3 gap-1.5">
+                  {ZONE_SURFACE_PATTERNS.map((pat) => (
+                    <button
+                      key={pat.id}
+                      type="button"
+                      aria-pressed={(design.surfacePatternId || 'none') === pat.id}
+                      onClick={() => {
+                        onCommitDesign({ ...design, surfacePatternId: pat.id }, true);
+                        onToast?.(`Trama ${pat.name} aplicada`);
+                      }}
+                      className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
+                        (design.surfacePatternId || 'none') === pat.id
+                          ? 'arza-btn-glass-green'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      {pat.name}
+                    </button>
+                  ))}
+                </div>
+
+                {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                  <input
+                    type="range"
+                    min="5"
+                    max="55"
+                    aria-label="Intensidad de trama sublimada"
+                    value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
+                    style={wizardRangeVars(
+                      Math.round((design.surfacePatternOpacity ?? 0.16) * 100),
+                      5,
+                      55
+                    )}
+                    onChange={(e) =>
+                      onCommitDesign(
+                        { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
+                        false
+                      )
+                    }
+                    className="studio-range w-full"
+                  />
+                )}
 
                 <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs font-bold text-slate-800 cursor-pointer">
                   <span>Inserciones de Malla Mesh Lateral</span>
@@ -664,7 +717,7 @@ export default function GuidedStepWizardPanel({
                   />
                 </label>
               </div>
-            </details>
+            </div>
           </div>
         )}
 
