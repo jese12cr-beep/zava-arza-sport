@@ -37,7 +37,7 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
       icon: Scissors,
       badge: 'XS – XXL ♂ / ♀',
       title: 'Patronaje Zava Escala 1:1',
-      desc: 'Cortes diferenciados para Caballero y Dama validados en pliegos 2D con márgenes de costura y sangrado listos para plotter.',
+      desc: 'Cortes anatómicos diferenciados para Caballero y Dama desarrollados para máximo rendimiento en competición.',
     },
   ];
 
@@ -104,7 +104,7 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
                   <span>Muestrario Macro de Telas Reales</span>
                 </span>
                 <h3 className="font-display-hero text-xl sm:text-2xl font-extrabold uppercase text-[#111111] mt-1">
-                  {ACTIVE_WEAVE_SWATCHES.length} Texturas de Tejido Aplicables en el Configurador 3D
+                  {ACTIVE_WEAVE_SWATCHES.length} Texturas de Tejido para Sublimación Pro
                 </h3>
               </div>
 
@@ -136,7 +136,7 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
                     onClick={onOpenTexturesInStudio}
                     className="px-4 min-h-10 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>Probar Texturas en Paso 2</span>
+                    <span>Explorar Telas</span>
                     <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}

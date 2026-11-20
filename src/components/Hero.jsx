@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowRight, ArrowUpRight, Layers, Scissors, Ruler } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Layers, ShieldCheck, Ruler } from 'lucide-react';
 import ArzaLogo from './brand/ArzaLogo';
 import { resolveAssetUrl } from '../utils/assetUrl';
 
@@ -46,7 +46,7 @@ const FEATURED_ZAVA_LINES = [
     tabLabel: 'E-Sports · Arena E1',
     code: 'ARZA-E01M',
     name: 'Jersey Arena E-Sports ZAVA E1',
-    subtitle: 'Sublimación integral Full HD • Sponsors y Gamertags ilimitados',
+    subtitle: 'Sublimación integral HD • Sponsors y Gamertags ilimitados',
     fabric: 'TS-Tex Ultra-Light 140 g/m²',
     price: '$36.00',
     colors: ['#111111', '#fa5400', '#ffffff', '#059669'],
@@ -56,21 +56,53 @@ const FEATURED_ZAVA_LINES = [
 
 export default function Hero({ onStartDesigning }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const heroBrandRef = useRef(null);
   const active = FEATURED_ZAVA_LINES[selectedIdx];
+
+  useEffect(() => {
+    const el = heroBrandRef.current;
+    if (!el || typeof window === 'undefined' || typeof CSS === 'undefined') return undefined;
+
+    const nativeSupported = CSS.supports(
+      '(animation-timeline: scroll()) and (animation-range: 0% 100%)'
+    );
+    if (nativeSupported) return undefined;
+
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: no-preference)');
+    const handleScroll = () => {
+      const progress = Math.min(1, Math.max(0, window.scrollY / 115));
+      el.style.opacity = String(1 - progress);
+      el.style.transform = motionQuery.matches
+        ? `translateY(${(-14 * progress).toFixed(1)}px) scale(${(1 - 0.08 * progress).toFixed(3)})`
+        : '';
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <section className="w-full bg-white text-neutral-950 border-b border-neutral-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 sm:pt-12 sm:pb-20">
-        {/* Selector de línea deportiva arriba estilo editorial */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b border-neutral-200">
-          <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-neutral-600">
-            <ArzaLogo theme="light" variant="mark" decorative className="h-4 w-auto shrink-0" />
-            <span className="text-neutral-950">ARZA SPORT</span>
-            <span aria-hidden="true">/</span>
-            <span>Colección Oficial Zava 2026</span>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-14 sm:pt-8 sm:pb-20">
+        {/* Emblema Central ARZA SPORT sin recuadro — desaparece suavemente al desplazarse */}
+        <div
+          ref={heroBrandRef}
+          className="arza-hero-brand-exit flex flex-col items-center justify-center text-center pb-5 sm:pb-7"
+        >
+          <ArzaLogo theme="light" className="h-14 sm:h-18 lg:h-20 w-auto" />
+          <span className="mt-2 text-[11px] font-bold uppercase tracking-[0.26em] text-neutral-500">
+            Colección Oficial Grupo Zava 2026
+          </span>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Líneas destacadas ARZA">
+        {/* Selector de línea deportiva centrado bajo el emblema */}
+        <div className="flex flex-wrap items-center justify-center gap-2 pb-7 mb-8 border-b border-neutral-200">
+          <div
+            className="flex flex-wrap items-center justify-center gap-1.5"
+            role="tablist"
+            aria-label="Líneas destacadas ARZA"
+          >
             {FEATURED_ZAVA_LINES.map((item, idx) => {
               const isSel = idx === selectedIdx;
               return (
@@ -95,26 +127,26 @@ export default function Hero({ onStartDesigning }) {
 
         {/* Hero Split Editorial Minimalista */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Columna de Tipografía Display + CTAs */}
+          {/* Columna de Tipografía Display + CTAs (los 4 pasos viven únicamente aquí) */}
           <div className="lg:col-span-6 space-y-6">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#C24100]">
-              ASISTENTE DE DISEÑO 3D PASO A PASO
+              INDUMENTARIA DEPORTIVA PERSONALIZADA
             </p>
 
             <h1 className="font-display-hero font-extrabold uppercase text-[#111111] arza-hero-headline">
-              DISEÑA TU UNIFORME{' '}
-              <span className="text-[#757575] block sm:inline">PASO A PASO.</span>
+              TU UNIFORME{' '}
+              <span className="text-[#757575] block sm:inline">EN 4 PASOS.</span>
             </h1>
 
             <p className="font-body-lg text-base sm:text-lg text-[#525252] max-w-[52ch]">
-              Sin menús complejos: elige primero tu modelo, luego diseño y cuello, después colores y al final tus logotipos y tallas en vista 3D real.
+              Sin menús complejos: elige primero tu prenda, luego corte y cuello, después los colores de tu equipo y al final tus logotipos y tallas listo para pedir.
             </p>
 
-            {/* Resumen visual limpio de los 4 pasos */}
+            {/* Resumen visual único de los 4 pasos */}
             <ol className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="list">
               {[
                 '1. Modelo y Corte',
-                '2. Diseño y Cuello',
+                '2. Corte y Cuello',
                 '3. Colores ARZA',
                 '4. Logos y Pedido',
               ].map((stepLabel) => (
@@ -133,7 +165,7 @@ export default function Hero({ onStartDesigning }) {
                 onClick={() => onStartDesigning(null)}
                 className="px-7 min-h-12 rounded-full arza-btn-glass-green text-sm font-bold inline-flex items-center gap-2 cursor-pointer"
               >
-                <span>Empezar Paso 1: Elegir Modelo</span>
+                <span>Empezar Paso 1</span>
                 <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
               </button>
 
@@ -141,7 +173,7 @@ export default function Hero({ onStartDesigning }) {
                 href="#drops-catalog"
                 className="px-7 min-h-12 rounded-full border border-[#111111] text-[#111111] hover:bg-[#F5F5F5] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
-                <span>Ver Catálogo (8 Moldes)</span>
+                <span>Ver Catálogo</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
@@ -151,19 +183,19 @@ export default function Hero({ onStartDesigning }) {
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#757575] flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
-                  <span>Moldes 3D</span>
+                  <span>Colección Pro</span>
                 </dt>
                 <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
-                  8 CORTES
+                  8 PRENDAS
                 </dd>
               </div>
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#757575] flex items-center gap-1.5">
-                  <Scissors className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
-                  <span>Pliegos RIP</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#C24100] shrink-0" aria-hidden="true" />
+                  <span>Sublimación</span>
                 </dt>
                 <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
-                  ESCALA 1:1
+                  HD TOTAL
                 </dd>
               </div>
               <div>
@@ -191,13 +223,10 @@ export default function Hero({ onStartDesigning }) {
                   className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none"
                   aria-hidden="true"
                 />
-                <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
-                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111111]/85 backdrop-blur-md border border-[#FA5400]/45 text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
+                <div className="absolute top-3.5 left-3.5 flex items-center gap-2 pointer-events-none">
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111111]/80 backdrop-blur-md border border-[#FA5400]/45 text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
                     <ArzaLogo theme="dark" variant="mark" decorative className="h-3.5 w-auto" />
                     <span>ARZA SPORT · {active.code}</span>
-                  </span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[#111111]/85 backdrop-blur-md border border-white/15">
-                    <ArzaLogo theme="dark" className="h-6 w-auto" />
                   </span>
                 </div>
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
@@ -243,7 +272,7 @@ export default function Hero({ onStartDesigning }) {
                   onClick={() => onStartDesigning(active.id)}
                   className="px-5 min-h-11 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
                 >
-                  <span>Diseñar este Molde</span>
+                  <span>Personalizar Prenda</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>

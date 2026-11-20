@@ -426,14 +426,50 @@ dialog::backdrop {
   }
 }
 
+@keyframes arzaHeroBrandFade {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.92);
+  }
+}
+
+@keyframes arzaHeroBrandFadeCalm {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.arza-hero-brand-exit {
+  transform-origin: center top;
+  will-change: transform, opacity;
+}
+
+@supports ((animation-timeline: scroll()) and (animation-range: 0% 100%)) {
+  .arza-hero-brand-exit {
+    animation: arzaHeroBrandFadeCalm auto linear both;
+    animation-timeline: scroll(block root);
+    animation-range: 0% 115px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .arza-hero-brand-exit {
+      animation: arzaHeroBrandFade auto linear both;
+      animation-timeline: scroll(block root);
+      animation-range: 0% 115px;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  html {
+    scroll-behavior: auto;
   }
 }
 

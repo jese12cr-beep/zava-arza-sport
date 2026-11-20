@@ -41,13 +41,13 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-neutral-200">
         <div className="space-y-2">
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
-            Paso 1 Directo // Catálogo ARZA SPORT
+            Catálogo Oficial // ARZA SPORT
           </span>
           <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
-            Elige tu Molde ({APPAREL_PRODUCTS.length})
+            Elige tu Prenda ({APPAREL_PRODUCTS.length})
           </h2>
           <p className="text-[#757575] text-sm sm:text-base max-w-2xl">
-            Haz clic en cualquier prenda para saltar directo al Paso 2 (Diseño y Forma) sobre su modelo 3D.
+            Modelos técnicos para fútbol, baloncesto y e-sports con patronaje diferenciado para Caballero y Dama.
           </p>
         </div>
 
@@ -173,7 +173,7 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
                   onClick={() => onSelectProduct(item.id)}
                   className="px-4 min-h-11 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>Elegir Molde</span>
+                  <span>Personalizar</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>

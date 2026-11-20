@@ -10,7 +10,7 @@ export const PRODUCT_MEDIA_REGISTRY = {
     desc: 'Jersey ZAVA Apex V1 con cuello ergonómico, tejido TS-Tex y 29 cortes de sublimación.',
   },
   futbol_jersey_f3w_women: {
-    image: resolveAssetUrl('assets/stitch/football_celebration.png'),
+    image: resolveAssetUrl('assets/showcase/futbol_f3w_women.jpg'),
     tag: 'Patronaje Dama',
     kind: 'jersey',
     fitLabel: 'Corte Dama',
@@ -34,7 +34,7 @@ export const PRODUCT_MEDIA_REGISTRY = {
     desc: 'Tank sin mangas ZAVA Court B1 en CoolDry™ Hex con 19 cortes deportivos configurables.',
   },
   basketball_shorts_bp6: {
-    image: resolveAssetUrl('assets/stitch/basketball_arena.png'),
+    image: resolveAssetUrl('assets/showcase/basket_shorts_bp6_men.jpg'),
     tag: 'Corte Arena',
     kind: 'shorts',
     fitLabel: 'Corte Caballero',
@@ -50,7 +50,7 @@ export const PRODUCT_MEDIA_REGISTRY = {
     desc: 'Tank femenino ZAVA Femme BW1 con costados independientes y ribetes personalizables.',
   },
   basketball_shorts_bp7w_women: {
-    image: resolveAssetUrl('assets/showcase/shorts_fp3_matchday.jpg'),
+    image: resolveAssetUrl('assets/showcase/basket_shorts_bp7w_women.jpg'),
     tag: '7 Piezas Dama',
     kind: 'shorts',
     fitLabel: 'Corte Dama',

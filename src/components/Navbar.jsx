@@ -79,8 +79,7 @@ export default function Navbar({
   }, [supportsPopover]);
 
   const navLinks = [
-    { href: '#como-funciona', label: 'En 4 Pasos' },
-    { href: '#drops-catalog', label: 'Moldes (8)' },
+    { href: '#drops-catalog', label: 'Catálogo (8)' },
     { href: '#fabric-quality', label: 'Telas' },
   ];
 
@@ -102,40 +101,38 @@ export default function Navbar({
       }`}
     >
       {/* Barra Oficial de Identidad ARZA SPORT */}
-      <div className="bg-[#111111] border-b-2 border-[#FA5400] text-white text-[11px] font-bold py-2 px-4 sm:px-6 text-center tracking-wider uppercase">
-        <span className="inline-flex items-center justify-center gap-2.5 max-w-full">
+      <div className="w-full overflow-hidden bg-[#111111] border-b-2 border-[#FA5400] text-white text-[11px] font-bold py-2 px-3 sm:px-6 text-center tracking-wider uppercase">
+        <span className="inline-flex items-center justify-center gap-2 max-w-full">
           <ArzaLogo theme="dark" variant="mark" decorative className="h-3.5 w-auto shrink-0" />
           <span className="truncate">
-            ARZA SPORT · Marca Oficial Grupo Zava — Personalización 3D Directa Sin Mínimo
+            ARZA SPORT · Indumentaria Oficial Grupo Zava — Sin Pedido Mínimo
           </span>
         </span>
       </div>
 
       <div
         ref={innerRef}
-        className="arza-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 flex items-center justify-between gap-3 sm:gap-5"
+        className="arza-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 sm:min-h-18 flex items-center justify-between gap-2 sm:gap-5"
       >
         {/* Logotipo Emblema Oficial ARZA SPORT */}
         <a
           href="#"
           aria-label="ARZA SPORT by Grupo Zava — Inicio"
-          className="inline-flex items-center gap-2.5 sm:gap-3 shrink-0 rounded-xl py-1 group"
+          className="inline-flex items-center gap-1.5 sm:gap-2.5 shrink-0 rounded-xl py-1 group"
         >
-          <span className="inline-flex items-center justify-center px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#111111] border border-neutral-800 group-hover:border-[#FA5400] transition-colors shadow-xs">
-            <ArzaLogo theme="dark" className="h-8 sm:h-9 w-auto" />
-          </span>
-          <span className="hidden sm:flex flex-col leading-none">
-            <span className="font-display-hero text-base sm:text-lg font-extrabold tracking-tight text-[#111111] uppercase">
+          <ArzaLogo theme="light" variant="mark" decorative className="h-5 sm:h-7 w-auto shrink-0 transition-transform duration-200 group-hover:scale-105" />
+          <span className="flex flex-col leading-none">
+            <span className="font-display-hero text-sm sm:text-lg font-extrabold tracking-tight text-[#111111] uppercase">
               ARZA <span className="text-[#C24100]">SPORT</span>
             </span>
-            <span className="text-[10px] font-bold text-[#757575] tracking-[0.2em] uppercase mt-0.5">
+            <span className="hidden sm:block text-[10px] font-bold text-[#757575] tracking-[0.2em] uppercase mt-0.5">
               By Grupo Zava
             </span>
           </span>
         </a>
 
         {/* Árbol único de navegación (<nav> semántico responsive) */}
-        <nav aria-label="Navegación principal" className="flex items-center gap-4">
+        <nav aria-label="Navegación principal" className="flex items-center gap-2 sm:gap-4 shrink-0">
           <ul
             ref={navListRef}
             id={menuId}
@@ -188,7 +185,7 @@ export default function Navbar({
           </ul>
 
           {/* Acciones de App & Comercio */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {onOpenQuoteModal && (
               <button
                 type="button"
@@ -219,10 +216,10 @@ export default function Navbar({
             <button
               type="button"
               onClick={onOpenStudio}
-              className="px-4 sm:px-5 min-h-11 rounded-full arza-btn-glass-green text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-5 min-h-11 rounded-full arza-btn-glass-green text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <span>Diseñar en 4 Pasos</span>
-              <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
+              <span>Personalizar</span>
+              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
             </button>
 
             <button

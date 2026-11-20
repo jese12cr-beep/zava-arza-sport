@@ -18,7 +18,7 @@ export default function Footer({ onOpenShopifyGuide }) {
           </div>
 
           <p className="text-xs text-neutral-300 max-w-sm leading-relaxed">
-            Manufactura, sublimación textil digital y patronaje 3D/2D personalizado para clubes profesionales, ligas y academias deportivas.
+            Manufactura, sublimación textil digital y confección a medida para clubes profesionales, ligas y academias deportivas.
           </p>
 
           <div className="text-[11px] font-mono text-[#FA5400] font-bold uppercase tracking-wider">

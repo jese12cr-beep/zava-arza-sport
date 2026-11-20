@@ -4,7 +4,6 @@ import HybridStudioWorkspace from './components/studio/HybridStudioWorkspace';
 import ProductionPayloadModal from './components/studio/ProductionPayloadModal';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
-import HowItWorks from './components/HowItWorks';
 import ProductCatalog from './components/ProductCatalog';
 import QualityShowcase from './components/QualityShowcase';
 import Footer from './components/Footer';
@@ -358,10 +357,6 @@ export default function App() {
                   handleOpenGuidedWizard(1);
                 }
               }}
-            />
-            <HowItWorks
-              onOpenStudio={() => handleOpenGuidedWizard(1)}
-              onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
             <ProductCatalog
               onSelectProduct={handleSelectCatalogProduct}
