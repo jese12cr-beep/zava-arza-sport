@@ -116,7 +116,7 @@ const ESSENTIAL_SPORT_COLORS = [
   { hex: '#F1F5F9', name: 'Gris Perla' },
   { hex: '#94A3B8', name: 'Gris Medio' },
   { hex: '#334155', name: 'Gris Carbón' },
-  { hex: '#0F172A', name: 'Negro Noche' },
+  { hex: '#111111', name: 'Carbón ARZA' },
   { hex: '#000000', name: 'Negro Puro' },
 
   { hex: '#0B1B3D', name: 'Marino Oscuro' },
@@ -126,12 +126,12 @@ const ESSENTIAL_SPORT_COLORS = [
   { hex: '#38BDF8', name: 'Celeste' },
   { hex: '#06B6D4', name: 'Turquesa' },
 
-  { hex: '#15803D', name: 'Verde Competición' },
+  { hex: '#059669', name: 'Esmeralda ARZA' },
   { hex: '#064E3B', name: 'Verde Bosque' },
   { hex: '#84CC16', name: 'Verde Lima' },
   { hex: '#FACC15', name: 'Amarillo Limón' },
   { hex: '#D97706', name: 'Oro Deportivo' },
-  { hex: '#EA580C', name: 'Naranja Flúor' },
+  { hex: '#FA5400', name: 'Naranja ARZA' },
 
   { hex: '#DC2626', name: 'Rojo Clásico' },
   { hex: '#991B1B', name: 'Granate' },
@@ -533,29 +533,35 @@ export default function HybridStudioWorkspace({
   };
 
   // --- Mutadores del Documento Maestro ---
-  const updateColorZone = (zoneKey, colorObj) => {
-    onCommitDesign({
-      ...design,
-      colorZones: {
-        ...design.colorZones,
-        [zoneKey]: {
-          hex: colorObj.hex,
-          pantone: colorObj.pantone || 'PMS Custom',
-          code: colorObj.code || colorObj.name || 'Custom',
+  const updateColorZone = (zoneKey, colorObj, recordHistory = false) => {
+    onCommitDesign(
+      {
+        ...design,
+        colorZones: {
+          ...design.colorZones,
+          [zoneKey]: {
+            hex: colorObj.hex,
+            pantone: colorObj.pantone || 'PMS Custom',
+            code: colorObj.code || colorObj.name || 'Custom',
+          },
         },
       },
-    });
+      recordHistory
+    );
   };
 
   const applyColorHarmony = (harmony) => {
     if (harmony.zones) {
-      onCommitDesign({
-        ...design,
-        colorZones: {
-          ...design.colorZones,
-          ...harmony.zones,
+      onCommitDesign(
+        {
+          ...design,
+          colorZones: {
+            ...design.colorZones,
+            ...harmony.zones,
+          },
         },
-      });
+        true
+      );
       return;
     }
     const findMeta = (hex) =>

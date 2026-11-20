@@ -25,6 +25,7 @@ import {
   VECTOR_CREST_PRESETS,
   VOLUME_TIERS,
   ZONE_SURFACE_PATTERNS,
+  computeOwayoAutoContrastHex,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
 
@@ -278,12 +279,23 @@ export default function GuidedStepWizardPanel({
 
   const garmentShape = currentProduct?.garmentShape;
 
+  const hasFourthZone = Boolean(activeFishMeta?.baseColors?.includes('D'));
+
   const visibleZoneButtons = useMemo(() => {
     const list = [
       { id: 'primary', label: 'Principal', hex: design.colorZones.primary?.hex || '#111111' },
       { id: 'secondary', label: 'Segundo color', hex: design.colorZones.secondary?.hex || '#fa5400' },
       { id: 'accents', label: 'Contorno / Detalles', hex: design.colorZones.accents?.hex || '#ffffff' },
-      {
+    ];
+    if (hasFourthZone) {
+      list.push({
+        id: 'quaternary',
+        label: 'Cuarto color',
+        hex: design.colorZones.quaternary?.hex || '#757575',
+      });
+    }
+    if (!isShorts) {
+      list.push({
         id: 'collar',
         label: garmentShape === 'basketball_tank' ? 'Ribetes / Sisa' : 'Cuello',
         hex:
@@ -291,8 +303,8 @@ export default function GuidedStepWizardPanel({
           design.colorZones.accents?.hex ||
           design.colorZones.primary?.hex ||
           '#fa5400',
-      },
-    ];
+      });
+    }
     if (hasSleeves) {
       list.push({
         id: 'sleeves',
@@ -301,7 +313,12 @@ export default function GuidedStepWizardPanel({
       });
     }
     return list;
-  }, [design.colorZones, garmentShape, hasSleeves]);
+  }, [design.colorZones, garmentShape, hasSleeves, isShorts, hasFourthZone]);
+
+  const safeActiveColorZone = visibleZoneButtons.some((z) => z.id === activeColorZone)
+    ? activeColorZone
+    : visibleZoneButtons[0]?.id || 'primary';
+  const activeZoneColorObj = design.colorZones?.[safeActiveColorZone] || design.colorZones?.primary;
 
   const placeLogoPresetSpot = (decal, spotKey) => {
     const pickPanel = (preferred) =>
@@ -912,13 +929,18 @@ export default function GuidedStepWizardPanel({
 
         {/* ==================== PASO 3: PALETA DE COLORES ==================== */}
         {wizardStep === 3 && (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
-                Combinaciones listas ARZA (1 clic)
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                {COLOR_HARMONY_SUGGESTIONS.slice(0, 6).map((h) => {
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Combinaciones listas ARZA ({COLOR_HARMONY_SUGGESTIONS.length})
+                </span>
+                <span className="text-[10px] font-mono text-emerald-700 font-bold">
+                  1 clic
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 max-h-[158px] overflow-y-auto pr-0.5">
+                {COLOR_HARMONY_SUGGESTIONS.map((h) => {
                   const pHex = h.zones?.primary?.hex || '#111111';
                   const sHex = h.zones?.secondary?.hex || '#fa5400';
                   const aHex = h.zones?.accents?.hex || '#ffffff';
@@ -934,7 +956,7 @@ export default function GuidedStepWizardPanel({
                         onApplyColorHarmony(h);
                         onToast?.(`Paleta ${h.name} aplicada`);
                       }}
-                      className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      className={`p-2 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
                         isMatch
                           ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs'
                           : 'bg-white/85 border-slate-200 hover:border-emerald-400'
@@ -942,15 +964,15 @@ export default function GuidedStepWizardPanel({
                     >
                       <div className="flex -space-x-1.5 shrink-0" aria-hidden="true">
                         <span
-                          className="w-5 h-5 rounded-full border border-white shadow-2xs"
+                          className="w-4 h-4 rounded-full border border-white shadow-2xs"
                           style={{ backgroundColor: pHex }}
                         />
                         <span
-                          className="w-5 h-5 rounded-full border border-white shadow-2xs"
+                          className="w-4 h-4 rounded-full border border-white shadow-2xs"
                           style={{ backgroundColor: sHex }}
                         />
                         <span
-                          className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs"
+                          className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs"
                           style={{ backgroundColor: aHex }}
                         />
                       </div>
@@ -963,14 +985,14 @@ export default function GuidedStepWizardPanel({
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
+            <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-slate-900">
                   Ajustar por zona
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
                     onCommitDesign(
                       {
                         ...design,
@@ -981,8 +1003,9 @@ export default function GuidedStepWizardPanel({
                         },
                       },
                       true
-                    )
-                  }
+                    );
+                    onToast?.('Colores Principal y Segundo invertidos');
+                  }}
                   className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-[11px] font-bold text-slate-800 inline-flex items-center gap-1 cursor-pointer"
                 >
                   <RefreshCw className="w-3 h-3" aria-hidden="true" />
@@ -992,21 +1015,21 @@ export default function GuidedStepWizardPanel({
 
               <div className="grid grid-cols-2 gap-1.5">
                 {visibleZoneButtons.map((z) => {
-                  const isActive = activeColorZone === z.id;
+                  const isActive = safeActiveColorZone === z.id;
                   return (
                     <button
                       key={z.id}
                       type="button"
                       aria-pressed={isActive}
                       onClick={() => onChangeActiveColorZone(z.id)}
-                      className={`p-2 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                      className={`px-2 py-1.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
                         isActive
                           ? 'border-2 border-emerald-600 bg-white shadow-xs'
                           : 'bg-white/75 border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <span
-                        className="w-5 h-5 rounded-lg border border-black/15 shrink-0"
+                        className="w-4 h-4 rounded-md border border-black/15 shrink-0"
                         style={{ backgroundColor: z.hex }}
                         aria-hidden="true"
                       />
@@ -1019,18 +1042,11 @@ export default function GuidedStepWizardPanel({
               </div>
 
               <div className="pt-2 border-t border-slate-200/70 space-y-2.5">
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-8 gap-1.5">
                   {essentialColors.map((c) => {
                     const isCur =
-                      design.colorZones[activeColorZone]?.hex?.toUpperCase() ===
-                      c.hex.toUpperCase();
-                    const isLight = [
-                      '#FFFFFF',
-                      '#F1F5F9',
-                      '#94A3B8',
-                      '#FACC15',
-                      '#38BDF8',
-                    ].includes(c.hex.toUpperCase());
+                      activeZoneColorObj?.hex?.toUpperCase() === c.hex.toUpperCase();
+                    const checkDark = computeOwayoAutoContrastHex(c.hex) === '#101820';
                     return (
                       <button
                         key={c.hex}
@@ -1038,13 +1054,17 @@ export default function GuidedStepWizardPanel({
                         aria-label={`${c.name} (${c.hex})`}
                         aria-pressed={isCur}
                         onClick={() =>
-                          onUpdateColorZone(activeColorZone, {
-                            hex: c.hex,
-                            name: c.name,
-                            code: c.hex,
-                          })
+                          onUpdateColorZone(
+                            safeActiveColorZone,
+                            {
+                              hex: c.hex,
+                              name: c.name,
+                              code: c.name,
+                            },
+                            true
+                          )
                         }
-                        className={`w-full aspect-square rounded-xl transition-all cursor-pointer flex items-center justify-center ${
+                        className={`w-full aspect-square rounded-lg transition-all cursor-pointer flex items-center justify-center ${
                           isCur
                             ? 'ring-2 ring-emerald-700 scale-105 shadow-md z-10'
                             : 'hover:scale-105 border border-slate-300/80 shadow-2xs'
@@ -1053,7 +1073,7 @@ export default function GuidedStepWizardPanel({
                       >
                         {isCur && (
                           <Check
-                            className={`w-4 h-4 ${isLight ? 'text-slate-900' : 'text-white'}`}
+                            className={`w-3.5 h-3.5 ${checkDark ? 'text-slate-900' : 'text-white'}`}
                             aria-hidden="true"
                           />
                         )}
@@ -1062,24 +1082,47 @@ export default function GuidedStepWizardPanel({
                   })}
                 </div>
 
-                <div className="pt-2 flex items-center justify-between border-t border-slate-200/70">
-                  <label htmlFor={customColorId} className="text-xs font-bold text-slate-700">
-                    ¿Tono exacto de tu club?
-                  </label>
+                <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/70">
+                  <div className="min-w-0">
+                    <label htmlFor={customColorId} className="text-xs font-bold text-slate-800 block">
+                      Tono exacto de tu club
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500 block truncate">
+                      {activeZoneColorObj?.code || 'ARZA'} ·{' '}
+                      {(activeZoneColorObj?.hex || '#FA5400').toUpperCase()}
+                    </span>
+                  </div>
                   <input
                     id={customColorId}
                     type="color"
-                    value={design.colorZones[activeColorZone]?.hex || '#fa5400'}
+                    value={activeZoneColorObj?.hex || '#fa5400'}
                     onChange={(e) =>
-                      onUpdateColorZone(activeColorZone, {
-                        hex: e.target.value,
-                        name: 'Personalizado',
-                        code: e.target.value.toUpperCase(),
-                      })
+                      onUpdateColorZone(
+                        safeActiveColorZone,
+                        {
+                          hex: e.target.value,
+                          name: 'Personalizado',
+                          code: e.target.value.toUpperCase(),
+                        },
+                        false
+                      )
                     }
-                    className="w-10 h-8 rounded-lg border border-slate-300 cursor-pointer bg-white"
+                    className="w-10 h-8 rounded-lg border border-slate-300 cursor-pointer bg-white shrink-0"
                   />
                 </div>
+
+                {pairedProduct && !['accessory', 'jacket'].includes(pairedProduct.garmentCategory) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSyncPairedColors?.();
+                      onToast?.(`Paleta sincronizada con ${pairedProduct.shortName}`);
+                    }}
+                    className="w-full py-1.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
+                  >
+                    Copiar estos colores al {pairedProduct.shortName} →
+                  </button>
+                )}
               </div>
             </div>
           </div>
