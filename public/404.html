@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirigiendo a ARZA SPORT™…</title>
+    <meta http-equiv="refresh" content="0; url=/zava-arza-sport/" />
+    <script>
+      (function () {
+        var path = (window.location.pathname || '').toLowerCase();
+        var hash = path.includes('/studio') ? '#studio' : window.location.hash || '';
+        window.location.replace('/zava-arza-sport/' + hash);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Abriendo <a href="/zava-arza-sport/">ARZA SPORT™ Studio</a>…</p>
+  </body>
+</html>

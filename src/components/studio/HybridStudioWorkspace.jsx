@@ -97,6 +97,7 @@ import ProductionMoldModal from './ProductionMoldModal';
 import Interactive2DPliegoStage from './Interactive2DPliegoStage';
 import SocialMediaMockupModal from './SocialMediaMockupModal';
 import GuidedStepWizardPanel from './GuidedStepWizardPanel';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 const GUIDED_STEP_SHORT_LABELS = {
   1: 'Modelo',
@@ -1292,26 +1293,26 @@ export default function HybridStudioWorkspace({
     const badgeMap = {
       mx_official: {
         label: 'Parche Oficial Liga MX',
-        file: '/assets/badges/badge_ligamx_official.svg',
-        panel: 'right_sleeve',
+        file: resolveAssetUrl('/assets/badges/badge_ligamx_official.svg'),
+        panel: 'right_arm',
         size: 70,
       },
       mx_champion: {
         label: 'Parche Campeón Liga MX',
-        file: '/assets/badges/badge_ligamx_champion.svg',
-        panel: 'right_sleeve',
+        file: resolveAssetUrl('/assets/badges/badge_ligamx_champion.svg'),
+        panel: 'right_arm',
         size: 70,
       },
       ucl_starball: {
         label: 'Starball Oficial UCL',
-        file: '/assets/badges/badge_ucl_starball.svg',
-        panel: 'right_sleeve',
+        file: resolveAssetUrl('/assets/badges/badge_ucl_starball.svg'),
+        panel: 'right_arm',
         size: 75,
       },
       ucl_foundation: {
         label: 'UEFA Foundation for Children',
-        file: '/assets/badges/badge_ucl_foundation.svg',
-        panel: 'left_sleeve',
+        file: resolveAssetUrl('/assets/badges/badge_ucl_foundation.svg'),
+        panel: 'left_arm',
         size: 70,
       },
     };
@@ -1327,6 +1328,7 @@ export default function HybridStudioWorkspace({
         artworkId: artId,
         fileName: b.label,
         previewUrl: b.file,
+        imageElement: img,
         drawable: img,
         widthPx: 500,
         heightPx: 500,
@@ -4081,7 +4083,7 @@ export default function HybridStudioWorkspace({
                           onClick={() => handleAddSleeveBadge('mx_official')}
                           className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <img src="/assets/badges/badge_ligamx_official.svg" alt="Liga MX" className="w-8 h-8 object-contain shrink-0" />
+                          <img src={resolveAssetUrl('/assets/badges/badge_ligamx_official.svg')} alt="Liga MX" className="w-8 h-8 object-contain shrink-0" />
                           <div className="min-w-0">
                             <div className="text-xs font-black text-slate-900 truncate">Oficial Liga MX</div>
                             <div className="text-[10px] text-slate-500">Manga Derecha</div>
@@ -4093,7 +4095,7 @@ export default function HybridStudioWorkspace({
                           onClick={() => handleAddSleeveBadge('mx_champion')}
                           className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <img src="/assets/badges/badge_ligamx_champion.svg" alt="Campeón Liga MX" className="w-8 h-8 object-contain shrink-0" />
+                          <img src={resolveAssetUrl('/assets/badges/badge_ligamx_champion.svg')} alt="Campeón Liga MX" className="w-8 h-8 object-contain shrink-0" />
                           <div className="min-w-0">
                             <div className="text-xs font-black text-amber-800 truncate">Campeón Liga MX</div>
                             <div className="text-[10px] text-slate-500">Manga Derecha • Oro</div>
@@ -4105,7 +4107,7 @@ export default function HybridStudioWorkspace({
                           onClick={() => handleAddSleeveBadge('ucl_starball')}
                           className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <img src="/assets/badges/badge_ucl_starball.svg" alt="Starball UCL" className="w-8 h-8 object-contain shrink-0" />
+                          <img src={resolveAssetUrl('/assets/badges/badge_ucl_starball.svg')} alt="Starball UCL" className="w-8 h-8 object-contain shrink-0" />
                           <div className="min-w-0">
                             <div className="text-xs font-black text-slate-900 truncate">Starball UCL</div>
                             <div className="text-[10px] text-slate-500">Manga Derecha • Balón</div>
@@ -4117,7 +4119,7 @@ export default function HybridStudioWorkspace({
                           onClick={() => handleAddSleeveBadge('ucl_foundation')}
                           className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <img src="/assets/badges/badge_ucl_foundation.svg" alt="UEFA Foundation" className="w-8 h-8 object-contain shrink-0" />
+                          <img src={resolveAssetUrl('/assets/badges/badge_ucl_foundation.svg')} alt="UEFA Foundation" className="w-8 h-8 object-contain shrink-0" />
                           <div className="min-w-0">
                             <div className="text-xs font-black text-emerald-900 truncate">UEFA Foundation</div>
                             <div className="text-[10px] text-slate-500">Manga Izquierda</div>
