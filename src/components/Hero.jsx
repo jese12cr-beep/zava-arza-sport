@@ -96,25 +96,42 @@ export default function Hero({ onStartDesigning }) {
           {/* Columna de Tipografía Display + CTAs */}
           <div className="lg:col-span-6 space-y-6">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#C24100]">
-              APP DE PERSONALIZACIÓN 3D Y PATRONAJE 2D
+              ASISTENTE DE DISEÑO 3D PASO A PASO
             </p>
 
             <h1 className="font-display-hero font-extrabold uppercase text-[#111111] arza-hero-headline">
-              DISEÑA TU UNIFORME.{' '}
-              <span className="text-[#757575] block sm:inline">PRECISIÓN ZAVA.</span>
+              DISEÑA TU UNIFORME{' '}
+              <span className="text-[#757575] block sm:inline">PASO A PASO.</span>
             </h1>
 
             <p className="font-body-lg text-base sm:text-lg text-[#525252] max-w-[52ch]">
-              Configura cada molde <strong className="text-[#111111]">ARZA SPORT</strong> en tiempo real con geometría 3D interactiva, paleta completa y exportación industrial 1:1 para confección.
+              Sin menús complejos: elige primero tu modelo, luego diseño y cuello, después colores y al final tus logotipos y tallas en vista 3D real.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            {/* Resumen visual limpio de los 4 pasos */}
+            <ol className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="list">
+              {[
+                '1. Modelo y Corte',
+                '2. Diseño y Cuello',
+                '3. Colores ARZA',
+                '4. Logos y Pedido',
+              ].map((stepLabel) => (
+                <li
+                  key={stepLabel}
+                  className="px-3 py-2 rounded-xl arza-glass-card text-[11px] font-bold text-[#111111] border border-neutral-200/80"
+                >
+                  {stepLabel}
+                </li>
+              ))}
+            </ol>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => onStartDesigning(active.id)}
-                className="px-7 min-h-12 rounded-full bg-[#FA5400] hover:bg-[#ff6a1f] text-[#111111] text-sm font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                onClick={() => onStartDesigning(null)}
+                className="px-7 min-h-12 rounded-full arza-btn-glass-green text-sm font-bold inline-flex items-center gap-2 cursor-pointer"
               >
-                <span>Abrir App Personalizador</span>
+                <span>Empezar Paso 1: Elegir Modelo</span>
                 <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
               </button>
 
@@ -122,7 +139,7 @@ export default function Hero({ onStartDesigning }) {
                 href="#drops-catalog"
                 className="px-7 min-h-12 rounded-full border border-[#111111] text-[#111111] hover:bg-[#F5F5F5] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
-                <span>Ver Moldes (13)</span>
+                <span>Ver Catálogo (13 Moldes)</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
@@ -218,9 +235,9 @@ export default function Hero({ onStartDesigning }) {
                 <button
                   type="button"
                   onClick={() => onStartDesigning(active.id)}
-                  className="px-5 min-h-11 rounded-full bg-[#111111] hover:bg-[#FA5400] hover:text-[#111111] text-white text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 transition-colors cursor-pointer"
+                  className="px-5 min-h-11 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
                 >
-                  <span>Personalizar este Molde</span>
+                  <span>Diseñar este Molde</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>

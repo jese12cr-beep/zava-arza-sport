@@ -30,12 +30,8 @@ export default function Navbar({
   }, [mobileMenuOpen]);
 
   const navLinks = [
-    { href: '#drops-catalog', label: 'Moldes' },
-    { href: '#fabric-quality', label: 'Ingeniería' },
-    { href: '#como-funciona', label: 'Proceso' },
-    { href: '#tallas-muestras', label: 'Tallas' },
-    { href: '#club-proof', label: 'Clubes' },
-    { href: '#faq', label: 'FAQ' },
+    { href: '#como-funciona', label: 'En 4 Pasos' },
+    { href: '#drops-catalog', label: 'Moldes (13)' },
   ];
 
   return (
@@ -108,9 +104,9 @@ export default function Navbar({
           <button
             type="button"
             onClick={onOpenStudio}
-            className="px-4 sm:px-5 min-h-11 rounded-full bg-[#FA5400] hover:bg-[#ff6a1f] text-[#111111] text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-4 sm:px-5 min-h-11 rounded-full arza-btn-glass-green text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer"
           >
-            <span>Abrir App 3D</span>
+            <span>Diseñar en 4 Pasos</span>
             <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
           </button>
 

@@ -6,16 +6,11 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import HowItWorks from './components/HowItWorks';
 import ProductCatalog from './components/ProductCatalog';
-import QualityShowcase from './components/QualityShowcase';
-import SizeGuideAndSamples from './components/SizeGuideAndSamples';
-import AthleteProof from './components/AthleteProof';
-import FaqSection from './components/FaqSection';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import ShopifyIntegrationGuide from './components/ShopifyIntegrationGuide';
 import OrderQuoteModal from './components/OrderQuoteModal';
 import UserDesignGalleryModal from './components/studio/UserDesignGalleryModal';
-import ProductSelectorModal from './components/studio/ProductSelectorModal';
 import { loadUserGallery } from './utils/userGalleryStore';
 import {
   ENGINE_PRODUCTS,
@@ -91,7 +86,7 @@ export default function App() {
   const [isShopifyGuideOpen, setIsShopifyGuideOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isStorefrontGalleryOpen, setIsStorefrontGalleryOpen] = useState(false);
-  const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
+  const [studioInitialStep, setStudioInitialStep] = useState(1);
   const [galleryCount, setGalleryCount] = useState(() => {
     try {
       return loadUserGallery().length;
@@ -274,8 +269,17 @@ export default function App() {
     setIsCartOpen(true);
   };
 
+  const handleOpenGuidedWizard = useCallback(
+    (step = 1) => {
+      setStudioInitialStep(step);
+      switchMode('studio');
+    },
+    [switchMode]
+  );
+
   const handleSelectCatalogProduct = (engineId) => {
     handleSwitchProduct(engineId);
+    setStudioInitialStep(2);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -283,35 +287,6 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.location.hash = '#studio';
     }
-  };
-
-  const handleLaunch3DStudioFromKitLab = (engineId, kitData) => {
-    handleSwitchProduct(engineId);
-    if (kitData) {
-      pushSnapshot((snap) => {
-        const curDesign = snap.designsByProduct[engineId];
-        if (!curDesign) return snap;
-        const updatedZones = { ...curDesign.colorZones };
-        if (kitData.primaryColor && updatedZones.primary) {
-          updatedZones.primary = { ...updatedZones.primary, hex: kitData.primaryColor };
-        }
-        if (kitData.accentColor && updatedZones.accent) {
-          updatedZones.accent = { ...updatedZones.accent, hex: kitData.accentColor };
-        }
-        return {
-          ...snap,
-          activeProductId: engineId,
-          designsByProduct: {
-            ...snap.designsByProduct,
-            [engineId]: {
-              ...curDesign,
-              colorZones: updatedZones,
-            },
-          },
-        };
-      }, true);
-    }
-    switchMode('studio');
   };
 
   return (
@@ -335,13 +310,14 @@ export default function App() {
           onOpenCart={() => setIsCartOpen(true)}
           cartCount={cartItems.length}
           onSwitchToStorefront={() => switchMode('storefront')}
+          initialStep={studioInitialStep}
         />
       ) : (
-        <div className="flex flex-col min-h-screen bg-white">
+        <div className="flex flex-col min-h-screen arza-studio-shell">
           <Navbar
             cartCount={cartItems.length}
             onOpenCart={() => setIsCartOpen(true)}
-            onOpenStudio={() => setIsProductSelectorOpen(true)}
+            onOpenStudio={() => handleOpenGuidedWizard(1)}
             galleryCount={galleryCount}
             onOpenGallery={() => setIsStorefrontGalleryOpen(true)}
             onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)}
@@ -353,22 +329,18 @@ export default function App() {
                 if (typeof productId === 'string' && productId) {
                   handleSelectCatalogProduct(productId);
                 } else {
-                  setIsProductSelectorOpen(true);
+                  handleOpenGuidedWizard(1);
                 }
               }}
+            />
+            <HowItWorks
+              onOpenStudio={() => handleOpenGuidedWizard(1)}
+              onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
             <ProductCatalog
               onSelectProduct={handleSelectCatalogProduct}
               onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
-            <QualityShowcase />
-            <HowItWorks
-              onOpenStudio={() => setIsProductSelectorOpen(true)}
-              onOpenQuote={() => setIsQuoteModalOpen(true)}
-            />
-            <SizeGuideAndSamples />
-            <AthleteProof />
-            <FaqSection />
           </main>
           <Footer onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)} />
         </div>
@@ -416,15 +388,6 @@ export default function App() {
         totalUnits={roster.length}
         totalPrice={34 * roster.length}
         onLoadDesignFromGallery={handleLoadDesignFromStorefrontGallery}
-      />
-
-      <ProductSelectorModal
-        isOpen={isProductSelectorOpen}
-        onClose={() => setIsProductSelectorOpen(false)}
-        onSelectProduct={(id) => {
-          handleSelectCatalogProduct(id);
-        }}
-        activeProductId={activeProductId}
       />
     </div>
   );

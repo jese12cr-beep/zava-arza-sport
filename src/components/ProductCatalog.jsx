@@ -103,18 +103,18 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
   }, [sportFilter, genderFilter]);
 
   return (
-    <section id="drops-catalog" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-white">
+    <section id="drops-catalog" className="scroll-mt-28 py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-white">
       {/* Cabecera Editorial Minimalista */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-neutral-200">
         <div className="space-y-2">
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C24100] block">
-            Catálogo Oficial Zava // Serie ARZA
+            Paso 1 Directo // Catálogo ARZA SPORT
           </span>
           <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
-            Moldes y Prendas Configurables ({ENGINE_PRODUCTS.length})
+            Elige tu Molde ({ENGINE_PRODUCTS.length})
           </h2>
           <p className="text-[#757575] text-sm sm:text-base max-w-2xl">
-            Patronaje propietario ARZA SPORT en 3D interactivo y pliegos 2D 1:1 para Caballero, Dama y Equipos.
+            Haz clic en cualquier prenda para saltar directo al Paso 2 (Diseño y Forma) sobre su modelo 3D.
           </p>
         </div>
 
@@ -238,9 +238,9 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
                 <button
                   type="button"
                   onClick={() => onSelectProduct(item.id)}
-                  className="px-4 min-h-11 rounded-full bg-[#111111] hover:bg-[#FA5400] hover:text-[#111111] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-4 min-h-11 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>Configurar Molde</span>
+                  <span>Elegir Molde</span>
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>

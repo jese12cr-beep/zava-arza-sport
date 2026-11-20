@@ -94,6 +94,14 @@ import { preloadSponsorLogo } from '../../engine/compositor/sponsorLogosEngine';
 import ProductionMoldModal from './ProductionMoldModal';
 import Interactive2DPliegoStage from './Interactive2DPliegoStage';
 import SocialMediaMockupModal from './SocialMediaMockupModal';
+import GuidedStepWizardPanel from './GuidedStepWizardPanel';
+
+const GUIDED_STEP_SHORT_LABELS = {
+  1: 'Modelo',
+  2: 'Diseño',
+  3: 'Colores',
+  4: 'Logos',
+};
 
 const OWAYO_TABS = [
   { id: 'design', label: 'Diseño', icon: Sparkles },
@@ -257,7 +265,19 @@ export default function HybridStudioWorkspace({
   onOpenCart,
   cartCount,
   onSwitchToStorefront,
+  initialStep = 1,
 }) {
+  const [studioExperienceMode, setStudioExperienceMode] = useState('guided'); // 'guided' | 'pro'
+  const [wizardStep, setWizardStep] = useState(() =>
+    initialStep >= 1 && initialStep <= 4 ? initialStep : 1
+  );
+
+  useEffect(() => {
+    if (initialStep >= 1 && initialStep <= 4) {
+      setWizardStep(initialStep);
+    }
+  }, [initialStep]);
+
   const [activeTab, setActiveTab] = useState('design'); // 'design' | 'colors' | 'text' | 'logo'
   const [viewportMode, setViewportMode] = useState('3d'); // '3d' | '2d_pliego'
   const [isSocialMediaModalOpen, setIsSocialMediaModalOpen] = useState(false);
@@ -765,7 +785,11 @@ export default function HybridStudioWorkspace({
     if (PANEL_TO_CAMERA[validPanel]) setCameraPreset(PANEL_TO_CAMERA[validPanel]);
   };
 
-  const handleAddStaticText = () => {
+  const handleAddStaticText = (customTextOrEvent = 'TU EQUIPO') => {
+    const resolvedText =
+      typeof customTextOrEvent === 'string' && customTextOrEvent.trim()
+        ? customTextOrEvent.trim()
+        : 'TU EQUIPO';
     const validPanel = droppablePanels.some((p) => p.panelId === panel2D)
       ? panel2D
       : droppablePanels[0]?.panelId || 'front';
@@ -774,8 +798,8 @@ export default function HybridStudioWorkspace({
     const newText = {
       id: `txt_${Date.now().toString(36)}`,
       type: 'STATIC_TEXT',
-      text: 'TU EQUIPO',
-      label: 'Texto: TU EQUIPO',
+      text: resolvedText,
+      label: `Texto: ${resolvedText}`,
       panel: validPanel,
       clampToZone: 'ALL',
       pinned: false,
@@ -1365,18 +1389,166 @@ export default function HybridStudioWorkspace({
 
   return (
     <div className="h-dvh flex flex-col arza-studio-shell text-slate-900 overflow-hidden font-sans">
-      {/* 1. CABECERA DESKTOP (GLASSMORPHISM ARZA) */}
-      <header className="hidden sm:flex shrink-0 px-3 sm:px-5 py-2.5 arza-glass-bar border-b flex-wrap items-center justify-between gap-2 z-30">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onSwitchToStorefront}
-            title="Volver a la tienda principal"
-            className="px-3 py-1.5 rounded-xl arza-glass-card hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Store className="w-4 h-4 text-emerald-700" />
-            <span>← Volver a la Tienda</span>
-          </button>
+      <h1 className="visually-hidden">Personalizador Paso a Paso ARZA SPORT</h1>
+
+      {studioExperienceMode === 'guided' ? (
+        <>
+          {/* CABECERA SIMPLIFICADA CLIENTE (DESKTOP GLASSMORPHISM) */}
+          <header className="hidden sm:flex shrink-0 px-4 py-2.5 arza-glass-bar border-b items-center justify-between gap-3 z-30">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={onSwitchToStorefront}
+                className="px-3 min-h-10 rounded-xl arza-glass-card hover:bg-white text-slate-800 font-bold text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                <span>Tienda</span>
+              </button>
+
+              <div className="flex items-center gap-2 px-3 min-h-10 rounded-xl arza-glass-card min-w-0">
+                <ArzaLogo theme="light" variant="mark" decorative className="h-4 w-auto shrink-0" />
+                <span className="text-xs font-black tracking-tight text-slate-900 truncate">
+                  Asistente ARZA · Paso {wizardStep} de 4
+                </span>
+                <span className="hidden md:inline-block text-[11px] font-bold text-emerald-800 bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 rounded-md truncate">
+                  {currentProduct.shortName || currentProduct.name}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-0.5 arza-glass-card p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  aria-label="Deshacer último cambio"
+                  title="Deshacer"
+                  className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 cursor-pointer"
+                >
+                  <Undo2 className="w-4 h-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  aria-label="Rehacer cambio"
+                  title="Rehacer"
+                  className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 cursor-pointer"
+                >
+                  <Redo2 className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsGalleryModalOpen(true)}
+                className="px-3 min-h-10 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <FolderHeart className="w-4 h-4 text-rose-500" aria-hidden="true" />
+                <span className="hidden md:inline">Mis Diseños ({galleryCount})</span>
+              </button>
+
+              {onOpenCart && (
+                <button
+                  type="button"
+                  onClick={onOpenCart}
+                  aria-label={`Carrito (${cartCount || 0} artículos)`}
+                  className="relative px-3 min-h-10 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-900 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                  {cartCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full arza-btn-glass-green text-[10px] font-black leading-none">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                id="btn-switch-to-pro-mode"
+                onClick={() => setStudioExperienceMode('pro')}
+                className="px-3 min-h-10 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                title="Abrir todas las herramientas técnicas de diseñador"
+              >
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Editor Pro</span>
+              </button>
+            </div>
+          </header>
+
+          {/* CABECERA SIMPLIFICADA CLIENTE (MÓVIL) */}
+          <header className="flex sm:hidden shrink-0 h-12 px-2.5 arza-glass-bar border-b items-center justify-between z-30">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button
+                type="button"
+                onClick={onSwitchToStorefront}
+                aria-label="Volver a la tienda"
+                className="p-1.5 rounded-xl bg-white/80 text-slate-800 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <span className="text-xs font-black text-slate-900 truncate">
+                Paso {wizardStep}/4 · {GUIDED_STEP_SHORT_LABELS[wizardStep] || 'Diseño'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={onUndo}
+                disabled={!canUndo}
+                aria-label="Deshacer"
+                className="p-1.5 rounded-xl text-slate-700 disabled:opacity-25 cursor-pointer"
+              >
+                <Undo2 className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={onRedo}
+                disabled={!canRedo}
+                aria-label="Rehacer"
+                className="p-1.5 rounded-xl text-slate-700 disabled:opacity-25 cursor-pointer"
+              >
+                <Redo2 className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudioExperienceMode('pro')}
+                className="px-2 py-1 rounded-lg arza-pill-glass-green text-[11px] font-bold cursor-pointer"
+              >
+                Pro
+              </button>
+            </div>
+          </header>
+        </>
+      ) : (
+        <>
+          {/* 1. CABECERA DESKTOP (MODO PRO COMPLETO) */}
+          <header className="hidden sm:flex shrink-0 px-3 sm:px-5 py-2.5 arza-glass-bar border-b flex-wrap items-center justify-between gap-2 z-30">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewportMode('3d');
+                  setStudioExperienceMode('guided');
+                }}
+                className="px-3 py-1.5 rounded-xl arza-pill-glass-green font-black text-xs inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Asistente 4 Pasos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onSwitchToStorefront}
+                title="Volver a la tienda principal"
+                className="px-3 py-1.5 rounded-xl arza-glass-card hover:bg-white text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Store className="w-4 h-4 text-emerald-700" />
+                <span>Tienda</span>
+              </button>
 
           {/* Segmentos Independientes: ♂ Caballero vs ♀ Dama */}
           <div className="flex items-center p-0.5 arza-glass-card rounded-xl">
@@ -1616,8 +1788,20 @@ export default function HybridStudioWorkspace({
           >
             <Redo2 className="w-4 h-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setViewportMode('3d');
+              setStudioExperienceMode('guided');
+            }}
+            className="px-2 py-1 rounded-lg arza-pill-glass-green text-[11px] font-bold cursor-pointer"
+          >
+            Pasos
+          </button>
         </div>
       </header>
+        </>
+      )}
 
       {/* Toast flotante de confirmación instantánea */}
       {toastMessage && (
@@ -1724,7 +1908,7 @@ export default function HybridStudioWorkspace({
           </div>
         </main>
 
-        {/* PANEL LATERAL DERECHO OWAYO (`Diseño | Colores | Text | Logo`) */}
+        {/* PANEL LATERAL DERECHO: ASISTENTE 4 PASOS (CLIENTE) VS PANEL PRO COMPLETO */}
         <aside
           className={`w-full lg:w-[430px] xl:w-[465px] shrink-0 arza-glass-bar border-t lg:border-t-0 lg:border-l flex flex-col min-h-0 shadow-xl z-20 transition-all duration-300 ${
             isMobilePanelCollapsed
@@ -1732,24 +1916,98 @@ export default function HybridStudioWorkspace({
               : 'flex-1 lg:flex-initial lg:h-auto lg:max-h-none'
           }`}
         >
-          {/* Cabecera del Panel */}
-          <div className="shrink-0 px-3.5 py-2.5 sm:p-4 sm:pb-3 border-b border-slate-200/70 bg-white/40 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
-                    {currentProduct.name}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsGarmentMenuOpen(true)}
-                    className="text-[11px] font-bold arza-pill-glass-green px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer shrink-0"
-                  >
-                    <span>Cambiar</span>
-                    <ChevronDown className="w-3 h-3 text-emerald-700" />
-                  </button>
-                </div>
+          {studioExperienceMode === 'guided' ? (
+            <>
+              {/* Barra rápida para ampliar el visor 3D en pantallas móviles */}
+              <div className="sm:hidden shrink-0 px-3.5 py-2 border-b border-slate-200/70 bg-white/50 flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-slate-900 truncate">
+                  {currentProduct.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsMobilePanelCollapsed((prev) => !prev)}
+                  className="px-2.5 py-1 rounded-xl arza-glass-card text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  {isMobilePanelCollapsed ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                      <span>Editar</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
+                      <span>Ver 3D</span>
+                    </>
+                  )}
+                </button>
               </div>
+
+              {!isMobilePanelCollapsed && (
+                <GuidedStepWizardPanel
+                  wizardStep={wizardStep}
+                  onStepChange={setWizardStep}
+                  design={design}
+                  currentProduct={currentProduct}
+                  pairedProduct={pairedProduct}
+                  genderModule={genderModule}
+                  onChangeGenderModule={setGenderModule}
+                  onSwitchProduct={onSwitchProduct}
+                  onSyncPairedColors={onSyncPairedColors}
+                  availableFishDesigns={availableFishDesigns}
+                  patternCategoryFilter={patternCategoryFilter}
+                  onChangePatternCategoryFilter={setPatternCategoryFilter}
+                  onSelectDesignCut={handleExitOfficialKitToStandardCut}
+                  onCommitDesign={onCommitDesign}
+                  activeColorZone={activeColorZone}
+                  onChangeActiveColorZone={setActiveColorZone}
+                  onUpdateColorZone={updateColorZone}
+                  onApplyColorHarmony={applyColorHarmony}
+                  essentialColors={ESSENTIAL_SPORT_COLORS}
+                  droppablePanels={droppablePanels}
+                  logoDecals={logoDecals}
+                  textDecals={textDecals}
+                  activePlayer={activePlayer}
+                  roster={roster}
+                  activeRosterIndex={activeRosterIndex}
+                  onUpdateRoster={onUpdateRoster}
+                  totalUnits={totalUnits}
+                  unitPrice={unitPrice}
+                  totalPrice={totalPrice}
+                  currentTierLabel={currentTier.label}
+                  onFilesSelected={handleFilesSelected}
+                  onAddPresetCrest={handleAddPresetCrest}
+                  onUpdateDecal={updateDecal}
+                  onDeleteDecal={deleteDecal}
+                  onUpdateVariableSlot={updateVariableSlot}
+                  onAddQuickText={(txt) => handleAddStaticText(txt)}
+                  onOpenRosterModal={() => setIsRosterModalOpen(true)}
+                  onSaveDraft={handleSaveDraft}
+                  onFinishOrder={() => onOpenProductionModal?.()}
+                  onCameraFocus={handleChangeCameraPreset}
+                  onToast={showToast}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {/* Cabecera del Panel Pro */}
+              <div className="shrink-0 px-3.5 py-2.5 sm:p-4 sm:pb-3 border-b border-slate-200/70 bg-white/40 backdrop-blur-md">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
+                        {currentProduct.name}
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setIsGarmentMenuOpen(true)}
+                        className="text-[11px] font-bold arza-pill-glass-green px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <span>Cambiar</span>
+                        <ChevronDown className="w-3 h-3 text-emerald-700" />
+                      </button>
+                    </div>
+                  </div>
 
               {/* Botón expandir/colapsar en móviles */}
               <div className="flex items-center gap-1 shrink-0">
@@ -3993,6 +4251,8 @@ export default function HybridStudioWorkspace({
               <span>Ver Plantilla 2D</span>
             </button>
           </div>
+            </>
+          )}
         </aside>
       </div>
 
@@ -5163,9 +5423,11 @@ export default function HybridStudioWorkspace({
         actionLabel="guardar y registrar tus diseños de equipaciones"
       />
 
-      {/* ==================== BURBUJA FLOTANTE TÁCTIL (FAB) EXCLUSIVA PARA MÓVIL ==================== */}
-      {/* Botón flotante siempre visible y cómodo al pulgar en la esquina inferior derecha */}
-      <div className="sm:hidden fixed bottom-5 right-4 z-40 pointer-events-auto">
+      {/* ==================== BURBUJA FLOTANTE TÁCTIL (FAB) EXCLUSIVA PARA MÓVIL EN MODO PRO ==================== */}
+      {studioExperienceMode === 'pro' && (
+        <>
+          {/* Botón flotante siempre visible y cómodo al pulgar en la esquina inferior derecha */}
+          <div className="sm:hidden fixed bottom-5 right-4 z-40 pointer-events-auto">
         <button
           type="button"
           onClick={() => setIsMobileFabOpen(!isMobileFabOpen)}
@@ -5379,6 +5641,8 @@ export default function HybridStudioWorkspace({
               </div>
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </div>
