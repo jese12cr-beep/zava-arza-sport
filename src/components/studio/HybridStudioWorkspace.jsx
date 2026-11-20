@@ -72,6 +72,7 @@ import {
   FABRIC_WEAVES,
   SPORT_FONTS,
   VOLUME_TIERS,
+  computeOwayoAutoContrastHex,
   createDefaultDesignForProduct,
 } from '../../engine/core/designStore';
 import { MEXICO_PRO_KITS } from '../../data/mexicoKitsData';
@@ -612,6 +613,28 @@ export default function HybridStudioWorkspace({
     );
   };
 
+  /**
+   * Actualiza múltiples variableSlots en una sola operación atómica para evitar cierres obsoletos de React.
+   */
+  const updateVariableSlotsBatch = (patchesByKey, recordHistory = true) => {
+    const baseSlots = design.variableSlots || {};
+    const mergedSlots = { ...baseSlots };
+    for (const [slotKey, patch] of Object.entries(patchesByKey || {})) {
+      if (!mergedSlots[slotKey]) continue;
+      mergedSlots[slotKey] = {
+        ...mergedSlots[slotKey],
+        ...patch,
+      };
+    }
+    onCommitDesign(
+      {
+        ...design,
+        variableSlots: mergedSlots,
+      },
+      recordHistory
+    );
+  };
+
   const deleteDecal = (decalId) => {
     onCommitDesign(
       {
@@ -768,6 +791,10 @@ export default function HybridStudioWorkspace({
       : droppablePanels[0]?.panelId || 'front';
     const spec = getPartSpec(design.productModelId, validPanel);
     const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+    const isLegPanel = validPanel.includes('leg');
+    const u = validPanel === 'front' ? 0.36 : isLegPanel ? spec.defaultPlaceU ?? spec.snapCenterU : spec.snapCenterU;
+    const v = validPanel === 'front' ? 0.24 : isLegPanel ? spec.defaultPlaceV ?? 0.67 : 0.62;
+    const crestDim = isLegPanel ? 64 : 78;
     const newDecal = {
       id: `crest_${Date.now().toString(36)}`,
       type: 'PRESET_CREST',
@@ -778,10 +805,10 @@ export default function HybridStudioWorkspace({
       clampToZone: 'ALL',
       pinned: false,
       centerMm: {
-        x: +(spec.widthMm * (validPanel === 'front' ? 0.36 : spec.snapCenterU)).toFixed(1),
-        y: +(spec.heightMm * (validPanel === 'front' ? 0.24 : 0.62)).toFixed(1),
+        x: +(spec.widthMm * u).toFixed(1),
+        y: +(spec.heightMm * v).toFixed(1),
       },
-      sizeMm: { width: 78, height: 78 },
+      sizeMm: { width: crestDim, height: crestDim },
       scale: 1,
       rotationDeg: 0,
       opacity: 1,
@@ -807,6 +834,9 @@ export default function HybridStudioWorkspace({
       : droppablePanels[0]?.panelId || 'front';
     const spec = getPartSpec(design.productModelId, validPanel);
     const maxZ = allDecals.reduce((m, d) => Math.max(m, d.zIndex ?? 10), 10);
+    const isLegPanel = validPanel.includes('leg');
+    const autoFillHex = computeOwayoAutoContrastHex(design.colorZones?.primary?.hex || '#111111');
+    const autoOutlineHex = computeOwayoAutoContrastHex(autoFillHex);
     const newText = {
       id: `txt_${Date.now().toString(36)}`,
       type: 'STATIC_TEXT',
@@ -816,15 +846,17 @@ export default function HybridStudioWorkspace({
       clampToZone: 'ALL',
       pinned: false,
       fontFamily: "'Bebas Neue', sans-serif",
-      fillHex: '#ffffff',
-      strokeHex: '#101820',
-      strokeWidthMm: 2.2,
+      fillHex: autoFillHex,
+      outlineHex: autoOutlineHex,
+      outlineWidthMm: 2.4,
+      strokeHex: autoOutlineHex,
+      strokeWidthMm: 2.4,
       archDeg: 0,
       centerMm: {
-        x: +(spec.widthMm * spec.snapCenterU).toFixed(1),
-        y: +(spec.heightMm * (validPanel === 'front' ? 0.42 : 0.52)).toFixed(1),
+        x: +(spec.widthMm * (isLegPanel ? spec.defaultPlaceU ?? spec.snapCenterU : spec.snapCenterU)).toFixed(1),
+        y: +(spec.heightMm * (validPanel === 'front' ? 0.42 : isLegPanel ? 0.65 : 0.52)).toFixed(1),
       },
-      sizeMm: { width: 190, height: 48 },
+      sizeMm: isLegPanel ? { width: 120, height: 34 } : { width: 190, height: 48 },
       scale: 1,
       rotationDeg: 0,
       opacity: 1,
@@ -2005,10 +2037,12 @@ export default function HybridStudioWorkspace({
                   onUpdateDecal={updateDecal}
                   onDeleteDecal={deleteDecal}
                   onUpdateVariableSlot={updateVariableSlot}
+                  onUpdateVariableSlotsBatch={updateVariableSlotsBatch}
                   onAddQuickText={(txt) => handleAddStaticText(txt)}
                   onOpenRosterModal={() => setIsRosterModalOpen(true)}
                   onSaveDraft={handleSaveDraft}
                   onFinishOrder={() => onOpenProductionModal?.()}
+                  activeCameraPreset={cameraPreset}
                   onCameraFocus={handleChangeCameraPreset}
                   onToast={showToast}
                 />
@@ -3307,8 +3341,16 @@ export default function HybridStudioWorkspace({
                                 key={c}
                                 type="button"
                                 onClick={() => {
-                                  updateVariableSlot('playerNumberBack', { ...design.variableSlots?.playerNumberBack, fillHex: c }, true);
-                                  updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, fillHex: c }, true);
+                                  const contrastOutline = computeOwayoAutoContrastHex(c);
+                                  updateVariableSlotsBatch(
+                                    {
+                                      playerNumberBack: { fillHex: c, outlineHex: contrastOutline },
+                                      playerNameBack: { fillHex: c, outlineHex: contrastOutline },
+                                      playerNumberFront: { fillHex: c, outlineHex: contrastOutline },
+                                      playerNumberShorts: { fillHex: c, outlineHex: contrastOutline },
+                                    },
+                                    true
+                                  );
                                 }}
                                 className={`w-7 h-7 rounded-lg border-2 cursor-pointer transition-transform hover:scale-110 ${
                                   design.variableSlots?.playerNumberBack?.fillHex === c ? 'border-emerald-600 scale-105 shadow-xs' : 'border-slate-300'
@@ -3330,8 +3372,15 @@ export default function HybridStudioWorkspace({
                               type="button"
                               style={{ fontFamily: f.family }}
                               onClick={() => {
-                                updateVariableSlot('playerNumberBack', { ...design.variableSlots?.playerNumberBack, fontFamily: f.family }, true);
-                                updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, fontFamily: f.family }, true);
+                                updateVariableSlotsBatch(
+                                  {
+                                    playerNumberBack: { fontFamily: f.family },
+                                    playerNameBack: { fontFamily: f.family },
+                                    playerNumberFront: { fontFamily: f.family },
+                                    playerNumberShorts: { fontFamily: f.family },
+                                  },
+                                  true
+                                );
                               }}
                               className={`py-2 px-1 rounded-xl text-xs font-black border transition-all cursor-pointer truncate shadow-xs ${
                                 design.variableSlots?.playerNumberBack?.fontFamily === f.family
@@ -4303,9 +4352,9 @@ export default function HybridStudioWorkspace({
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-slate-600 font-medium">
               Cada fila genera su propio nombre y dorsal vinculados al mismo ID maestro{' '}
-              <code className="text-amber-300 font-mono">{design.designId}</code>. Haz clic en «Ver en 3D» para inspeccionar cualquier talla.
+              <code className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{design.designId}</code>. Haz clic en «Ver en 3D» para inspeccionar cualquier talla.
             </p>
             <button
               type="button"

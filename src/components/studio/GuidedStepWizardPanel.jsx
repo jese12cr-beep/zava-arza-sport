@@ -141,10 +141,12 @@ export default function GuidedStepWizardPanel({
   onUpdateDecal,
   onDeleteDecal,
   onUpdateVariableSlot,
+  onUpdateVariableSlotsBatch,
   onAddQuickText,
   onOpenRosterModal,
   onSaveDraft,
   onFinishOrder,
+  activeCameraPreset,
   onCameraFocus,
   onToast,
 }) {
@@ -159,6 +161,7 @@ export default function GuidedStepWizardPanel({
 
   const logoInputId = useId();
   const customColorId = useId();
+  const dorsalColorId = useId();
   const sampleNameId = useId();
   const sampleNumberId = useId();
   const customTextInputId = useId();
@@ -320,45 +323,97 @@ export default function GuidedStepWizardPanel({
     : visibleZoneButtons[0]?.id || 'primary';
   const activeZoneColorObj = design.colorZones?.[safeActiveColorZone] || design.colorZones?.primary;
 
-  const placeLogoPresetSpot = (decal, spotKey) => {
+  const spotOptions = useMemo(() => {
+    if (isShorts) {
+      return [
+        { id: 'leg_right', label: 'Muslo Der.' },
+        { id: 'leg_left', label: 'Muslo Izq.' },
+        { id: 'side_right', label: 'Costado Der.' },
+        { id: 'side_left', label: 'Costado Izq.' },
+      ];
+    }
+    const spots = [
+      { id: 'chest_left', label: 'Pecho Izq.' },
+      { id: 'chest_center', label: 'Centro' },
+      { id: 'back_top', label: 'Espalda' },
+    ];
+    if (hasSleeves) {
+      spots.push({ id: 'sleeve_right', label: 'Manga Der.' });
+      spots.push({ id: 'sleeve_left', label: 'Manga Izq.' });
+    }
+    return spots;
+  }, [isShorts, hasSleeves]);
+
+  const placeDecalPresetSpot = (decal, spotKey) => {
     const pickPanel = (preferred) =>
       droppablePanels.some((p) => p.panelId === preferred)
         ? preferred
         : droppablePanels[0]?.panelId || 'front';
 
-    let targetPanel = 'front';
-    let u = 0.36;
-    let v = 0.25;
+    let targetPanel = pickPanel('front');
+    let sp = getPartSpec(design.productModelId, targetPanel);
+    let u = sp.snapCenterU ?? 0.5;
+    let v = sp.defaultPlaceV ?? 0.34;
     let camera = 'front';
 
-    if (spotKey === 'chest_center') {
+    if (spotKey === 'leg_right') {
+      targetPanel = pickPanel('right_leg');
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapAxesU?.[0]?.u ?? sp.snapCenterU ?? 0.749;
+      v = sp.defaultPlaceV ?? 0.67;
+      camera = 'front';
+    } else if (spotKey === 'leg_left') {
+      targetPanel = pickPanel('left_leg');
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapAxesU?.[0]?.u ?? sp.snapCenterU ?? 0.251;
+      v = sp.defaultPlaceV ?? 0.67;
+      camera = 'front';
+    } else if (spotKey === 'side_right') {
+      targetPanel = pickPanel('right_leg');
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapAxesU?.[1]?.u ?? 0.298;
+      v = 0.54;
+      camera = 'right_sleeve';
+    } else if (spotKey === 'side_left') {
+      targetPanel = pickPanel('left_leg');
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapAxesU?.[1]?.u ?? 0.702;
+      v = 0.54;
+      camera = 'left_sleeve';
+    } else if (spotKey === 'chest_center') {
       targetPanel = pickPanel('front');
-      const sp = getPartSpec(design.productModelId, targetPanel);
+      sp = getPartSpec(design.productModelId, targetPanel);
       u = sp.snapCenterU ?? 0.5;
       v = 0.34;
       camera = 'front';
     } else if (spotKey === 'back_top') {
       targetPanel = pickPanel('back');
-      const sp = getPartSpec(design.productModelId, targetPanel);
+      sp = getPartSpec(design.productModelId, targetPanel);
       u = sp.snapCenterU ?? 0.5;
       v = 0.22;
       camera = 'back';
-    } else if (spotKey === 'sleeve') {
+    } else if (spotKey === 'sleeve_right') {
+      targetPanel = pickPanel('right_arm');
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapCenterU ?? 0.555;
+      v = sp.defaultPlaceV ?? 0.56;
+      camera = 'right_sleeve';
+    } else if (spotKey === 'sleeve_left' || spotKey === 'sleeve') {
       targetPanel = pickPanel('left_arm');
-      const sp = getPartSpec(design.productModelId, targetPanel);
-      u = sp.snapCenterU ?? 0.45;
+      sp = getPartSpec(design.productModelId, targetPanel);
+      u = sp.snapCenterU ?? 0.445;
       v = sp.defaultPlaceV ?? 0.56;
       camera = 'left_sleeve';
     } else {
       targetPanel = droppablePanels.some((p) => p.panelId === 'front_left')
         ? 'front_left'
         : pickPanel('front');
+      sp = getPartSpec(design.productModelId, targetPanel);
       u = targetPanel === 'front_left' ? 0.38 : 0.36;
       v = 0.25;
       camera = 'front';
     }
 
-    const sp = getPartSpec(design.productModelId, targetPanel);
     onUpdateDecal(
       decal.id,
       {
@@ -372,6 +427,116 @@ export default function GuidedStepWizardPanel({
     );
     if (!isAccessory) onCameraFocus?.(camera);
   };
+
+  const isSpotActiveForDecal = (decal, spotKey) => {
+    const sp = getPartSpec(design.productModelId, decal.panel || 'front');
+    const relU = sp?.widthMm ? (decal.centerMm?.x ?? 0) / sp.widthMm : 0.5;
+    if (spotKey === 'chest_left') return decal.panel === 'front' && relU < 0.44;
+    if (spotKey === 'chest_center') return decal.panel === 'front' && relU >= 0.44;
+    if (spotKey === 'back_top') return decal.panel === 'back';
+    if (spotKey === 'sleeve_right') return decal.panel === 'right_arm';
+    if (spotKey === 'sleeve_left') return decal.panel === 'left_arm';
+    if (spotKey === 'leg_right') {
+      return decal.panel === 'right_leg' && (!sp?.snapAxesU?.[1] || Math.abs(relU - sp.snapAxesU[0].u) <= Math.abs(relU - sp.snapAxesU[1].u));
+    }
+    if (spotKey === 'side_right') {
+      return decal.panel === 'right_leg' && sp?.snapAxesU?.[1] && Math.abs(relU - sp.snapAxesU[1].u) < Math.abs(relU - sp.snapAxesU[0].u);
+    }
+    if (spotKey === 'leg_left') {
+      return decal.panel === 'left_leg' && (!sp?.snapAxesU?.[1] || Math.abs(relU - sp.snapAxesU[0].u) <= Math.abs(relU - sp.snapAxesU[1].u));
+    }
+    if (spotKey === 'side_left') {
+      return decal.panel === 'left_leg' && sp?.snapAxesU?.[1] && Math.abs(relU - sp.snapAxesU[1].u) < Math.abs(relU - sp.snapAxesU[0].u);
+    }
+    return false;
+  };
+
+  const applyDorsalColor = (hex, recordHistory = true) => {
+    const contrastOutline = computeOwayoAutoContrastHex(hex);
+    if (onUpdateVariableSlotsBatch) {
+      if (isShorts) {
+        onUpdateVariableSlotsBatch(
+          { playerNumberShorts: { fillHex: hex, outlineHex: contrastOutline } },
+          recordHistory
+        );
+      } else {
+        onUpdateVariableSlotsBatch(
+          {
+            playerNumberBack: { fillHex: hex, outlineHex: contrastOutline },
+            playerNameBack: { fillHex: hex, outlineHex: contrastOutline },
+            playerNumberFront: { fillHex: hex, outlineHex: contrastOutline },
+            playerNumberSleeve: { fillHex: hex, outlineHex: contrastOutline },
+          },
+          recordHistory
+        );
+      }
+      return;
+    }
+    const primaryKey = isShorts ? 'playerNumberShorts' : 'playerNumberBack';
+    onUpdateVariableSlot(
+      primaryKey,
+      { ...design.variableSlots?.[primaryKey], fillHex: hex, outlineHex: contrastOutline },
+      recordHistory
+    );
+  };
+
+  const applyDorsalFont = (family) => {
+    if (onUpdateVariableSlotsBatch) {
+      if (isShorts) {
+        onUpdateVariableSlotsBatch({ playerNumberShorts: { fontFamily: family } }, true);
+      } else {
+        onUpdateVariableSlotsBatch(
+          {
+            playerNumberBack: { fontFamily: family },
+            playerNameBack: { fontFamily: family },
+            playerNumberFront: { fontFamily: family },
+            playerNumberSleeve: { fontFamily: family },
+          },
+          true
+        );
+      }
+      return;
+    }
+    const primaryKey = isShorts ? 'playerNumberShorts' : 'playerNumberBack';
+    onUpdateVariableSlot(
+      primaryKey,
+      { ...design.variableSlots?.[primaryKey], fontFamily: family },
+      true
+    );
+  };
+
+  const updateRosterPlayerField = (field, nextValue, enableSlotKey) => {
+    const nextRoster = [...roster];
+    const targetIdx = nextRoster[activeRosterIndex] ? activeRosterIndex : 0;
+    if (nextRoster[targetIdx]) {
+      nextRoster[targetIdx] = { ...nextRoster[targetIdx], [field]: nextValue };
+    }
+    onUpdateRoster(nextRoster);
+    if (enableSlotKey && design.variableSlots?.[enableSlotKey] && !design.variableSlots[enableSlotKey].enabled) {
+      onUpdateVariableSlot(
+        enableSlotKey,
+        { ...design.variableSlots[enableSlotKey], enabled: true },
+        false
+      );
+    }
+  };
+
+  const rosterSizeSummary = useMemo(() => {
+    const counts = new Map();
+    for (const row of roster || []) {
+      const sz = row.size || 'L';
+      counts.set(sz, (counts.get(sz) || 0) + (Number(row.qty) || 1));
+    }
+    return Array.from(counts.entries())
+      .map(([sz, qty]) => `${sz} ×${qty}`)
+      .join(' · ');
+  }, [roster]);
+
+  const activeDorsalSlot = isShorts
+    ? design.variableSlots?.playerNumberShorts
+    : design.variableSlots?.playerNumberBack || design.variableSlots?.playerNameBack;
+  const activeDorsalFillHex = (activeDorsalSlot?.fillHex || '#ffffff').toUpperCase();
+  const activeDorsalFont = activeDorsalSlot?.fontFamily || "'Bebas Neue', sans-serif";
 
   const handleSubmitQuickText = (e) => {
     e.preventDefault();
@@ -1130,13 +1295,13 @@ export default function GuidedStepWizardPanel({
 
         {/* ==================== PASO 4: LOGOS, DORSALES Y PEDIDO ==================== */}
         {wizardStep === 4 && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* 4A: Subida de Escudos / Sponsors */}
-            <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
+            <div className="p-3 rounded-2xl arza-glass-card space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                   <Shield className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                  <span>Escudo del Club y Sponsors</span>
+                  <span>Escudo del Club y Sponsors ({logoDecals.length})</span>
                 </span>
                 <span className="text-[10px] font-mono text-slate-500">PNG / SVG / JPG</span>
               </div>
@@ -1152,7 +1317,7 @@ export default function GuidedStepWizardPanel({
                   setIsDragOverUpload(false);
                   onFilesSelected(e.dataTransfer.files);
                 }}
-                className={`p-3.5 rounded-xl border-2 border-dashed text-center transition-colors ${
+                className={`p-3 rounded-xl border-2 border-dashed text-center transition-colors ${
                   isDragOverUpload
                     ? 'border-emerald-600 bg-emerald-50/70'
                     : 'border-slate-300 bg-white/75 hover:border-emerald-500'
@@ -1173,28 +1338,31 @@ export default function GuidedStepWizardPanel({
                 <button
                   type="button"
                   onClick={() => localFileInputRef.current?.click()}
-                  className="px-4 min-h-10 rounded-xl arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 min-h-9 rounded-xl arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Subir tu Escudo o Sponsor</span>
                 </button>
-                <p className="text-[10px] text-slate-500 mt-1.5">
+                <p className="text-[10px] text-slate-500 mt-1">
                   O arrastra aquí tus imágenes para colocarlas sobre la prenda
                 </p>
               </div>
 
               {logoDecals.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
                   {logoDecals.map((ld) => (
                     <div
                       key={ld.id}
-                      className="p-2.5 rounded-xl bg-white/90 border border-slate-200 space-y-2"
+                      className="p-2 rounded-xl bg-white/90 border border-slate-200 space-y-1.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-slate-900 truncate">
                           {ld.label || 'Escudo en prenda'}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] font-mono text-slate-500 mr-0.5">
+                            {Math.round((ld.scale ?? 1) * 100)}%
+                          </span>
                           <button
                             type="button"
                             aria-label={`Reducir tamaño de ${ld.label}`}
@@ -1236,21 +1404,24 @@ export default function GuidedStepWizardPanel({
 
                       {!isAccessory && (
                         <div className="flex flex-wrap gap-1">
-                          {[
-                            { id: 'chest_left', label: 'Pecho Izq.' },
-                            { id: 'chest_center', label: 'Centro' },
-                            { id: 'back_top', label: 'Espalda' },
-                            { id: 'sleeve', label: 'Manga' },
-                          ].map((spot) => (
-                            <button
-                              key={spot.id}
-                              type="button"
-                              onClick={() => placeLogoPresetSpot(ld, spot.id)}
-                              className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900 text-[10px] font-bold cursor-pointer"
-                            >
-                              {spot.label}
-                            </button>
-                          ))}
+                          {spotOptions.map((spot) => {
+                            const activeSpot = isSpotActiveForDecal(ld, spot.id);
+                            return (
+                              <button
+                                key={spot.id}
+                                type="button"
+                                aria-pressed={activeSpot}
+                                onClick={() => placeDecalPresetSpot(ld, spot.id)}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                                  activeSpot
+                                    ? 'bg-emerald-700 text-white'
+                                    : 'bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900'
+                                }`}
+                              >
+                                {spot.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1258,16 +1429,16 @@ export default function GuidedStepWizardPanel({
                 </div>
               )}
 
-              <details className="rounded-xl bg-white/70 border border-slate-200 p-2.5 group">
+              <details className="rounded-xl bg-white/70 border border-slate-200 p-2 group">
                 <summary className="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span>¿No tienes archivo? Usa un emblema ARZA</span>
+                  <span>¿No tienes archivo? Usa un emblema ARZA ({VECTOR_CREST_PRESETS.length})</span>
                   <ChevronRight
                     className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90"
                     aria-hidden="true"
                   />
                 </summary>
-                <div className="grid grid-cols-2 gap-1.5 mt-2.5">
-                  {VECTOR_CREST_PRESETS.slice(0, 6).map((preset) => (
+                <div className="grid grid-cols-2 gap-1.5 mt-2 max-h-40 overflow-y-auto pr-0.5">
+                  {VECTOR_CREST_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
                       type="button"
@@ -1289,143 +1460,268 @@ export default function GuidedStepWizardPanel({
             </div>
 
             {/* 4B: Nombre, Número y Sponsor en Texto */}
-            <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
-              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                <Type className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                <span>Nombre, Número y Texto</span>
-              </span>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label htmlFor={sampleNameId} className="text-[11px] font-bold text-slate-700 block mb-1">
-                    Nombre en espalda
-                  </label>
-                  <input
-                    id={sampleNameId}
-                    type="text"
-                    value={activePlayer.name || ''}
-                    onFocus={() => !isAccessory && onCameraFocus?.('back')}
-                    onChange={(e) => {
-                      const nextName = e.target.value.toUpperCase();
-                      const nextRoster = [...roster];
-                      if (nextRoster[activeRosterIndex]) {
-                        nextRoster[activeRosterIndex] = { ...nextRoster[activeRosterIndex], name: nextName };
-                      } else if (nextRoster[0]) {
-                        nextRoster[0] = { ...nextRoster[0], name: nextName };
-                      }
-                      onUpdateRoster(nextRoster);
-                      if (!design.variableSlots?.playerNameBack?.enabled) {
-                        onUpdateVariableSlot(
-                          'playerNameBack',
-                          { ...design.variableSlots?.playerNameBack, enabled: true },
-                          false
-                        );
-                      }
-                    }}
-                    placeholder="Ej: RODRÍGUEZ"
-                    className="w-full px-3 min-h-10 rounded-xl bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor={sampleNumberId} className="text-[11px] font-bold text-slate-700 block mb-1">
-                    Número
-                  </label>
-                  <input
-                    id={sampleNumberId}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={3}
-                    value={activePlayer.number || ''}
-                    onFocus={() => !isAccessory && onCameraFocus?.('back')}
-                    onChange={(e) => {
-                      const nextNum = e.target.value;
-                      const nextRoster = [...roster];
-                      if (nextRoster[activeRosterIndex]) {
-                        nextRoster[activeRosterIndex] = { ...nextRoster[activeRosterIndex], number: nextNum };
-                      } else if (nextRoster[0]) {
-                        nextRoster[0] = { ...nextRoster[0], number: nextNum };
-                      }
-                      onUpdateRoster(nextRoster);
-                      if (!design.variableSlots?.playerNumberBack?.enabled) {
-                        onUpdateVariableSlot(
-                          'playerNumberBack',
-                          { ...design.variableSlots?.playerNumberBack, enabled: true },
-                          false
-                        );
-                      }
-                    }}
-                    placeholder="10"
-                    className="w-full px-2 min-h-10 rounded-xl bg-white border border-slate-300 text-sm font-black text-center text-slate-900"
-                  />
-                </div>
+            <div className="p-3 rounded-2xl arza-glass-card space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Type className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                  <span>{isShorts ? 'Número en Short y Texto' : 'Nombre, Número y Texto'}</span>
+                </span>
+                {!isAccessory && (
+                  <div className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-pressed={activeCameraPreset === 'front'}
+                      onClick={() => onCameraFocus?.('front')}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
+                        activeCameraPreset === 'front'
+                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400'
+                      }`}
+                    >
+                      Ver Frente
+                    </button>
+                    {!isShorts && (
+                      <button
+                        type="button"
+                        aria-pressed={activeCameraPreset === 'back'}
+                        onClick={() => onCameraFocus?.('back')}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
+                          activeCameraPreset === 'back'
+                            ? 'bg-emerald-700 text-white border-emerald-700'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400'
+                        }`}
+                      >
+                        Ver Espalda
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span className="text-[11px] font-bold text-slate-700">Color de dorsal:</span>
+              {isShorts ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 items-end">
+                    <div>
+                      <label htmlFor={sampleNumberId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Número
+                      </label>
+                      <input
+                        id={sampleNumberId}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        value={activePlayer.number || ''}
+                        onFocus={() => onCameraFocus?.('front')}
+                        onChange={(e) =>
+                          updateRosterPlayerField('number', e.target.value, 'playerNumberShorts')
+                        }
+                        placeholder="10"
+                        className="w-full px-2 min-h-9 rounded-xl bg-white border border-slate-300 text-sm font-black text-center text-slate-900"
+                      />
+                    </div>
+                    <div className="col-span-2 flex items-center gap-1.5">
+                      {[
+                        { panelId: 'right_leg', label: 'Pierna Der.' },
+                        { panelId: 'left_leg', label: 'Pierna Izq.' },
+                      ].map((leg) => {
+                        const isActiveLeg =
+                          Boolean(design.variableSlots?.playerNumberShorts?.enabled) &&
+                          (design.variableSlots?.playerNumberShorts?.panel || 'right_leg') === leg.panelId;
+                        return (
+                          <button
+                            key={leg.panelId}
+                            type="button"
+                            aria-pressed={isActiveLeg}
+                            onClick={() => {
+                              const sp = getPartSpec(design.productModelId, leg.panelId);
+                              const u = sp?.defaultPlaceU ?? sp?.snapCenterU ?? 0.5;
+                              const v = sp?.defaultPlaceV ?? 0.67;
+                              onUpdateVariableSlot(
+                                'playerNumberShorts',
+                                {
+                                  ...design.variableSlots?.playerNumberShorts,
+                                  enabled: true,
+                                  panel: leg.panelId,
+                                  centerMm: {
+                                    x: +((sp?.widthMm || 780) * u).toFixed(1),
+                                    y: +((sp?.heightMm || 630) * v).toFixed(1),
+                                  },
+                                },
+                                true
+                              );
+                              onCameraFocus?.('front');
+                            }}
+                            className={`flex-1 min-h-9 px-2 rounded-xl text-[11px] font-bold border cursor-pointer transition-colors ${
+                              isActiveLeg
+                                ? 'arza-btn-glass-green'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            {leg.label}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        aria-pressed={!design.variableSlots?.playerNumberShorts?.enabled}
+                        onClick={() =>
+                          onUpdateVariableSlot(
+                            'playerNumberShorts',
+                            {
+                              ...design.variableSlots?.playerNumberShorts,
+                              enabled: !design.variableSlots?.playerNumberShorts?.enabled,
+                            },
+                            true
+                          )
+                        }
+                        className={`min-h-9 px-2.5 rounded-xl text-[11px] font-bold border cursor-pointer ${
+                          !design.variableSlots?.playerNumberShorts?.enabled
+                            ? 'bg-slate-800 text-white border-slate-800'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Ocultar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label htmlFor={sampleNameId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Nombre en espalda
+                      </label>
+                      <input
+                        id={sampleNameId}
+                        type="text"
+                        value={activePlayer.name || ''}
+                        onFocus={() => !isAccessory && onCameraFocus?.('back')}
+                        onChange={(e) =>
+                          updateRosterPlayerField('name', e.target.value.toUpperCase(), 'playerNameBack')
+                        }
+                        placeholder="Ej: RODRÍGUEZ"
+                        className="w-full px-3 min-h-9 rounded-xl bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor={sampleNumberId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Número
+                      </label>
+                      <input
+                        id={sampleNumberId}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        value={activePlayer.number || ''}
+                        onFocus={() => !isAccessory && onCameraFocus?.('back')}
+                        onChange={(e) =>
+                          updateRosterPlayerField('number', e.target.value, 'playerNumberBack')
+                        }
+                        placeholder="10"
+                        className="w-full px-2 min-h-9 rounded-xl bg-white border border-slate-300 text-sm font-black text-center text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interruptores rápidos para encender/apagar dorsales visibles */}
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[
+                      { key: 'playerNameBack', label: 'Nombre espalda', cam: 'back' },
+                      { key: 'playerNumberBack', label: 'Nº espalda', cam: 'back' },
+                      { key: 'playerNumberFront', label: 'Nº pecho', cam: 'front' },
+                      ...(hasSleeves
+                        ? [{ key: 'playerNumberSleeve', label: 'Nº manga', cam: 'right_sleeve' }]
+                        : []),
+                    ]
+                      .filter((item) => Boolean(design.variableSlots?.[item.key]))
+                      .map((item) => {
+                        const enabled = Boolean(design.variableSlots?.[item.key]?.enabled);
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            aria-pressed={enabled}
+                            onClick={() => {
+                              onUpdateVariableSlot(
+                                item.key,
+                                { ...design.variableSlots[item.key], enabled: !enabled },
+                                true
+                              );
+                              if (!enabled && !isAccessory) {
+                                onCameraFocus?.(item.cam);
+                              }
+                            }}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                              enabled
+                                ? 'bg-emerald-50 text-emerald-900 border-emerald-400'
+                                : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                            }`}
+                          >
+                            {enabled && <Check className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />}
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <label htmlFor={dorsalColorId} className="text-[11px] font-bold text-slate-700">
+                  Color dorsal ({activeDorsalFillHex})
+                </label>
                 <div className="flex items-center gap-1.5">
                   {DORSAL_QUICK_COLORS.map((dc) => {
-                    const active = design.variableSlots?.playerNumberBack?.fillHex === dc.hex;
+                    const active = activeDorsalFillHex === dc.hex.toUpperCase();
+                    const darkCheck = computeOwayoAutoContrastHex(dc.hex) === '#101820';
                     return (
                       <button
                         key={dc.hex}
                         type="button"
                         aria-label={`Color dorsal ${dc.label}`}
                         aria-pressed={active}
-                        onClick={() => {
-                          onUpdateVariableSlot(
-                            'playerNumberBack',
-                            { ...design.variableSlots?.playerNumberBack, fillHex: dc.hex },
-                            true
-                          );
-                          onUpdateVariableSlot(
-                            'playerNameBack',
-                            { ...design.variableSlots?.playerNameBack, fillHex: dc.hex },
-                            true
-                          );
-                          if (design.variableSlots?.playerNumberFront) {
-                            onUpdateVariableSlot(
-                              'playerNumberFront',
-                              { ...design.variableSlots.playerNumberFront, fillHex: dc.hex },
-                              true
-                            );
-                          }
-                        }}
-                        className={`w-6 h-6 rounded-lg border-2 cursor-pointer transition-transform ${
-                          active ? 'border-emerald-600 scale-110' : 'border-slate-300'
+                        onClick={() => applyDorsalColor(dc.hex, true)}
+                        className={`w-6 h-6 rounded-lg border-2 cursor-pointer transition-transform flex items-center justify-center ${
+                          active ? 'border-emerald-700 scale-110 shadow-xs' : 'border-slate-300'
                         }`}
                         style={{ backgroundColor: dc.hex }}
-                      />
+                      >
+                        {active && (
+                          <Check
+                            className={`w-3 h-3 ${darkCheck ? 'text-slate-900' : 'text-white'}`}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
                     );
                   })}
+                  <input
+                    id={dorsalColorId}
+                    type="color"
+                    aria-label="Color exacto de dorsal"
+                    value={activeDorsalSlot?.fillHex || '#ffffff'}
+                    onChange={(e) => applyDorsalColor(e.target.value, false)}
+                    className="w-7 h-6 rounded-md border border-slate-300 cursor-pointer bg-white shrink-0"
+                  />
                 </div>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                  Tipografía deportiva
+                <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                  Tipografía deportiva ({SPORT_FONTS.length})
                 </span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {SPORT_FONTS.slice(0, 6).map((f) => {
-                    const isFontSel = design.variableSlots?.playerNumberBack?.fontFamily === f.family;
+                <div className="grid grid-cols-3 gap-1.5 max-h-[82px] overflow-y-auto pr-0.5">
+                  {SPORT_FONTS.map((f) => {
+                    const isFontSel = activeDorsalFont === f.family;
                     return (
                       <button
                         key={f.id}
                         type="button"
                         aria-pressed={isFontSel}
                         style={{ fontFamily: f.family }}
-                        onClick={() => {
-                          onUpdateVariableSlot(
-                            'playerNumberBack',
-                            { ...design.variableSlots?.playerNumberBack, fontFamily: f.family },
-                            true
-                          );
-                          onUpdateVariableSlot(
-                            'playerNameBack',
-                            { ...design.variableSlots?.playerNameBack, fontFamily: f.family },
-                            true
-                          );
-                        }}
+                        onClick={() => applyDorsalFont(f.family)}
                         className={`py-1.5 px-1.5 rounded-xl text-xs font-black border truncate cursor-pointer ${
                           isFontSel
                             ? 'arza-btn-glass-green'
@@ -1441,7 +1737,7 @@ export default function GuidedStepWizardPanel({
 
               <form onSubmit={handleSubmitQuickText} className="pt-2 border-t border-slate-200/70 space-y-1.5">
                 <label htmlFor={customTextInputId} className="text-[11px] font-bold text-slate-700 block">
-                  Añadir texto o sponsor al pecho
+                  {isShorts ? 'Añadir texto o sponsor al short' : 'Añadir texto o sponsor al pecho'}
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
@@ -1450,11 +1746,11 @@ export default function GuidedStepWizardPanel({
                     value={customTextDraft}
                     onChange={(e) => setCustomTextDraft(e.target.value)}
                     placeholder="Ej: GRUPO ZAVA o TU CLUB"
-                    className="flex-1 px-3 min-h-10 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900"
+                    className="flex-1 px-3 min-h-9 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900"
                   />
                   <button
                     type="submit"
-                    className="px-3 min-h-10 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
+                    className="px-3 min-h-9 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>Añadir</span>
@@ -1467,17 +1763,96 @@ export default function GuidedStepWizardPanel({
                   {textDecals.map((td) => (
                     <div
                       key={td.id}
-                      className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2"
+                      className="p-2 rounded-xl bg-white/90 border border-slate-200 space-y-1.5"
                     >
-                      <span className="text-xs font-bold text-slate-900 truncate">{td.text}</span>
-                      <button
-                        type="button"
-                        aria-label={`Eliminar texto ${td.text}`}
-                        onClick={() => onDeleteDecal(td.id)}
-                        className="p-1 rounded-lg text-slate-500 hover:text-rose-600 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 truncate">{td.text}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {['#ffffff', '#111111', '#fa5400', '#facc15'].map((txHex) => {
+                            const activeTxColor = (td.fillHex || '#ffffff').toUpperCase() === txHex.toUpperCase();
+                            return (
+                              <button
+                                key={txHex}
+                                type="button"
+                                aria-label={`Color texto ${txHex}`}
+                                aria-pressed={activeTxColor}
+                                onClick={() =>
+                                  onUpdateDecal(
+                                    td.id,
+                                    {
+                                      fillHex: txHex,
+                                      outlineHex: computeOwayoAutoContrastHex(txHex),
+                                    },
+                                    true
+                                  )
+                                }
+                                className={`w-4 h-4 rounded-full border cursor-pointer ${
+                                  activeTxColor ? 'ring-2 ring-emerald-700 border-emerald-800' : 'border-slate-300'
+                                }`}
+                                style={{ backgroundColor: txHex }}
+                              />
+                            );
+                          })}
+                          <button
+                            type="button"
+                            aria-label={`Reducir tamaño de texto ${td.text}`}
+                            onClick={() =>
+                              onUpdateDecal(
+                                td.id,
+                                { scale: Math.max(0.45, +((td.scale ?? 1) - 0.15).toFixed(2)) },
+                                true
+                              )
+                            }
+                            className="px-1.5 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold cursor-pointer"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Aumentar tamaño de texto ${td.text}`}
+                            onClick={() =>
+                              onUpdateDecal(
+                                td.id,
+                                { scale: Math.min(2.0, +((td.scale ?? 1) + 0.15).toFixed(2)) },
+                                true
+                              )
+                            }
+                            className="px-1.5 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold cursor-pointer"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Eliminar texto ${td.text}`}
+                            onClick={() => onDeleteDecal(td.id)}
+                            className="p-1 rounded-lg text-slate-500 hover:text-rose-600 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                      {!isAccessory && (
+                        <div className="flex flex-wrap gap-1">
+                          {spotOptions.slice(0, 3).map((spot) => {
+                            const activeSpot = isSpotActiveForDecal(td, spot.id);
+                            return (
+                              <button
+                                key={spot.id}
+                                type="button"
+                                aria-pressed={activeSpot}
+                                onClick={() => placeDecalPresetSpot(td, spot.id)}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                                  activeSpot
+                                    ? 'bg-emerald-700 text-white'
+                                    : 'bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900'
+                                }`}
+                              >
+                                {spot.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1485,7 +1860,7 @@ export default function GuidedStepWizardPanel({
             </div>
 
             {/* 4C: Resumen de Tallas */}
-            <div className="p-3.5 rounded-2xl arza-pill-glass-green flex items-center justify-between gap-3">
+            <div className="p-3 rounded-2xl arza-pill-glass-green flex items-center justify-between gap-2.5">
               <div className="min-w-0">
                 <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
@@ -1494,11 +1869,16 @@ export default function GuidedStepWizardPanel({
                 <p className="text-[11px] text-emerald-800 truncate">
                   {currentTierLabel} • ${unitPrice.toFixed(2)} USD c/u
                 </p>
+                {rosterSizeSummary && (
+                  <p className="text-[10px] font-mono text-emerald-900/80 truncate mt-0.5">
+                    {rosterSizeSummary}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
                 onClick={onOpenRosterModal}
-                className="px-3 min-h-10 rounded-xl bg-white/90 hover:bg-white text-emerald-900 border border-emerald-300 text-xs font-bold shrink-0 cursor-pointer"
+                className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-emerald-900 border border-emerald-300 text-xs font-bold shrink-0 cursor-pointer"
               >
                 Editar Tallas →
               </button>
