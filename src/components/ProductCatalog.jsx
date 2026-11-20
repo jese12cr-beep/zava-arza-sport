@@ -3,13 +3,14 @@ import { ArrowRight, Shirt } from 'lucide-react';
 import { ENGINE_PRODUCTS } from '../engine/core/designStore';
 import { getProductMedia } from '../data/productMediaRegistry';
 
+const APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter((item) => item.garmentCategory !== 'accessory');
+
 const SPORT_FILTERS = [
-  { id: 'all', label: 'Todos (13)' },
+  { id: 'all', label: `Todos (${APPAREL_PRODUCTS.length})` },
   { id: 'Fútbol', label: 'Fútbol' },
   { id: 'Baloncesto', label: 'Baloncesto' },
   { id: 'Chaquetas', label: 'Chamarras' },
   { id: 'E-Sports', label: 'E-Sports' },
-  { id: 'Accesorios', label: 'Accesorios' },
 ];
 
 const GENDER_FILTERS = [
@@ -23,10 +24,9 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
   const [genderFilter, setGenderFilter] = useState('all');
 
   const filteredProducts = useMemo(() => {
-    return ENGINE_PRODUCTS.filter((item) => {
+    return APPAREL_PRODUCTS.filter((item) => {
       if (sportFilter !== 'all' && item.sport !== sportFilter) return false;
       if (genderFilter !== 'all') {
-        if (item.garmentCategory === 'accessory') return false;
         if (genderFilter === 'women' && item.id === 'football_shorts_fp3') return true;
         if (item.gender !== genderFilter) return false;
       }
@@ -43,7 +43,7 @@ export default function ProductCatalog({ onSelectProduct, onOpenQuote }) {
             Paso 1 Directo // Catálogo ARZA SPORT
           </span>
           <h2 className="font-display-hero font-extrabold uppercase text-[#111111] arza-section-headline">
-            Elige tu Molde ({ENGINE_PRODUCTS.length})
+            Elige tu Molde ({APPAREL_PRODUCTS.length})
           </h2>
           <p className="text-[#757575] text-sm sm:text-base max-w-2xl">
             Haz clic en cualquier prenda para saltar directo al Paso 2 (Diseño y Forma) sobre su modelo 3D.

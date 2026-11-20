@@ -18,7 +18,7 @@ const SPORT_OPTIONS = [
   { id: 'Fútbol', label: 'Fútbol ⚽', icon: '⚽' },
   { id: 'Baloncesto', label: 'Baloncesto 🏀', icon: '🏀' },
   { id: 'Chaquetas', label: 'Chaquetas & Abrigos 🧥', icon: '🧥' },
-  { id: 'Accesorios', label: 'Accesorios & E-Sports 🎮', icon: '🎮' },
+  { id: 'E-Sports', label: 'E-Sports Pro 🎮', icon: '🎮' },
 ];
 
 const GENDER_OPTIONS = [
@@ -38,25 +38,16 @@ export default function ProductSelectorModal({
 
   const filteredProducts = useMemo(() => {
     return ENGINE_PRODUCTS.filter((prod) => {
+      if (prod.garmentCategory === 'accessory') return false;
+
       // 1. Filtro Deporte
-      if (selectedSport !== 'all') {
-        if (selectedSport === 'Accesorios') {
-          if (prod.sport !== 'Accesorios' && prod.sport !== 'E-Sports' && prod.garmentCategory !== 'accessory') {
-            return false;
-          }
-        } else if (prod.sport !== selectedSport) {
-          return false;
-        }
+      if (selectedSport !== 'all' && prod.sport !== selectedSport) {
+        return false;
       }
 
       // 2. Filtro Género
       if (selectedGender !== 'all') {
-        // Accesorios y complementos son universales
-        if (prod.garmentCategory === 'accessory') {
-          return true;
-        }
-        // Shorts de fútbol de matchday compatibles con ambos
-        if (prod.id === 'football_shorts_fp3') {
+        if (prod.sport === 'E-Sports' || prod.id === 'football_shorts_fp3') {
           return true;
         }
         if (prod.gender && prod.gender !== selectedGender) {

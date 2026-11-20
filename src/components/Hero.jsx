@@ -141,7 +141,7 @@ export default function Hero({ onStartDesigning }) {
                 href="#drops-catalog"
                 className="px-7 min-h-12 rounded-full border border-[#111111] text-[#111111] hover:bg-[#F5F5F5] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
-                <span>Ver Catálogo (13 Moldes)</span>
+                <span>Ver Catálogo (10 Moldes)</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
@@ -154,7 +154,7 @@ export default function Hero({ onStartDesigning }) {
                   <span>Moldes 3D</span>
                 </dt>
                 <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
-                  13 CORTES
+                  10 CORTES
                 </dd>
               </div>
               <div>

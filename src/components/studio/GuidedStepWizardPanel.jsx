@@ -69,8 +69,11 @@ const SPORT_FILTER_PILLS = [
   { id: 'Baloncesto', label: 'Baloncesto' },
   { id: 'Chaquetas', label: 'Chamarras' },
   { id: 'E-Sports', label: 'E-Sports' },
-  { id: 'Accesorios', label: 'Accesorios' },
 ];
+
+const ACTIVE_APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter(
+  (prod) => prod.garmentCategory !== 'accessory'
+);
 
 const GENDER_EQUIVALENT_MAP = {
   men: {
@@ -204,9 +207,9 @@ export default function GuidedStepWizardPanel({
 
   const genderFilteredProducts = useMemo(
     () =>
-      ENGINE_PRODUCTS.filter((prod) => {
+      ACTIVE_APPAREL_PRODUCTS.filter((prod) => {
         if (showAllGenders) return true;
-        if (prod.garmentCategory === 'accessory' || prod.sport === 'E-Sports') return true;
+        if (prod.sport === 'E-Sports') return true;
         if (genderModule === 'women' && prod.id === 'football_shorts_fp3') return true;
         if (prod.gender && prod.gender !== genderModule) return false;
         return true;
@@ -458,7 +461,7 @@ export default function GuidedStepWizardPanel({
                       : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <span>Todos ({ENGINE_PRODUCTS.length})</span>
+                  <span>Todos ({ACTIVE_APPAREL_PRODUCTS.length})</span>
                 </button>
               </div>
             </fieldset>
@@ -631,62 +634,8 @@ export default function GuidedStepWizardPanel({
         {/* ==================== PASO 2: DISEÑO, TELA Y FORMA ==================== */}
         {wizardStep === 2 && (
           <div className="space-y-4">
-            {isAccessory ? (
-              <div className="p-4 rounded-2xl arza-glass-card space-y-3">
-                <div className="flex items-center gap-3">
-                  <ProductThumb product={currentProduct} className="w-14 h-14 rounded-xl" />
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
-                      Estructura fija 2.5D · {currentProduct.owayoCutCode}
-                    </span>
-                    <h3 className="text-sm font-black text-slate-900 truncate">
-                      {currentProduct.name}
-                    </h3>
-                    <p className="text-[11px] text-slate-600 mt-0.5">
-                      {activeProductMedia.desc}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-white/90 border border-slate-200 space-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
-                    Zonas personalizables en el siguiente paso
-                  </span>
-                  <ul className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] font-semibold text-slate-800" role="list">
-                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
-                      <span
-                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
-                        style={{ backgroundColor: design.colorZones?.primary?.hex || '#111111' }}
-                        aria-hidden="true"
-                      />
-                      <span>Cuerpo Principal</span>
-                    </li>
-                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
-                      <span
-                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
-                        style={{ backgroundColor: design.colorZones?.secondary?.hex || '#fa5400' }}
-                        aria-hidden="true"
-                      />
-                      <span>Visera / Tapa / Borde</span>
-                    </li>
-                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
-                      <span
-                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
-                        style={{ backgroundColor: design.colorZones?.accents?.hex || '#ffffff' }}
-                        aria-hidden="true"
-                      />
-                      <span>Detalles y Acabados</span>
-                    </li>
-                  </ul>
-                  <p className="text-[11px] text-slate-500">
-                    Este complemento conserva su silueta oficial. Continúa al Paso 3 para elegir colores y al Paso 4 para tu logotipo.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* 2A: Diseño activo + filtros dinámicos envueltos sin recorte */}
-                <div className="space-y-2.5">
+            {/* 2A: Diseño activo + filtros dinámicos envueltos sin recorte */}
+            <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                       1. Corte gráfico ({availableFishDesigns.length})
@@ -956,8 +905,6 @@ export default function GuidedStepWizardPanel({
                     )}
                   </div>
                 </div>
-              </>
-            )}
           </div>
         )}
 

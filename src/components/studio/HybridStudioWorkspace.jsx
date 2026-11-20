@@ -1377,7 +1377,6 @@ export default function HybridStudioWorkspace({
   const womenFootball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Fútbol');
   const womenBasketball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Baloncesto');
   const womenJackets = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Chaquetas');
-  const accessoryProducts = ENGINE_PRODUCTS.filter((p) => p.renderMode === 'FAUX_3D_LAYERED_WEBP');
 
   const currentSportProducts = useMemo(() => {
     const list = ENGINE_PRODUCTS.filter(
@@ -4797,16 +4796,16 @@ export default function HybridStudioWorkspace({
                     </div>
                   </div>
 
-                  {/* E-Sports & Complementos */}
+                  {/* E-Sports Pro */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-neutral-900" />
                       <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                        E-Sports Pro &amp; Complementos Club
+                        E-Sports Pro Arena
                       </h4>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[...menEsports, ...accessoryProducts].map((p) => {
+                      {menEsports.map((p) => {
                         const isCur = design.productModelId === p.id;
                         return (
                           <button
