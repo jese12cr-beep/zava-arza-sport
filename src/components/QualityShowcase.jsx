@@ -93,55 +93,55 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
           })}
         </div>
 
-        {/* Muestrario Interactivo de Texturas de Tela Reales (4 Tejidos PBR 3D) */}
+        {/* Muestrario Interactivo de Texturas de Tela Reales (Tejidos PBR 3D) */}
         <div className="mt-10 p-6 sm:p-8 rounded-3xl bg-white border border-neutral-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-5">
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#C24100]">
-                <Layers className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Muestrario Macro de Telas Reales</span>
-              </span>
-              <h3 className="font-display-hero text-xl sm:text-2xl font-extrabold uppercase text-[#111111] mt-1">
-                4 Texturas de Tejido Aplicables en el Configurador 3D
-              </h3>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-100 border border-neutral-200">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 mr-1">
-                  Color muestra:
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-5">
+              <div>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#C24100]">
+                  <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Muestrario Macro de Telas Reales</span>
                 </span>
-                {SWATCH_COLORS.map((c) => (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    aria-label={c.label}
-                    aria-pressed={swatchHex === c.hex}
-                    onClick={() => setSwatchHex(c.hex)}
-                    className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
-                      swatchHex === c.hex
-                        ? 'scale-115 ring-2 ring-offset-1 ring-[#111111] border-white'
-                        : 'border-black/20 hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: c.hex }}
-                  />
-                ))}
+                <h3 className="font-display-hero text-xl sm:text-2xl font-extrabold uppercase text-[#111111] mt-1">
+                  {FABRIC_WEAVES.length} Texturas de Tejido Aplicables en el Configurador 3D
+                </h3>
               </div>
 
-              {onOpenTexturesInStudio && (
-                <button
-                  type="button"
-                  onClick={onOpenTexturesInStudio}
-                  className="px-4 min-h-10 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Probar Texturas en Paso 2</span>
-                  <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-100 border border-neutral-200">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 mr-1">
+                    Color muestra:
+                  </span>
+                  {SWATCH_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      aria-label={c.label}
+                      aria-pressed={swatchHex === c.hex}
+                      onClick={() => setSwatchHex(c.hex)}
+                      className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
+                        swatchHex === c.hex
+                          ? 'scale-115 ring-2 ring-offset-1 ring-[#111111] border-white'
+                          : 'border-black/20 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                    />
+                  ))}
+                </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {onOpenTexturesInStudio && (
+                  <button
+                    type="button"
+                    onClick={onOpenTexturesInStudio}
+                    className="px-4 min-h-10 rounded-full arza-btn-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Probar Texturas en Paso 2</span>
+                    <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {FABRIC_WEAVES.map((w) => (
               <div
                 key={w.id}
@@ -161,10 +161,10 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
 
                 <div>
                   <div className="text-sm font-extrabold text-neutral-950 leading-snug">
-                    {w.shortName || w.name}
+                    {w.name}
                   </div>
                   <p className="text-[11px] text-neutral-600 leading-relaxed mt-1">
-                    {w.subtitle || w.desc}
+                    {w.desc}
                   </p>
                 </div>
               </div>

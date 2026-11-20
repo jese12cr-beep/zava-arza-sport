@@ -316,8 +316,8 @@ export const FABRIC_WEAVES = [
   {
     id: 'ts_tex_football',
     name: 'TS-Tex™ Fútbol Ultra-Dry 145g',
-    shortName: 'TS-Tex™ Ultra-Dry',
-    subtitle: 'Microperforado transpirable de alta ligereza',
+    shortName: 'TS-Tex™',
+    subtitle: 'Microperforado Fútbol',
     gsm: 145,
     bumpUrl: '/fabrics/ts-tex.png',
     uvRepeat: 48,
@@ -329,8 +329,8 @@ export const FABRIC_WEAVES = [
   {
     id: 'cooldry_hex',
     name: 'K-Tex 2™ Basket Micromesh 155g',
-    shortName: 'K-Tex 2™ Micromesh',
-    subtitle: 'Malla panal abierta de máximo flujo de aire',
+    shortName: 'K-Tex 2™',
+    subtitle: 'Malla Hexagonal Pro',
     gsm: 155,
     bumpUrl: '/fabrics/k-tex2.png',
     uvRepeat: 44,
@@ -342,8 +342,8 @@ export const FABRIC_WEAVES = [
   {
     id: 'sr_tex_shorts',
     name: 'SR-Tex™ Anti-Fricción Shorts 160g',
-    shortName: 'SR-Tex™ Anti-Fricción',
-    subtitle: 'Trama elástica de alta resistencia al roce',
+    shortName: 'SR-Tex™',
+    subtitle: 'Anti-Fricción Match',
     gsm: 160,
     bumpUrl: '/fabrics/sr-tex.png',
     uvRepeat: 38,
@@ -355,8 +355,8 @@ export const FABRIC_WEAVES = [
   {
     id: 'pique_heavy',
     name: 'R-Tex 3™ Ribete & Piqué 210g',
-    shortName: 'R-Tex 3™ Piqué',
-    subtitle: 'Relieve acanalado estructural de alta densidad',
+    shortName: 'R-Tex 3™',
+    subtitle: 'Piqué Estructural',
     gsm: 210,
     bumpUrl: '/fabrics/bandstoff-rtex3.png',
     uvRepeat: 34,
@@ -364,6 +364,19 @@ export const FABRIC_WEAVES = [
     bumpScale: -0.009,
     roughness: 0.65,
     desc: 'Trama acanalada elástica para cuellos, sisas de 48mm y refuerzos',
+  },
+  {
+    id: 'k_tex_wind',
+    name: 'K-Tex Windblock™ Softshell 280g',
+    shortName: 'K-Tex Wind™',
+    subtitle: 'Cortavientos 3 Capas',
+    gsm: 280,
+    bumpUrl: '/fabrics/sr-tex.png',
+    uvRepeat: 40,
+    normalScale: 0.44,
+    bumpScale: -0.0045,
+    roughness: 0.58,
+    desc: 'Tejido tricapa cortavientos e impermeable para chamarras Softshell ZAVA Shield J1',
   },
 ];
 

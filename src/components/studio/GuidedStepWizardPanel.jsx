@@ -159,8 +159,10 @@ export default function GuidedStepWizardPanel({
   const customTextInputId = useId();
 
   const isShorts = ['football_shorts', 'basketball_shorts'].includes(currentProduct?.garmentShape);
+  const isJacket = currentProduct?.garmentCategory === 'jacket';
   const isAccessory = currentProduct?.renderMode === 'FAUX_3D_LAYERED_WEBP';
-  const hasCollar = !isShorts && !isAccessory && currentProduct?.garmentShape !== 'basketball_tank';
+  const hasCollar =
+    !isShorts && !isAccessory && !isJacket && currentProduct?.garmentShape !== 'basketball_tank';
   const hasSleeves =
     Boolean(design?.colorZones?.sleeves) &&
     !['basketball_tank', 'football_shorts', 'basketball_shorts'].includes(
@@ -231,6 +233,44 @@ export default function GuidedStepWizardPanel({
     (currentProduct?.basePrice || 0) *
     (1 - maxClubDiscountPct / 100)
   ).toFixed(2);
+
+  const step2Categories = useMemo(() => {
+    const counts = new Map();
+    for (const d of availableFishDesigns) {
+      const cat = d.category || 'Clásico';
+      counts.set(cat, (counts.get(cat) || 0) + 1);
+    }
+    const ordered = ['Clásico', 'Moderno', 'Rayas', 'Geométrico', 'Degradado', 'Minimalista'];
+    const dynamicCats = [
+      ...ordered.filter((c) => counts.has(c)),
+      ...[...counts.keys()].filter((c) => !ordered.includes(c)),
+    ];
+    return [
+      { id: 'Todos', label: 'Todos', count: availableFishDesigns.length },
+      ...dynamicCats.map((cat) => ({ id: cat, label: cat, count: counts.get(cat) })),
+    ];
+  }, [availableFishDesigns]);
+
+  const activePatternCategory = step2Categories.some((c) => c.id === patternCategoryFilter)
+    ? patternCategoryFilter
+    : 'Todos';
+
+  const filteredStep2Designs = useMemo(() => {
+    if (activePatternCategory === 'Todos') return availableFishDesigns;
+    return availableFishDesigns.filter(
+      (d) => (d.category || 'Clásico') === activePatternCategory
+    );
+  }, [availableFishDesigns, activePatternCategory]);
+
+  const activeFishMeta =
+    availableFishDesigns.find((d) => d.id === design.patternId) || availableFishDesigns[0];
+
+  const zoneLetterToHex = (letter) => {
+    if (letter === 'A') return design.colorZones?.primary?.hex || '#111111';
+    if (letter === 'B') return design.colorZones?.secondary?.hex || '#fa5400';
+    if (letter === 'C') return design.colorZones?.accents?.hex || '#ffffff';
+    return design.colorZones?.quaternary?.hex || '#757575';
+  };
 
   const garmentShape = currentProduct?.garmentShape;
 
@@ -588,238 +628,336 @@ export default function GuidedStepWizardPanel({
           </div>
         )}
 
-        {/* ==================== PASO 2: DISEÑO Y FORMA ==================== */}
+        {/* ==================== PASO 2: DISEÑO, TELA Y FORMA ==================== */}
         {wizardStep === 2 && (
           <div className="space-y-4">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {['Todos', 'Moderno', 'Rayas', 'Geométrico', 'Degradado', 'Minimalista'].map((cat) => {
-                const active = patternCategoryFilter === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => onChangePatternCategoryFilter(cat)}
-                    className={`px-3 min-h-9 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
-                      active
-                        ? 'bg-[#111111] text-white border-[#111111]'
-                        : 'bg-white/80 text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
+            {isAccessory ? (
+              <div className="p-4 rounded-2xl arza-glass-card space-y-3">
+                <div className="flex items-center gap-3">
+                  <ProductThumb product={currentProduct} className="w-14 h-14 rounded-xl" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                      Estructura fija 2.5D · {currentProduct.owayoCutCode}
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900 truncate">
+                      {currentProduct.name}
+                    </h3>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      {activeProductMedia.desc}
+                    </p>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[245px] lg:overflow-y-auto lg:pr-1">
-              {availableFishDesigns
-                .filter((d) => {
-                  if (patternCategoryFilter === 'Todos') return true;
-                  return (d.category || 'Moderno') === patternCategoryFilter;
-                })
-                .map((dMeta) => {
-                  const isSel = design.patternId === dMeta.id;
-                  return (
-                    <button
-                      key={dMeta.id}
-                      type="button"
-                      aria-pressed={isSel}
-                      onClick={() => {
-                        onSelectDesignCut(dMeta.id);
-                        onToast?.(`Diseño ${dMeta.name} aplicado`);
-                      }}
-                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
-                        isSel
-                          ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-xs'
-                          : 'border-slate-200 bg-white/85 hover:border-emerald-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 w-full">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                          {dMeta.category || 'Clásico'}
-                        </span>
-                        {isSel && (
-                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-                        )}
-                      </div>
-                      <div className="text-xs font-black text-slate-900 truncate w-full">
-                        {dMeta.name}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {dMeta.baseColors?.length || 3} zonas
-                      </div>
-                    </button>
-                  );
-                })}
-            </div>
+                <div className="p-3 rounded-xl bg-white/90 border border-slate-200 space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
+                    Zonas personalizables en el siguiente paso
+                  </span>
+                  <ul className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] font-semibold text-slate-800" role="list">
+                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
+                      <span
+                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
+                        style={{ backgroundColor: design.colorZones?.primary?.hex || '#111111' }}
+                        aria-hidden="true"
+                      />
+                      <span>Cuerpo Principal</span>
+                    </li>
+                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
+                      <span
+                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
+                        style={{ backgroundColor: design.colorZones?.secondary?.hex || '#fa5400' }}
+                        aria-hidden="true"
+                      />
+                      <span>Visera / Tapa / Borde</span>
+                    </li>
+                    <li className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
+                      <span
+                        className="w-3 h-3 rounded-full border border-black/15 shrink-0"
+                        style={{ backgroundColor: design.colorZones?.accents?.hex || '#ffffff' }}
+                        aria-hidden="true"
+                      />
+                      <span>Detalles y Acabados</span>
+                    </li>
+                  </ul>
+                  <p className="text-[11px] text-slate-500">
+                    Este complemento conserva su silueta oficial. Continúa al Paso 3 para elegir colores y al Paso 4 para tu logotipo.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* 2A: Diseño activo + filtros dinámicos envueltos sin recorte */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      1. Corte gráfico ({availableFishDesigns.length})
+                    </span>
+                    {activeFishMeta && (
+                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 truncate max-w-[200px]">
+                        Activo: {activeFishMeta.name} ({activeFishMeta.baseColors?.length || 3} zonas)
+                      </span>
+                    )}
+                  </div>
 
-            {hasCollar && (
-              <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
-                <span className="text-xs font-black text-slate-900 block">
-                  Forma de cuello
-                </span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: 'v_neck', label: 'Cuello V', desc: 'Deportivo' },
-                    { id: 'round', label: 'Redondo', desc: 'Clásico' },
-                    { id: 'polo', label: 'Cuello Polo', desc: 'Formal' },
-                  ].map((col) => {
-                    const isSel = (design.proCollar || 'v_neck') === col.id;
-                    return (
-                      <button
-                        key={col.id}
-                        type="button"
-                        aria-pressed={isSel}
-                        onClick={() => {
-                          onCommitDesign({ ...design, proCollar: col.id }, true);
-                          onToast?.(`Cuello cambiado a ${col.label}`);
-                        }}
-                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                          isSel
-                            ? 'arza-btn-glass-green'
-                            : 'bg-white/80 hover:bg-white text-slate-800 border-slate-200'
-                        }`}
-                      >
-                        <div className="text-xs font-black truncate">{col.label}</div>
-                        <div
-                          className={`text-[10px] mt-0.5 ${
-                            isSel ? 'text-emerald-100' : 'text-slate-500'
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {step2Categories.map((cat) => {
+                      const active = activePatternCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => onChangePatternCategoryFilter(cat.id)}
+                          className={`px-2.5 min-h-8 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
+                            active
+                              ? 'bg-[#111111] text-white border-[#111111]'
+                              : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          {col.desc}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Texturas Reales de Tela 3D y Trama Sublimada (siempre visibles en Paso 2) */}
-            <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
-                  <Layers className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                  <span>Textura de Tela 3D (Tejido Real)</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  Micro-relieve
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {FABRIC_WEAVES.map((w) => {
-                  const isWeaveSel = (design.fabricWeaveId || 'ts_tex_football') === w.id;
-                  const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
-                  return (
-                    <button
-                      key={w.id}
-                      type="button"
-                      aria-pressed={isWeaveSel}
-                      onClick={() => {
-                        onCommitDesign({ ...design, fabricWeaveId: w.id }, true);
-                        onToast?.(`Tela ${w.shortName || w.name} aplicada`);
-                      }}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                        isWeaveSel
-                          ? 'border-2 border-emerald-600 bg-emerald-50/70 shadow-xs'
-                          : 'bg-white/90 border-slate-200 hover:border-emerald-300'
-                      }`}
-                    >
-                      <FabricSwatchThumb
-                        bumpUrl={w.bumpUrl}
-                        tintHex={swatchBg}
-                        tileSize={36}
-                        className="w-11 h-11 rounded-lg"
-                      />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[11px] font-black text-slate-900 truncate">
-                            {w.shortName || w.name}
+                          <span>{cat.label}</span>
+                          <span
+                            className={`text-[10px] font-mono ${
+                              active ? 'text-neutral-300' : 'text-slate-400'
+                            }`}
+                          >
+                            ({cat.count})
                           </span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
-                            {w.gsm || 150}g
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-600 truncate mt-0.5">
-                          {w.subtitle || w.desc}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-              <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-800">
-                    Trama geométrica sublimada
-                  </span>
-                  {design.surfacePatternId && design.surfacePatternId !== 'none' && (
-                    <span className="text-[10px] font-mono font-bold text-emerald-700">
-                      {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
-                    </span>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[215px] lg:overflow-y-auto lg:pr-1">
+                    {filteredStep2Designs.map((dMeta) => {
+                      const isSel = design.patternId === dMeta.id;
+                      const zones = dMeta.baseColors?.length ? dMeta.baseColors : ['A', 'B', 'C'];
+                      return (
+                        <button
+                          key={dMeta.id}
+                          type="button"
+                          aria-pressed={isSel}
+                          onClick={() => {
+                            onSelectDesignCut(dMeta.id);
+                            onToast?.(`Diseño ${dMeta.name} aplicado`);
+                          }}
+                          className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
+                            isSel
+                              ? 'border-2 border-emerald-600 bg-emerald-50/55 shadow-xs'
+                              : 'border-slate-200 bg-white/90 hover:border-emerald-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                              {dMeta.category || 'Clásico'}
+                            </span>
+                            {isSel && (
+                              <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+                            )}
+                          </div>
+                          <div className="text-xs font-black text-slate-900 truncate w-full">
+                            {dMeta.name}
+                          </div>
+                          <div className="flex items-center justify-between gap-1 pt-0.5">
+                            <div className="flex items-center gap-1" aria-hidden="true">
+                              {zones.map((letter) => (
+                                <span
+                                  key={letter}
+                                  className="w-3 h-3 rounded-full border border-black/15"
+                                  style={{ backgroundColor: zoneLetterToHex(letter) }}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {zones.length}z
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1.5">
-                  {ZONE_SURFACE_PATTERNS.map((pat) => (
-                    <button
-                      key={pat.id}
-                      type="button"
-                      aria-pressed={(design.surfacePatternId || 'none') === pat.id}
-                      onClick={() => {
-                        onCommitDesign({ ...design, surfacePatternId: pat.id }, true);
-                        onToast?.(`Trama ${pat.name} aplicada`);
-                      }}
-                      className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
-                        (design.surfacePatternId || 'none') === pat.id
-                          ? 'arza-btn-glass-green'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
-                      }`}
-                    >
-                      {pat.name}
-                    </button>
-                  ))}
-                </div>
-
-                {design.surfacePatternId && design.surfacePatternId !== 'none' && (
-                  <input
-                    type="range"
-                    min="5"
-                    max="55"
-                    aria-label="Intensidad de trama sublimada"
-                    value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
-                    style={wizardRangeVars(
-                      Math.round((design.surfacePatternOpacity ?? 0.16) * 100),
-                      5,
-                      55
-                    )}
-                    onChange={(e) =>
-                      onCommitDesign(
-                        { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
-                        false
-                      )
-                    }
-                    className="studio-range w-full"
-                  />
+                {/* 2B: Forma de cuello (solo jerseys con cuello; especificación para taller) */}
+                {hasCollar && (
+                  <div className="p-3 rounded-2xl arza-glass-card space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black text-slate-900">
+                        2. Forma de cuello
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500">
+                        Ficha taller (visor en V)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'v_neck', label: 'Cuello V', desc: 'Deportivo' },
+                        { id: 'round', label: 'Redondo', desc: 'Clásico' },
+                        { id: 'polo', label: 'Cuello Polo', desc: 'Formal' },
+                      ].map((col) => {
+                        const isSel = (design.proCollar || 'v_neck') === col.id;
+                        return (
+                          <button
+                            key={col.id}
+                            type="button"
+                            aria-pressed={isSel}
+                            onClick={() => {
+                              onCommitDesign({ ...design, proCollar: col.id }, true);
+                              onToast?.(`Cuello ${col.label} guardado en ficha`);
+                            }}
+                            className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                              isSel
+                                ? 'arza-btn-glass-green'
+                                : 'bg-white/85 hover:bg-white text-slate-800 border-slate-200'
+                            }`}
+                          >
+                            <div className="text-xs font-black truncate">{col.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                isSel ? 'text-emerald-100' : 'text-slate-500'
+                              }`}
+                            >
+                              {col.desc}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
 
-                <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs font-bold text-slate-800 cursor-pointer">
-                  <span>Inserciones de Malla Mesh Lateral</span>
-                  <input
-                    type="checkbox"
-                    {...{ switch: '' }}
-                    checked={Boolean(design.hasMeshPanels)}
-                    onChange={(e) => {
-                      onCommitDesign({ ...design, hasMeshPanels: e.target.checked }, true);
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
+                {/* 2C: Texturas Reales de Tela 3D y Trama Sublimada */}
+                <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
+                      <Layers className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                      <span>Textura de Tela 3D (Tejido Real)</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Micro-relieve
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {FABRIC_WEAVES.map((w, idx) => {
+                      const isWeaveSel =
+                        (design.fabricWeaveId || currentProduct?.defaultFabricId || 'ts_tex_football') ===
+                        w.id;
+                      const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
+                      const spanFullOnLastOdd =
+                        idx === FABRIC_WEAVES.length - 1 && FABRIC_WEAVES.length % 2 === 1;
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          aria-pressed={isWeaveSel}
+                          onClick={() => {
+                            onCommitDesign({ ...design, fabricWeaveId: w.id }, true);
+                            onToast?.(`Tela ${w.shortName || w.name} aplicada`);
+                          }}
+                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            spanFullOnLastOdd ? 'sm:col-span-2' : ''
+                          } ${
+                            isWeaveSel
+                              ? 'border-2 border-emerald-600 bg-emerald-50/70 shadow-xs'
+                              : 'bg-white/90 border-slate-200 hover:border-emerald-300'
+                          }`}
+                        >
+                          <FabricSwatchThumb
+                            bumpUrl={w.bumpUrl}
+                            tintHex={swatchBg}
+                            tileSize={36}
+                            className="w-11 h-11 rounded-lg"
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[11px] font-black text-slate-900 truncate">
+                                {w.shortName || w.name}
+                              </span>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
+                                {w.gsm || 150}g
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-600 truncate mt-0.5">
+                              {w.subtitle || w.desc}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-800">
+                        Trama geométrica sublimada
+                      </span>
+                      {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                        <span className="text-[10px] font-mono font-bold text-emerald-700">
+                          {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {ZONE_SURFACE_PATTERNS.map((pat) => (
+                        <button
+                          key={pat.id}
+                          type="button"
+                          aria-pressed={(design.surfacePatternId || 'none') === pat.id}
+                          onClick={() => {
+                            onCommitDesign({ ...design, surfacePatternId: pat.id }, true);
+                            onToast?.(`Trama ${pat.name} aplicada`);
+                          }}
+                          className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
+                            (design.surfacePatternId || 'none') === pat.id
+                              ? 'arza-btn-glass-green'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                          }`}
+                        >
+                          {pat.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                      <input
+                        type="range"
+                        min="5"
+                        max="55"
+                        aria-label="Intensidad de trama sublimada"
+                        value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
+                        style={wizardRangeVars(
+                          Math.round((design.surfacePatternOpacity ?? 0.16) * 100),
+                          5,
+                          55
+                        )}
+                        onChange={(e) =>
+                          onCommitDesign(
+                            { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
+                            false
+                          )
+                        }
+                        className="studio-range w-full"
+                      />
+                    )}
+
+                    {!isShorts && !isJacket && (
+                      <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs font-bold text-slate-800 cursor-pointer">
+                        <span>Inserciones de Malla Mesh Lateral</span>
+                        <input
+                          type="checkbox"
+                          {...{ switch: '' }}
+                          checked={Boolean(design.hasMeshPanels)}
+                          onChange={(e) => {
+                            onCommitDesign({ ...design, hasMeshPanels: e.target.checked }, true);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
