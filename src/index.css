@@ -540,3 +540,73 @@ dialog::backdrop {
   white-space: nowrap !important;
 }
 
+/* 11. ARZA SPORT Responsive Single-Tree Header Navigation */
+.arza-header-inner > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.arza-site-header.is-measuring,
+.arza-site-header.is-measuring * {
+  transition: none !important;
+}
+
+.arza-site-header .arza-menu-button {
+  anchor-name: --arza-menu-btn;
+}
+
+.arza-site-header .arza-site-menu {
+  position: fixed;
+  inset: auto;
+  inset-block-start: 6.25rem;
+  inset-block-start: anchor(--arza-menu-btn bottom);
+  inset-inline-end: 1rem;
+  inline-size: min(85dvw, 22rem);
+  max-inline-size: calc(100dvw - 2rem);
+  block-size: fit-content;
+  max-block-size: calc(100dvh - 7rem);
+  margin-block-start: 0.5rem;
+  overflow: auto;
+}
+
+.arza-site-header .arza-site-menu:not([popover]) {
+  display: none;
+}
+
+.arza-site-header .arza-site-menu.is-fallback-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.arza-site-header .arza-site-menu[popover]:is(:popover-open, .\:popover-open) {
+  display: flex;
+  flex-direction: column;
+}
+
+.arza-site-header.is-wide .arza-menu-button {
+  display: none;
+}
+
+.arza-site-header.is-wide .arza-site-menu {
+  position: static;
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.5rem;
+  inline-size: auto;
+  max-inline-size: none;
+  block-size: auto;
+  max-block-size: none;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.arza-site-header.is-wide .arza-site-menu::backdrop {
+  display: none;
+}
+

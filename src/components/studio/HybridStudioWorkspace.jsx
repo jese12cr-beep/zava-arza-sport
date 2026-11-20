@@ -1405,10 +1405,12 @@ export default function HybridStudioWorkspace({
                 <span>Tienda</span>
               </button>
 
-              <div className="flex items-center gap-2 px-3 min-h-10 rounded-xl arza-glass-card min-w-0">
-                <ArzaLogo theme="light" variant="mark" decorative className="h-4 w-auto shrink-0" />
+              <div className="flex items-center gap-2.5 px-2.5 min-h-10 rounded-xl arza-glass-card min-w-0">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#111111] border border-neutral-800 shrink-0">
+                  <ArzaLogo theme="dark" className="h-6 w-auto" />
+                </span>
                 <span className="text-xs font-black tracking-tight text-slate-900 truncate">
-                  Asistente ARZA · Paso {wizardStep} de 4
+                  Asistente · Paso {wizardStep} de 4
                 </span>
                 <span className="hidden md:inline-block text-[11px] font-bold text-emerald-800 bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 rounded-md truncate">
                   {currentProduct.shortName || currentProduct.name}

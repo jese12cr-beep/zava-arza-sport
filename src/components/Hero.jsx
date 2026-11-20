@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowUpRight, Layers, Scissors, Ruler } from 'lucide-react';
+import ArzaLogo from './brand/ArzaLogo';
 import { resolveAssetUrl } from '../utils/assetUrl';
 
 const FEATURED_ZAVA_LINES = [
@@ -62,10 +63,11 @@ export default function Hero({ onStartDesigning }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 sm:pt-12 sm:pb-20">
         {/* Selector de línea deportiva arriba estilo editorial */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b border-neutral-200">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-neutral-600">
-            <span>Grupo Zava</span>
+          <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-neutral-600">
+            <ArzaLogo theme="light" variant="mark" decorative className="h-4 w-auto shrink-0" />
+            <span className="text-neutral-950">ARZA SPORT</span>
             <span aria-hidden="true">/</span>
-            <span className="text-neutral-950">Colección ARZA SPORT 2026</span>
+            <span>Colección Oficial Zava 2026</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Líneas destacadas ARZA">
@@ -178,20 +180,24 @@ export default function Hero({ onStartDesigning }) {
 
           {/* Columna Visual Producto Activo sobre Fondo Neutro Estilo Estudio */}
           <div className="lg:col-span-6">
-            <div className="relative rounded-2xl bg-[#F5F5F5] overflow-hidden border border-neutral-200">
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-200">
+            <div className="relative rounded-2xl bg-[#111111] overflow-hidden border border-neutral-200 shadow-sm">
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#111111]">
                 <img
                   src={active.image}
                   alt={`${active.name} — Indumentaria deportiva ARZA SPORT by Zava`}
-                  className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-[1.03]"
+                  className="w-full h-full object-contain object-center transition-transform duration-500 hover:scale-[1.03]"
                 />
                 <div
-                  className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none"
+                  className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none"
                   aria-hidden="true"
                 />
-                <div className="absolute top-4 left-4">
-                  <span className="inline-block px-3 py-1 rounded-full bg-[#111111]/80 backdrop-blur-md border border-white/15 text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
-                    {active.code}
+                <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111111]/85 backdrop-blur-md border border-[#FA5400]/45 text-[#FA5400] text-[11px] font-mono font-bold tracking-wider">
+                    <ArzaLogo theme="dark" variant="mark" decorative className="h-3.5 w-auto" />
+                    <span>ARZA SPORT · {active.code}</span>
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[#111111]/85 backdrop-blur-md border border-white/15">
+                    <ArzaLogo theme="dark" className="h-6 w-auto" />
                   </span>
                 </div>
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
