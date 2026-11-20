@@ -15,12 +15,15 @@ import {
 } from 'lucide-react';
 import ArzaLogo from '../brand/ArzaLogo';
 import FabricSwatchThumb from '../brand/FabricSwatchThumb';
+import ProductThumb from '../brand/ProductThumb';
+import { getProductMedia } from '../../data/productMediaRegistry';
 import {
   COLOR_HARMONY_SUGGESTIONS,
   ENGINE_PRODUCTS,
   FABRIC_WEAVES,
   SPORT_FONTS,
   VECTOR_CREST_PRESETS,
+  VOLUME_TIERS,
   ZONE_SURFACE_PATTERNS,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
@@ -141,6 +144,7 @@ export default function GuidedStepWizardPanel({
   onToast,
 }) {
   const [sportFilter, setSportFilter] = useState('all');
+  const [showAllGenders, setShowAllGenders] = useState(false);
   const [customTextDraft, setCustomTextDraft] = useState('');
   const [isDragOverUpload, setIsDragOverUpload] = useState(false);
 
@@ -183,6 +187,11 @@ export default function GuidedStepWizardPanel({
   };
 
   const handleToggleGender = (targetGender) => {
+    if (targetGender === 'all') {
+      setShowAllGenders(true);
+      return;
+    }
+    setShowAllGenders(false);
     onChangeGenderModule(targetGender);
     const mappedId = GENDER_EQUIVALENT_MAP[targetGender]?.[design.productModelId];
     if (mappedId && mappedId !== design.productModelId) {
@@ -191,15 +200,37 @@ export default function GuidedStepWizardPanel({
     }
   };
 
+  const genderFilteredProducts = useMemo(
+    () =>
+      ENGINE_PRODUCTS.filter((prod) => {
+        if (showAllGenders) return true;
+        if (prod.garmentCategory === 'accessory' || prod.sport === 'E-Sports') return true;
+        if (genderModule === 'women' && prod.id === 'football_shorts_fp3') return true;
+        if (prod.gender && prod.gender !== genderModule) return false;
+        return true;
+      }),
+    [showAllGenders, genderModule]
+  );
+
+  const sportCounts = useMemo(() => {
+    const counts = { all: genderFilteredProducts.length };
+    for (const prod of genderFilteredProducts) {
+      counts[prod.sport] = (counts[prod.sport] || 0) + 1;
+    }
+    return counts;
+  }, [genderFilteredProducts]);
+
   const step1Products = useMemo(() => {
-    return ENGINE_PRODUCTS.filter((prod) => {
-      if (sportFilter !== 'all' && prod.sport !== sportFilter) return false;
-      if (prod.garmentCategory === 'accessory' || prod.sport === 'E-Sports') return true;
-      if (genderModule === 'women' && prod.id === 'football_shorts_fp3') return true;
-      if (prod.gender && prod.gender !== genderModule) return false;
-      return true;
-    });
-  }, [sportFilter, genderModule]);
+    if (sportFilter === 'all') return genderFilteredProducts;
+    return genderFilteredProducts.filter((prod) => prod.sport === sportFilter);
+  }, [genderFilteredProducts, sportFilter]);
+
+  const maxClubDiscountPct = VOLUME_TIERS[VOLUME_TIERS.length - 1]?.discountPct || 35;
+  const activeProductMedia = getProductMedia(currentProduct?.id);
+  const activeClubMinPrice = +(
+    (currentProduct?.basePrice || 0) *
+    (1 - maxClubDiscountPct / 100)
+  ).toFixed(2);
 
   const garmentShape = currentProduct?.garmentShape;
 
@@ -347,142 +378,213 @@ export default function GuidedStepWizardPanel({
         {/* ==================== PASO 1: MODELO Y CORTE ==================== */}
         {wizardStep === 1 && (
           <div className="space-y-4">
+            {/* 1A: Corte Anatómico (Caballero / Dama / Todos) */}
             <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2">
               <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-700 px-1">
                 1. Corte anatómico
               </legend>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
-                  aria-pressed={genderModule === 'men'}
+                  aria-pressed={!showAllGenders && genderModule === 'men'}
                   onClick={() => handleToggleGender('men')}
-                  className={`min-h-11 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    genderModule === 'men'
+                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                    !showAllGenders && genderModule === 'men'
                       ? 'arza-btn-glass-green'
-                      : 'bg-white/80 text-slate-700 border-slate-200 hover:border-slate-300'
+                      : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <span>♂ Caballero</span>
                 </button>
                 <button
                   type="button"
-                  aria-pressed={genderModule === 'women'}
+                  aria-pressed={!showAllGenders && genderModule === 'women'}
                   onClick={() => handleToggleGender('women')}
-                  className={`min-h-11 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    genderModule === 'women'
+                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                    !showAllGenders && genderModule === 'women'
                       ? 'arza-btn-glass-green'
-                      : 'bg-white/80 text-slate-700 border-slate-200 hover:border-slate-300'
+                      : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <span>♀ Dama</span>
                 </button>
+                <button
+                  type="button"
+                  aria-pressed={showAllGenders}
+                  onClick={() => handleToggleGender('all')}
+                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                    showAllGenders
+                      ? 'arza-btn-glass-green'
+                      : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <span>Todos ({ENGINE_PRODUCTS.length})</span>
+                </button>
               </div>
             </fieldset>
 
+            {/* 1B: Deporte o Categoría sin recortes */}
             <div className="space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
                 2. Deporte o categoría
               </span>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {SPORT_FILTER_PILLS.map((sp) => {
                   const active = sportFilter === sp.id;
+                  const count = sportCounts[sp.id] || 0;
                   return (
                     <button
                       key={sp.id}
                       type="button"
                       aria-pressed={active}
                       onClick={() => setSportFilter(sp.id)}
-                      className={`px-3 min-h-9 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                      className={`px-3 min-h-8 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
                         active
                           ? 'bg-[#111111] text-white border-[#111111]'
-                          : 'bg-white/80 text-slate-700 border-slate-200 hover:border-slate-300'
+                          : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      {sp.label}
+                      <span>{sp.label}</span>
+                      <span
+                        className={`text-[10px] font-mono ${
+                          active ? 'text-neutral-300' : 'text-slate-400'
+                        }`}
+                      >
+                        ({count})
+                      </span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {/* 1C: Tarjeta Resumen del Modelo Activo + Kit Emparejado */}
+            {currentProduct && (
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <ProductThumb product={currentProduct} className="w-14 h-14 rounded-xl" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-700 text-white">
+                        En visor
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-900">
+                        {currentProduct.owayoCutCode}
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-800">
+                        · {activeProductMedia.fabricSummary}
+                      </span>
+                    </div>
+                    <div className="text-xs font-black text-slate-900 truncate mt-0.5">
+                      {currentProduct.name}
+                    </div>
+                    <div className="text-[10px] text-slate-600 flex items-center gap-2 mt-0.5">
+                      <strong className="text-slate-900 tabular-nums-pro">
+                        ${currentProduct.basePrice.toFixed(2)} USD
+                      </strong>
+                      <span>·</span>
+                      <span className="text-emerald-800 font-bold tabular-nums-pro">
+                        ${activeClubMinPrice.toFixed(2)} USD en 25+ uds (-{maxClubDiscountPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {pairedProduct && (
+                  <div className="pt-2 border-t border-emerald-200/80 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-emerald-950 truncate">
+                      Kit compatible: {pairedProduct.shortName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSyncPairedColors?.();
+                        onSwitchProduct(pairedProduct.id);
+                        onToast?.(`Cambiado a ${pairedProduct.shortName} con colores sincronizados`);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-bold shrink-0 cursor-pointer transition-colors"
+                    >
+                      Cambiar a {pairedProduct.shortName}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 1D: Lista Visual de Prendas */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   3. Selecciona tu prenda ({step1Products.length})
                 </span>
                 <span className="text-[10px] font-mono text-emerald-700 font-bold">
-                  Vista 3D en vivo
+                  Vista en vivo
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {step1Products.map((prod) => {
                   const isSel = prod.id === design.productModelId;
+                  const media = getProductMedia(prod.id);
+                  const clubPrice = +(prod.basePrice * (1 - maxClubDiscountPct / 100)).toFixed(2);
                   return (
                     <button
                       key={prod.id}
                       type="button"
                       aria-pressed={isSel}
-                      onClick={() => onSwitchProduct(prod.id)}
-                      className={`p-3 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between gap-2 border ${
+                      onClick={() => {
+                        onSwitchProduct(prod.id);
+                        onToast?.(`${prod.shortName || prod.name} cargado`);
+                      }}
+                      className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
                         isSel
-                          ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs'
-                          : 'bg-white/85 border-slate-200 hover:border-emerald-400'
+                          ? 'border-2 border-emerald-600 bg-emerald-50/55 shadow-xs'
+                          : 'bg-white/90 border-slate-200 hover:border-emerald-400'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1 w-full">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          {prod.sport}
-                        </span>
-                        {isSel && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                            <Check className="w-3 h-3" aria-hidden="true" />
-                            <span>Activo</span>
+                      <ProductThumb product={prod} className="w-14 h-14 rounded-xl" />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            {prod.sport}
                           </span>
-                        )}
+                          <span className="text-[10px] text-slate-300" aria-hidden="true">
+                            ·
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-600">
+                            {media.fitLabel}
+                          </span>
+                          {isSel && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                              <Check className="w-3 h-3" aria-hidden="true" />
+                              <span>Activo</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-xs font-black text-slate-900 leading-snug truncate mt-0.5">
+                          {prod.name}
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                          <span className="font-mono">{prod.owayoCutCode}</span> · {prod.badge}
+                        </div>
                       </div>
 
-                      <div className="text-xs font-black text-slate-900 leading-snug">
-                        {prod.name}
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/70">
-                        <span className="font-mono text-[10px] text-slate-500">
-                          {prod.owayoCutCode}
-                        </span>
-                        <span className="font-black text-slate-900 tabular-nums-pro">
-                          ${prod.basePrice.toFixed(2)} USD
-                        </span>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-black text-slate-900 tabular-nums-pro">
+                          ${prod.basePrice.toFixed(2)}
+                        </div>
+                        <div className="text-[9px] font-bold text-emerald-700 tabular-nums-pro">
+                          -${maxClubDiscountPct}%: ${clubPrice.toFixed(2)}
+                        </div>
                       </div>
                     </button>
                   );
                 })}
               </div>
             </div>
-
-            {pairedProduct && (
-              <div className="p-3 rounded-2xl arza-pill-glass-green flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-black text-emerald-950 truncate">
-                    Complemento compatible: {pairedProduct.shortName}
-                  </div>
-                  <div className="text-[10px] text-emerald-800">
-                    Puedes sincronizar los mismos colores entre camisa y short.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSyncPairedColors?.();
-                    onSwitchProduct(pairedProduct.id);
-                    onToast?.(`Cambiado a ${pairedProduct.shortName}`);
-                  }}
-                  className="px-2.5 py-1.5 rounded-xl bg-white/85 hover:bg-white text-emerald-900 border border-emerald-300 text-[11px] font-bold shrink-0 cursor-pointer"
-                >
-                  Cambiar a {pairedProduct.shortName}
-                </button>
-              </div>
-            )}
           </div>
         )}
 

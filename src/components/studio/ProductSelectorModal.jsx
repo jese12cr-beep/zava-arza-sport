@@ -11,24 +11,7 @@ import {
 } from 'lucide-react';
 import ArzaLogo from '../brand/ArzaLogo';
 import { ENGINE_PRODUCTS } from '../../engine/core/designStore';
-import { resolveAssetUrl } from '../../utils/assetUrl';
-
-// Miniaturas fotorealistas o de alta definición para cada prenda
-const PRODUCT_IMAGES = {
-  futbol_jersey_pro_vneck: resolveAssetUrl('assets/showcase/futbol_f3_jersey.jpg'),
-  futbol_jersey_f3w_women: resolveAssetUrl('assets/stitch/football_celebration.png'),
-  football_shorts_fp3: resolveAssetUrl('assets/showcase/shorts_fp3_matchday.jpg'),
-  basketball_b6_hero: resolveAssetUrl('assets/showcase/basket_b6_men.jpg'),
-  basketball_b7w_epic_women: resolveAssetUrl('assets/showcase/basket_b7w_women.jpg'),
-  basketball_shorts_bp6: resolveAssetUrl('assets/stitch/basketball_arena.png'),
-  basketball_shorts_bp7w_women: resolveAssetUrl('assets/showcase/shorts_fp3_matchday.jpg'),
-  jacket_softshell_601m_men: resolveAssetUrl('assets/showcase/jacket_601m_softshell.jpg'),
-  jacket_softshell_601w_women: resolveAssetUrl('assets/showcase/jacket_601w_women.jpg'),
-  esports_pro_jersey: resolveAssetUrl('assets/stitch/ghost_mannequin.png'),
-  cap_snapback_6panel: resolveAssetUrl('assets/showcase/sample_fabric_box.jpg'),
-  bottle_inox_laser_750: resolveAssetUrl('assets/showcase/sample_fabric_box.jpg'),
-  shinguards_carbon_pro: resolveAssetUrl('assets/showcase/sample_fabric_box.jpg'),
-};
+import { getProductMedia } from '../../data/productMediaRegistry';
 
 const SPORT_OPTIONS = [
   { id: 'all', label: 'Todos los Deportes', icon: '🏆' },
@@ -172,7 +155,7 @@ export default function ProductSelectorModal({
         <div className="flex-1 overflow-y-auto p-5 sm:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-slate-100/60">
           {filteredProducts.map((prod) => {
             const isCurrent = activeProductId === prod.id;
-            const imgSrc = PRODUCT_IMAGES[prod.id] || '/assets/showcase/futbol_f3_jersey.jpg';
+            const imgSrc = getProductMedia(prod.id).image;
             const isFeminine = prod.gender === 'women';
 
             return (

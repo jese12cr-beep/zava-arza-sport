@@ -408,11 +408,16 @@ export default function HybridStudioWorkspace({
 
   const [genderModule, setGenderModule] = useState(() => currentProduct.gender || 'men');
 
+  const isUnisexSharedProduct =
+    currentProduct.garmentCategory === 'accessory' ||
+    currentProduct.sport === 'E-Sports' ||
+    currentProduct.id === 'football_shorts_fp3';
+
   useEffect(() => {
-    if (currentProduct.gender && currentProduct.gender !== genderModule) {
+    if (!isUnisexSharedProduct && currentProduct.gender && currentProduct.gender !== genderModule) {
       setGenderModule(currentProduct.gender);
     }
-  }, [currentProduct.gender]);
+  }, [currentProduct.gender, isUnisexSharedProduct, genderModule]);
 
   const availableFishDesigns = useMemo(
     () => getDesignsForProduct(design.productModelId),
