@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import HybridStudioWorkspace from './components/studio/HybridStudioWorkspace';
 import ProductionPayloadModal from './components/studio/ProductionPayloadModal';
-import Navbar from './components/Navbar';
+import Navbar, { UtilityBar } from './components/Navbar';
 import Hero from './components/Hero';
+import CampaignSections from './components/CampaignSections';
 import ProductCatalog from './components/ProductCatalog';
 import QualityShowcase from './components/QualityShowcase';
 import Footer from './components/Footer';
@@ -88,6 +89,9 @@ export default function App() {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isStorefrontGalleryOpen, setIsStorefrontGalleryOpen] = useState(false);
   const [studioInitialStep, setStudioInitialStep] = useState(1);
+  const [catalogSport, setCatalogSport] = useState('all');
+  const [catalogGender, setCatalogGender] = useState('all');
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [galleryCount, setGalleryCount] = useState(() => {
     try {
       return loadUserGallery().length;
@@ -301,6 +305,18 @@ export default function App() {
     [switchMode]
   );
 
+  const handleSelectCatalogCategory = (sport = 'all', gender = 'all') => {
+    setCatalogSport(sport);
+    setCatalogGender(gender);
+    if (typeof window !== 'undefined') {
+      const target = document.getElementById('drops-catalog');
+      if (target) {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      }
+    }
+  };
+
   const handleSelectCatalogProduct = (engineId) => {
     handleSwitchProduct(engineId);
     setStudioInitialStep(2);
@@ -338,7 +354,12 @@ export default function App() {
           initialStep={studioInitialStep}
         />
       ) : (
-        <div className="flex flex-col min-h-screen arza-studio-shell">
+        <div className="arza-storefront-wrap flex flex-col min-h-screen bg-white">
+          <UtilityBar
+            onOpenStudio={() => handleOpenGuidedWizard(1)}
+            onSelectCategory={handleSelectCatalogCategory}
+            onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+          />
           <Navbar
             cartCount={cartItems.length}
             onOpenCart={() => setIsCartOpen(true)}
@@ -347,8 +368,11 @@ export default function App() {
             onOpenGallery={() => setIsStorefrontGalleryOpen(true)}
             onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)}
             onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+            onSelectCategory={handleSelectCatalogCategory}
+            searchQuery={catalogSearch}
+            onSearchChange={(q) => setCatalogSearch(q)}
           />
-          <main className="flex-1 w-full">
+          <main className="flex-1 w-full bg-white">
             <Hero
               onStartDesigning={(productId) => {
                 if (typeof productId === 'string' && productId) {
@@ -358,13 +382,29 @@ export default function App() {
                 }
               }}
             />
+            <CampaignSections
+              onSelectCategory={handleSelectCatalogCategory}
+              onSelectProduct={handleSelectCatalogProduct}
+            />
             <ProductCatalog
+              sportFilter={catalogSport}
+              genderFilter={catalogGender}
+              searchQuery={catalogSearch}
+              onChangeSportFilter={setCatalogSport}
+              onChangeGenderFilter={setCatalogGender}
+              onClearSearch={() => setCatalogSearch('')}
               onSelectProduct={handleSelectCatalogProduct}
               onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
             <QualityShowcase onOpenTexturesInStudio={() => handleOpenGuidedWizard(2)} />
           </main>
-          <Footer onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)} />
+          <Footer
+            onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)}
+            onSelectCategory={handleSelectCatalogCategory}
+            onSelectProduct={handleSelectCatalogProduct}
+            onOpenStudio={() => handleOpenGuidedWizard(1)}
+            onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+          />
         </div>
       )}
 

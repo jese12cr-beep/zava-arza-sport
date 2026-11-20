@@ -1,87 +1,288 @@
 import React, { useState, useId } from 'react';
+import { Globe } from 'lucide-react';
 import ArzaLogo from './brand/ArzaLogo';
 
-export default function Footer({ onOpenShopifyGuide }) {
+export default function Footer({
+  onOpenShopifyGuide,
+  onSelectCategory,
+  onSelectProduct,
+  onOpenStudio,
+  onOpenQuoteModal,
+}) {
   const emailId = useId();
   const [registered, setRegistered] = useState(false);
 
+  const directoryCols = [
+    {
+      title: 'Fútbol Pro',
+      links: [
+        { label: 'Jersey Apex V1 Caballero', action: () => onSelectProduct?.('futbol_jersey_pro_vneck') },
+        { label: 'Jersey Femme V1 Dama', action: () => onSelectProduct?.('futbol_jersey_f3w_women') },
+        { label: 'Short Matchday S1', action: () => onSelectProduct?.('football_shorts_fp3') },
+        { label: 'Ver Línea Fútbol', action: () => onSelectCategory?.('Fútbol', 'all') },
+      ],
+    },
+    {
+      title: 'Baloncesto',
+      links: [
+        { label: 'Tank Court B1 Caballero', action: () => onSelectProduct?.('basketball_b6_hero') },
+        { label: 'Short Court SB1 Largo', action: () => onSelectProduct?.('basketball_shorts_bp6') },
+        { label: 'Tank Femme BW1 Dama', action: () => onSelectProduct?.('basketball_b7w_women') },
+        { label: 'Short Femme SBW1', action: () => onSelectProduct?.('basketball_shorts_bp7w_women') },
+      ],
+    },
+    {
+      title: 'Cortes y E-Sports',
+      links: [
+        { label: 'Todos los Cortes Caballero', action: () => onSelectCategory?.('all', 'men') },
+        { label: 'Todos los Cortes Dama', action: () => onSelectCategory?.('all', 'women') },
+        { label: 'Jersey Arena E-Sports E1', action: () => onSelectProduct?.('esports_pro_jersey') },
+        { label: 'Abrir Personalizador', action: () => onOpenStudio?.() },
+      ],
+    },
+    {
+      title: 'Grupo Zava',
+      links: [
+        { label: 'Tejidos TS-Tex™ & CoolDry™', href: '#fabric-quality' },
+        { label: 'Sublimación Digital 210°C', href: '#fabric-quality' },
+        { label: 'Cotización por Volumen', action: () => onOpenQuoteModal?.() },
+        { label: 'Guía E-Commerce', action: () => onOpenShopifyGuide?.() },
+      ],
+    },
+  ];
+
+  const footerGroups = [
+    {
+      id: 'recursos',
+      title: 'Recursos',
+      defaultOpen: true,
+      items: [
+        { label: 'Personalizar Uniforme', action: () => onOpenStudio?.() },
+        { label: 'Catálogo Completo (8)', action: () => onSelectCategory?.('all', 'all') },
+        { label: 'Catálogo Telas Reales', href: '#fabric-quality' },
+        { label: 'Solicitar Cotización', action: () => onOpenQuoteModal?.() },
+      ],
+    },
+    {
+      id: 'ayuda',
+      title: 'Producción y Ayuda',
+      items: [
+        { label: 'Guía E-Commerce Shopify', action: () => onOpenShopifyGuide?.() },
+        { label: 'Opciones de Pago y MSI', action: () => onOpenStudio?.() },
+        { label: 'Normativa Dorsales FIFA / FIBA', href: '#fabric-quality' },
+        { label: 'Patronaje XS – XXL', href: '#fabric-quality' },
+      ],
+    },
+    {
+      id: 'zava',
+      title: 'ARZA SPORT',
+      items: [
+        { label: 'Acerca de Grupo Zava', href: '#fabric-quality' },
+        { label: 'Estándar de Sublimación', href: '#fabric-quality' },
+        { label: 'Lavado Técnico 60°C', href: '#fabric-quality' },
+        { label: 'Producción Sin Mínimo', action: () => onOpenStudio?.() },
+      ],
+    },
+  ];
+
   return (
-    <footer className="w-full bg-[#111111] text-white border-t border-neutral-800 py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10">
-        {/* Identidad Corporativa Zava / ARZA SPORT */}
-        <div className="md:col-span-5 flex flex-col gap-4">
-          <div className="flex flex-col items-start gap-2">
-            <ArzaLogo theme="dark" className="h-16 sm:h-20 w-auto" />
-            <span className="text-[10px] tracking-[0.24em] uppercase text-neutral-400">
-              Una marca de Grupo Zava
+    <footer className="w-full bg-white text-[#111111] border-t border-[#E5E5E5] pt-14 pb-12">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12">
+        {/* Separador de Marca estilo Nike MX encima del directorio */}
+        <div className="flex justify-center mb-10">
+          <a href="#" aria-label="Volver arriba — ARZA SPORT" className="inline-flex items-center gap-2">
+            <ArzaLogo theme="light" variant="mark" decorative className="h-6 w-auto" />
+            <span className="font-display-hero text-lg font-extrabold tracking-tight uppercase text-[#111111]">
+              ARZA <span className="text-[#C24100]">SPORT</span>
             </span>
+          </a>
+        </div>
+
+        {/* Directorio de 4 Columnas Pre-Footer estilo Nike MX */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-5xl mx-auto pb-14">
+          {directoryCols.map((col) => (
+            <div key={col.title}>
+              <h2 className="text-base font-medium text-[#111111] mb-4">{col.title}</h2>
+              <ul className="space-y-2.5 text-sm text-[#707072]">
+                {col.links.map((lk) => (
+                  <li key={lk.label}>
+                    {lk.href ? (
+                      <a
+                        href={lk.href}
+                        className="hover:text-[#111111] transition-colors inline-block"
+                      >
+                        {lk.label}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={lk.action}
+                        className="hover:text-[#111111] transition-colors text-left cursor-pointer"
+                      >
+                        {lk.label}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* Línea Divisoria Hairline Nike MX */}
+        <div className="border-t border-[#E5E5E5] pt-10">
+          {/* Versión Escritorio: 4 Columnas Planas + México */}
+          <div className="hidden md:grid md:grid-cols-12 gap-8 items-start">
+            {footerGroups.map((group) => (
+              <div key={group.id} className="md:col-span-2">
+                <h2 className="text-sm font-medium text-[#111111] mb-4">{group.title}</h2>
+                <ul className="space-y-2.5 text-xs sm:text-[13px] text-[#707072] font-medium">
+                  {group.items.map((item) => (
+                    <li key={item.label}>
+                      {item.href ? (
+                        <a href={item.href} className="hover:text-[#111111] transition-colors">
+                          {item.label}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={item.action}
+                          className="hover:text-[#111111] transition-colors text-left cursor-pointer"
+                        >
+                          {item.label}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {/* Columna Muestras Clubes */}
+            <div className="md:col-span-4">
+              <label htmlFor={emailId} className="text-sm font-medium text-[#111111] block mb-2">
+                Muestras Textiles para Clubes
+              </label>
+              <p className="text-xs sm:text-[13px] text-[#707072] mb-3 max-w-sm">
+                Registra el correo de tu club o liga para recibir caja de tallas y muestrario físico Grupo Zava.
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setRegistered(true);
+                }}
+                className="flex items-center max-w-sm"
+              >
+                <input
+                  id={emailId}
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="correo@tuclub.com"
+                  className="bg-[#F5F5F5] border border-[#E5E5E5] text-xs sm:text-sm text-[#111111] px-4 min-h-10 rounded-l-full placeholder-[#707072] focus:outline-2 focus:outline-[#111111] w-full"
+                />
+                <button
+                  type="submit"
+                  className="bg-[#111111] hover:bg-[#3f3f46] text-white text-xs sm:text-sm font-medium px-5 min-h-10 rounded-r-full transition-colors shrink-0 cursor-pointer"
+                >
+                  {registered ? 'Registrado' : 'Solicitar'}
+                </button>
+              </form>
+            </div>
+
+            <div className="md:col-span-2 flex justify-end items-center gap-1.5 text-xs font-medium text-[#707072]">
+              <Globe className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+              <span>México</span>
+            </div>
           </div>
 
-          <p className="text-xs text-neutral-300 max-w-sm leading-relaxed">
-            Manufactura, sublimación textil digital y confección a medida para clubes profesionales, ligas y academias deportivas.
-          </p>
+          {/* Versión Móvil (<768px): Acordeones Nativos <details> estilo Nike MX */}
+          <div className="md:hidden space-y-0 border-t border-[#E5E5E5]">
+            {footerGroups.map((group) => (
+              <details
+                key={group.id}
+                open={group.defaultOpen}
+                className="arza-footer-accordion border-b border-[#E5E5E5] py-4"
+              >
+                <summary className="text-sm font-medium text-[#111111] py-1">
+                  {group.title}
+                </summary>
+                <ul className="pt-3 pb-1 space-y-2.5 text-sm text-[#707072]">
+                  {group.items.map((item) => (
+                    <li key={item.label}>
+                      {item.href ? (
+                        <a href={item.href} className="hover:text-[#111111] inline-block py-0.5">
+                          {item.label}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={item.action}
+                          className="hover:text-[#111111] text-left py-0.5 cursor-pointer"
+                        >
+                          {item.label}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ))}
 
-          <div className="text-[11px] font-mono text-[#FA5400] font-bold uppercase tracking-wider">
-            [ GRUPO ZAVA · MOLDES PROPIETARIOS ARZA ]
+            <details className="arza-footer-accordion border-b border-[#E5E5E5] py-4">
+              <summary className="text-sm font-medium text-[#111111] py-1">
+                Muestras para Clubes
+              </summary>
+              <div className="pt-3 pb-1 space-y-2.5">
+                <p className="text-xs text-[#707072]">
+                  Recibe catálogo técnico y caja de tallas Grupo Zava.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setRegistered(true);
+                  }}
+                  className="flex items-center"
+                >
+                  <input
+                    type="email"
+                    required
+                    aria-label="Correo del club"
+                    autoComplete="email"
+                    placeholder="correo@tuclub.com"
+                    className="bg-[#F5F5F5] border border-[#E5E5E5] text-sm text-[#111111] px-4 min-h-10 rounded-l-full placeholder-[#707072] w-full"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#111111] text-white text-xs font-medium px-5 min-h-10 rounded-r-full shrink-0 cursor-pointer"
+                  >
+                    {registered ? 'Listo' : 'Enviar'}
+                  </button>
+                </form>
+              </div>
+            </details>
+
+            <div className="py-5 flex items-center gap-2 text-sm text-[#707072]">
+              <Globe className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+              <span>México</span>
+            </div>
           </div>
-        </div>
 
-        {/* Muestras para Clubes */}
-        <div className="md:col-span-4 flex flex-col gap-2">
-          <label htmlFor={emailId} className="text-xs font-bold uppercase tracking-wider text-white">
-            Muestras Textiles para Clubes
-          </label>
-          <p className="text-xs text-neutral-300">
-            Registra el correo oficial de tu equipo para recibir catálogo técnico y caja de tallas.
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setRegistered(true);
-            }}
-            className="flex items-center mt-2 max-w-sm"
-          >
-            <input
-              id={emailId}
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="correo@tuclub.com"
-              className="bg-neutral-900 border border-neutral-700 text-xs text-white px-3.5 min-h-11 rounded-l-full placeholder-neutral-400 focus:outline-none focus:border-[#FA5400] w-full"
-            />
-            <button
-              type="submit"
-              className="bg-[#FA5400] text-[#111111] text-xs font-bold px-5 min-h-11 rounded-r-full hover:bg-[#ff6a1f] transition-colors uppercase shrink-0 cursor-pointer"
-            >
-              {registered ? 'Listo' : 'Pedir'}
-            </button>
-          </form>
-        </div>
-
-        {/* Información Técnica */}
-        <div className="md:col-span-3 flex flex-col gap-2.5 text-xs">
-          <span className="font-bold uppercase tracking-wider text-white mb-1">
-            Soporte &amp; Especificaciones
-          </span>
-          <button
-            type="button"
-            onClick={onOpenShopifyGuide}
-            className="text-left text-neutral-300 hover:text-white underline-offset-4 hover:underline font-medium cursor-pointer"
-          >
-            Guía de Integración E-Commerce
-          </button>
-          <span className="text-neutral-400">Lavado Técnico hasta 60°C</span>
-          <span className="text-neutral-400">Normativas de Dorsales FIFA / FIBA</span>
-          <span className="text-neutral-400">Patronaje Zava Escala 1:1 XS–XXL</span>
-        </div>
-      </div>
-
-      {/* Bottom Legal Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-neutral-400">
-        <p>© 2026 ARZA SPORT — Grupo Zava. Todos los derechos reservados.</p>
-        <div className="flex flex-wrap gap-4">
-          <span className="font-medium text-neutral-300">México &amp; USA · Producción Zava</span>
-          <span>Garantía Oficial de Competición</span>
+          {/* Barra Legal Inferior Nike MX */}
+          <div className="mt-10 pt-6 border-t border-[#E5E5E5] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-[#707072]">
+            <p>© 2026 ARZA SPORT — Grupo Zava. Todos los derechos reservados.</p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <button
+                type="button"
+                onClick={onOpenShopifyGuide}
+                className="hover:text-[#111111] transition-colors cursor-pointer"
+              >
+                Integración E-Commerce
+              </button>
+              <span>Guía de Tallas XS–XXL</span>
+              <span>México &amp; USA · Producción Zava</span>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
