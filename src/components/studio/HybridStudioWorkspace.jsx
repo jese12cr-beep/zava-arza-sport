@@ -264,6 +264,7 @@ export default function HybridStudioWorkspace({
   artworkRegistry,
   onRegisterArtwork,
   onOpenProductionModal,
+  onFinishOrderToCheckout,
   onOpenCart,
   cartCount,
   onSwitchToStorefront,
@@ -1556,6 +1557,21 @@ export default function HybridStudioWorkspace({
               >
                 <Redo2 className="w-4 h-4" aria-hidden="true" />
               </button>
+              {onOpenCart && (
+                <button
+                  type="button"
+                  onClick={onOpenCart}
+                  aria-label={`Carrito (${cartCount || 0} artículos)`}
+                  className="relative p-1.5 rounded-xl arza-glass-card text-slate-900 inline-flex items-center cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                  {cartCount > 0 && (
+                    <span className="ml-0.5 px-1 rounded-full arza-btn-glass-green text-[9px] font-black leading-tight">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setStudioExperienceMode('pro')}
@@ -2041,7 +2057,7 @@ export default function HybridStudioWorkspace({
                   onAddQuickText={(txt) => handleAddStaticText(txt)}
                   onOpenRosterModal={() => setIsRosterModalOpen(true)}
                   onSaveDraft={handleSaveDraft}
-                  onFinishOrder={() => onOpenProductionModal?.()}
+                  onFinishOrder={() => (onFinishOrderToCheckout || onOpenProductionModal)?.()}
                   activeCameraPreset={cameraPreset}
                   onCameraFocus={handleChangeCameraPreset}
                   onToast={showToast}

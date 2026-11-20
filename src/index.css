@@ -540,6 +540,29 @@ dialog::backdrop {
   white-space: nowrap !important;
 }
 
+/* Validación de formularios de pago tras interacción (`:user-invalid` + fallback) */
+.arza-pay-input:is(:user-invalid, .user-invalid-fallback) {
+  border-color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+}
+
+.arza-pay-input:is(:user-valid, .user-valid-fallback) {
+  border-color: #059669;
+}
+
+.arza-pay-input:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
+}
+
+.arza-pay-error {
+  display: none;
+}
+
+.arza-pay-input:is(:user-invalid, .user-invalid-fallback) + .arza-pay-error {
+  display: flex;
+}
+
 /* 11. ARZA SPORT Responsive Single-Tree Header Navigation */
 .arza-header-inner > * {
   flex-shrink: 0;

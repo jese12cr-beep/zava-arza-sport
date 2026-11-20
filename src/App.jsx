@@ -13,6 +13,7 @@ import ShopifyIntegrationGuide from './components/ShopifyIntegrationGuide';
 import OrderQuoteModal from './components/OrderQuoteModal';
 import UserDesignGalleryModal from './components/studio/UserDesignGalleryModal';
 import { loadUserGallery } from './utils/userGalleryStore';
+import { buildShopifyAndManufacturingBundle } from './engine/exporter/printReadyBuilder';
 import {
   ENGINE_PRODUCTS,
   INITIAL_TEAM_ROSTER,
@@ -236,9 +237,10 @@ export default function App() {
     setArtworkRegistry((prev) => ({ ...prev, [artworkId]: assetData }));
   };
 
-  const handleConfirmAddToCart = (bundle) => {
-    const newItem = {
-      cartId: `item_${Date.now()}`,
+  const createCartEntryFromBundle = useCallback(
+    (bundle, existingCartId = null) => ({
+      cartId: existingCartId || `item_${Date.now()}`,
+      designId: design.designId,
       product: {
         id: currentProduct.id,
         name: currentProduct.name,
@@ -257,16 +259,38 @@ export default function App() {
         id: r.id || i,
         name: r.name,
         number: r.number,
-        size: `${r.size} (${r.cut}) x${r.qty}`,
+        qty: Number(r.qty) || 1,
+        size: `${r.size} (${r.cut}) x${Number(r.qty) || 1}`,
       })),
+      totalUnits: bundle.pricing.totalUnits,
       unitPrice: bundle.pricing.unitPrice.toFixed(2),
       totalPrice: bundle.pricing.totalOrderPrice.toFixed(2),
-    };
+    }),
+    [currentProduct, design, roster]
+  );
 
+  const handleConfirmAddToCart = (bundle) => {
+    const newItem = createCartEntryFromBundle(bundle);
     setCartItems((prev) => [...prev, newItem]);
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
 
     handleCommitDesign({ ...design, designId: generateDesignId() }, true);
+    setIsCartOpen(true);
+  };
+
+  const handleFinishOrderToCheckout = () => {
+    const bundle = buildShopifyAndManufacturingBundle(design, currentProduct, roster);
+    setCartItems((prev) => {
+      const matchIdx = prev.findIndex(
+        (item) => item.designId === design.designId && item.product?.id === currentProduct.id
+      );
+      if (matchIdx >= 0) {
+        const updated = [...prev];
+        updated[matchIdx] = createCartEntryFromBundle(bundle, prev[matchIdx].cartId);
+        return updated;
+      }
+      return [...prev, createCartEntryFromBundle(bundle)];
+    });
     setIsCartOpen(true);
   };
 
@@ -308,6 +332,7 @@ export default function App() {
           artworkRegistry={artworkRegistry}
           onRegisterArtwork={handleRegisterArtwork}
           onOpenProductionModal={() => setIsProductionModalOpen(true)}
+          onFinishOrderToCheckout={handleFinishOrderToCheckout}
           onOpenCart={() => setIsCartOpen(true)}
           cartCount={cartItems.length}
           onSwitchToStorefront={() => switchMode('storefront')}
@@ -363,9 +388,14 @@ export default function App() {
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
         onRemoveItem={(id) => setCartItems((prev) => prev.filter((x) => x.cartId !== id))}
+        onClearCart={() => setCartItems([])}
         onOpenQuoteModal={() => {
           setIsCartOpen(false);
           setIsQuoteModalOpen(true);
+        }}
+        onOpenProductionModal={() => {
+          setIsCartOpen(false);
+          setIsProductionModalOpen(true);
         }}
       />
 

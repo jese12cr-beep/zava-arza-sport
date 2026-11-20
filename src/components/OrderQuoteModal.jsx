@@ -46,8 +46,12 @@ export default function OrderQuoteModal({
     };
   }, [isOpen, onClose]);
 
+  const getItemUnits = (item) =>
+    item?.totalUnits ||
+    item?.roster?.reduce((s, r) => s + (Number(r.qty) || 1), 0) ||
+    1;
   const totalAmount = items.reduce((acc, item) => acc + parseFloat(item.totalPrice), 0).toFixed(2);
-  const totalUnits = items.reduce((acc, item) => acc + (item.roster?.length || 1), 0);
+  const totalUnits = items.reduce((acc, item) => acc + getItemUnits(item), 0);
   const quoteNumber = `QT-${Math.floor(100000 + Math.random() * 900000)}`;
   const currentDate = new Date().toLocaleDateString('es-ES', {
     day: '2-digit',
@@ -136,7 +140,7 @@ export default function OrderQuoteModal({
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[10px] font-semibold">CANTIDAD:</span>
-                      <span className="font-bold text-emerald-700">{item.roster?.length || 1} uds</span>
+                      <span className="font-bold text-emerald-700">{getItemUnits(item)} uds</span>
                     </div>
                   </div>
 
