@@ -10,6 +10,8 @@ const SWATCH_COLORS = [
   { hex: '#0033a0', label: 'Azul Real' },
 ];
 
+const ACTIVE_WEAVE_SWATCHES = FABRIC_WEAVES.filter((w) => w.id !== 'k_tex_wind');
+
 export default function QualityShowcase({ onOpenTexturesInStudio }) {
   const [swatchHex, setSwatchHex] = useState('#fa5400');
   const specs = [
@@ -102,7 +104,7 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
                   <span>Muestrario Macro de Telas Reales</span>
                 </span>
                 <h3 className="font-display-hero text-xl sm:text-2xl font-extrabold uppercase text-[#111111] mt-1">
-                  {FABRIC_WEAVES.length} Texturas de Tejido Aplicables en el Configurador 3D
+                  {ACTIVE_WEAVE_SWATCHES.length} Texturas de Tejido Aplicables en el Configurador 3D
                 </h3>
               </div>
 
@@ -141,8 +143,8 @@ export default function QualityShowcase({ onOpenTexturesInStudio }) {
               </div>
             </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {FABRIC_WEAVES.map((w) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {ACTIVE_WEAVE_SWATCHES.map((w) => (
               <div
                 key={w.id}
                 className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 flex flex-col justify-between gap-3 hover:border-[#FA5400] transition-colors"

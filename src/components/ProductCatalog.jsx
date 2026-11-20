@@ -3,13 +3,14 @@ import { ArrowRight, Shirt } from 'lucide-react';
 import { ENGINE_PRODUCTS } from '../engine/core/designStore';
 import { getProductMedia } from '../data/productMediaRegistry';
 
-const APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter((item) => item.garmentCategory !== 'accessory');
+const APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter(
+  (item) => !['accessory', 'jacket'].includes(item.garmentCategory)
+);
 
 const SPORT_FILTERS = [
   { id: 'all', label: `Todos (${APPAREL_PRODUCTS.length})` },
   { id: 'Fútbol', label: 'Fútbol' },
   { id: 'Baloncesto', label: 'Baloncesto' },
-  { id: 'Chaquetas', label: 'Chamarras' },
   { id: 'E-Sports', label: 'E-Sports' },
 ];
 

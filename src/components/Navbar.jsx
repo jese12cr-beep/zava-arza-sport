@@ -80,7 +80,7 @@ export default function Navbar({
 
   const navLinks = [
     { href: '#como-funciona', label: 'En 4 Pasos' },
-    { href: '#drops-catalog', label: 'Moldes (10)' },
+    { href: '#drops-catalog', label: 'Moldes (8)' },
     { href: '#fabric-quality', label: 'Telas' },
   ];
 

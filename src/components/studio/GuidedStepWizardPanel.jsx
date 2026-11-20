@@ -67,13 +67,14 @@ const SPORT_FILTER_PILLS = [
   { id: 'all', label: 'Todos' },
   { id: 'Fútbol', label: 'Fútbol' },
   { id: 'Baloncesto', label: 'Baloncesto' },
-  { id: 'Chaquetas', label: 'Chamarras' },
   { id: 'E-Sports', label: 'E-Sports' },
 ];
 
 const ACTIVE_APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter(
-  (prod) => prod.garmentCategory !== 'accessory'
+  (prod) => !['accessory', 'jacket'].includes(prod.garmentCategory)
 );
+
+const ACTIVE_FABRIC_WEAVES = FABRIC_WEAVES.filter((w) => w.id !== 'k_tex_wind');
 
 const GENDER_EQUIVALENT_MAP = {
   men: {
@@ -786,13 +787,14 @@ export default function GuidedStepWizardPanel({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {FABRIC_WEAVES.map((w, idx) => {
+                    {ACTIVE_FABRIC_WEAVES.map((w, idx) => {
                       const isWeaveSel =
                         (design.fabricWeaveId || currentProduct?.defaultFabricId || 'ts_tex_football') ===
                         w.id;
                       const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
                       const spanFullOnLastOdd =
-                        idx === FABRIC_WEAVES.length - 1 && FABRIC_WEAVES.length % 2 === 1;
+                        idx === ACTIVE_FABRIC_WEAVES.length - 1 &&
+                        ACTIVE_FABRIC_WEAVES.length % 2 === 1;
                       return (
                         <button
                           key={w.id}

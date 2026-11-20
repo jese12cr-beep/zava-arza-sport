@@ -1371,12 +1371,10 @@ export default function HybridStudioWorkspace({
 
   const menBasketball = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Baloncesto');
   const menFootball = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Fútbol');
-  const menJackets = ENGINE_PRODUCTS.filter((p) => p.gender === 'men' && p.sport === 'Chaquetas');
   const menEsports = ENGINE_PRODUCTS.filter((p) => p.sport === 'E-Sports');
 
   const womenFootball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Fútbol');
   const womenBasketball = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Baloncesto');
-  const womenJackets = ENGINE_PRODUCTS.filter((p) => p.gender === 'women' && p.sport === 'Chaquetas');
 
   const currentSportProducts = useMemo(() => {
     const list = ENGINE_PRODUCTS.filter(
@@ -2418,7 +2416,7 @@ export default function HybridStudioWorkspace({
                 <div className="p-3.5 rounded-2xl arza-glass-card space-y-2">
                   <span className="text-xs font-bold text-slate-800 block">Tejido Técnico (Micro-Relieve 3D)</span>
                   <div className="space-y-1.5">
-                    {FABRIC_WEAVES.map((w) => (
+                    {FABRIC_WEAVES.filter((w) => w.id !== 'k_tex_wind').map((w) => (
                       <button
                         key={w.id}
                         type="button"
@@ -4756,46 +4754,6 @@ export default function HybridStudioWorkspace({
                     </div>
                   </div>
 
-                  {/* Chaqueta */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-700" />
-                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                        Chaquetas Técnicas &amp; Paseo
-                      </h4>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {menJackets.map((p) => {
-                        const isCur = design.productModelId === p.id;
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              onSwitchProduct(p.id);
-                              setIsGarmentMenuOpen(false);
-                            }}
-                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                              isCur
-                                ? 'arza-pill-glass-green border-2 shadow-sm'
-                                : 'arza-glass-card hover:border-emerald-400/60'
-                            }`}
-                          >
-                            <div>
-                              <span className="text-xs font-black text-slate-900 block">{p.name}</span>
-                              <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
-                            </div>
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              isCur ? 'arza-btn-glass-green' : 'bg-slate-100 text-slate-700'
-                            }`}>
-                              {isCur ? 'Activo en 3D' : 'Cargar'}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   {/* E-Sports Pro */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
@@ -5180,46 +5138,6 @@ export default function HybridStudioWorkspace({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {womenBasketball.map((p) => {
-                    const isCur = design.productModelId === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          onSwitchProduct(p.id);
-                          setIsGarmentMenuOpen(false);
-                        }}
-                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                          isCur
-                            ? 'bg-fuchsia-50 border-2 border-fuchsia-600 text-fuchsia-950 shadow-sm'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div>
-                          <span className="text-xs font-black text-slate-900 block">{p.name}</span>
-                          <span className="text-[11px] text-slate-500 block mt-0.5">{p.badge}</span>
-                        </div>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                          isCur ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {isCur ? 'Activo en 3D' : 'Cargar'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Chaqueta Dama */}
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Chaquetas Técnicas Dama (Corte Entallado)
-                  </h4>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {womenJackets.map((p) => {
                     const isCur = design.productModelId === p.id;
                     return (
                       <button

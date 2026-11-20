@@ -2,12 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   X,
   Check,
-  Layers,
   Shirt,
   Scissors,
   ChevronRight,
-  Flame,
-  Award
+  Award,
 } from 'lucide-react';
 import ArzaLogo from '../brand/ArzaLogo';
 import { ENGINE_PRODUCTS } from '../../engine/core/designStore';
@@ -17,7 +15,6 @@ const SPORT_OPTIONS = [
   { id: 'all', label: 'Todos los Deportes', icon: '🏆' },
   { id: 'Fútbol', label: 'Fútbol ⚽', icon: '⚽' },
   { id: 'Baloncesto', label: 'Baloncesto 🏀', icon: '🏀' },
-  { id: 'Chaquetas', label: 'Chaquetas & Abrigos 🧥', icon: '🧥' },
   { id: 'E-Sports', label: 'E-Sports Pro 🎮', icon: '🎮' },
 ];
 
@@ -38,7 +35,7 @@ export default function ProductSelectorModal({
 
   const filteredProducts = useMemo(() => {
     return ENGINE_PRODUCTS.filter((prod) => {
-      if (prod.garmentCategory === 'accessory') return false;
+      if (['accessory', 'jacket'].includes(prod.garmentCategory)) return false;
 
       // 1. Filtro Deporte
       if (selectedSport !== 'all' && prod.sport !== selectedSport) {

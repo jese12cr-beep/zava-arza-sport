@@ -29,16 +29,16 @@ const FEATURED_ZAVA_LINES = [
     image: resolveAssetUrl('assets/showcase/basket_b6_men.jpg'),
   },
   {
-    id: 'jacket_softshell_601m_men',
-    sport: 'Chamarras',
-    tabLabel: 'Softshell · Shield J1',
-    code: 'ARZA-J01M / J01W',
-    name: 'Chamarra Softshell ZAVA Shield J1',
-    subtitle: 'Cortavientos 3 capas • 11 piezas sublimables de confección',
-    fabric: 'K-Tex Windblock 280 g/m²',
-    price: '$68.00',
-    colors: ['#111111', '#fa5400', '#757575', '#065f46'],
-    image: resolveAssetUrl('assets/showcase/jacket_601m_softshell.jpg'),
+    id: 'football_shorts_fp3',
+    sport: 'Shorts',
+    tabLabel: 'Short · Match S1',
+    code: 'ARZA-S01M',
+    name: 'Short Fútbol ZAVA Match S1',
+    subtitle: 'Corte atlético Matchday • 9 patrones combinables con jersey',
+    fabric: 'SR-Tex™ Anti-Fricción 160 g/m²',
+    price: '$22.00',
+    colors: ['#111111', '#fa5400', '#ffffff', '#757575'],
+    image: resolveAssetUrl('assets/showcase/shorts_fp3_matchday.jpg'),
   },
   {
     id: 'esports_pro_jersey',
@@ -141,7 +141,7 @@ export default function Hero({ onStartDesigning }) {
                 href="#drops-catalog"
                 className="px-7 min-h-12 rounded-full border border-[#111111] text-[#111111] hover:bg-[#F5F5F5] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
-                <span>Ver Catálogo (10 Moldes)</span>
+                <span>Ver Catálogo (8 Moldes)</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
@@ -154,7 +154,7 @@ export default function Hero({ onStartDesigning }) {
                   <span>Moldes 3D</span>
                 </dt>
                 <dd className="mt-1 font-display-hero text-2xl sm:text-3xl font-extrabold text-[#111111] tabular-nums-pro">
-                  10 CORTES
+                  8 CORTES
                 </dd>
               </div>
               <div>

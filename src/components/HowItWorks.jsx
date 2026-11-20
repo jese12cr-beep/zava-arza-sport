@@ -7,7 +7,7 @@ export default function HowItWorks({ onOpenStudio, onOpenQuote }) {
       number: '01',
       icon: Shirt,
       title: 'Modelo y Corte',
-      desc: 'Elige deporte, corte Caballero o Dama y la prenda base (jersey, tank, chamarra o short).',
+      desc: 'Elige deporte, corte Caballero o Dama y la prenda base (jersey, tank o short).',
     },
     {
       number: '02',
