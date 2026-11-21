@@ -3,6 +3,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Eye,
   FolderHeart,
   Layers,
   Plus,
@@ -21,11 +22,16 @@ import {
   COLOR_HARMONY_SUGGESTIONS,
   ENGINE_PRODUCTS,
   FABRIC_WEAVES,
+  ROSTER_CUT_OPTIONS,
+  ROSTER_SIZE_OPTIONS,
   SPORT_FONTS,
   VECTOR_CREST_PRESETS,
   VOLUME_TIERS,
   ZONE_SURFACE_PATTERNS,
   computeOwayoAutoContrastHex,
+  isGoalkeeperRole,
+  parseRosterQuickLines,
+  summarizeRosterComposition,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
 
@@ -40,15 +46,15 @@ function wizardRangeVars(val, min, max) {
 const WIZARD_STEPS = [
   {
     step: 1,
-    shortLabel: 'Modelo',
-    title: 'Paso 1 de 4 · Elige tu Modelo',
-    subtitle: 'Selecciona deporte, corte anatómico y prenda base.',
+    shortLabel: 'Uniforme',
+    title: 'Paso 1 de 4 · Uniforme, Portero y Nombres',
+    subtitle: 'Elige tu prenda, marca quién es portero y arma la lista para definir la cantidad.',
   },
   {
     step: 2,
     shortLabel: 'Diseño',
     title: 'Paso 2 de 4 · Diseño, Tela y Forma',
-    subtitle: 'Escoge el corte gráfico, textura de tela 3D y cuello.',
+    subtitle: 'Escoge el corte gráfico, textura de tela técnica y forma de cuello.',
   },
   {
     step: 3,
@@ -58,9 +64,9 @@ const WIZARD_STEPS = [
   },
   {
     step: 4,
-    shortLabel: 'Logos',
+    shortLabel: 'Pedido',
     title: 'Paso 4 de 4 · Logos, Dorsales y Pedido',
-    subtitle: 'Agrega escudos, nombre, número y tallas del equipo.',
+    subtitle: 'Agrega escudos, personaliza la tipografía dorsal y confirma tu pedido.',
   },
 ];
 
@@ -131,6 +137,7 @@ export default function GuidedStepWizardPanel({
   activePlayer,
   roster,
   activeRosterIndex,
+  onSelectRosterIndex,
   onUpdateRoster,
   totalUnits,
   unitPrice,
@@ -153,6 +160,7 @@ export default function GuidedStepWizardPanel({
   const [sportFilter, setSportFilter] = useState('all');
   const [showAllGenders, setShowAllGenders] = useState(false);
   const [customTextDraft, setCustomTextDraft] = useState('');
+  const [inlineCsvDraft, setInlineCsvDraft] = useState('');
   const [isDragOverUpload, setIsDragOverUpload] = useState(false);
 
   const stepHeadingRef = useRef(null);
@@ -165,6 +173,8 @@ export default function GuidedStepWizardPanel({
   const sampleNameId = useId();
   const sampleNumberId = useId();
   const customTextInputId = useId();
+  const rosterFieldsetBaseId = useId();
+  const quickCsvId = useId();
 
   const isShorts = ['football_shorts', 'basketball_shorts'].includes(currentProduct?.garmentShape);
   const isJacket = currentProduct?.garmentCategory === 'jacket';
@@ -521,16 +531,48 @@ export default function GuidedStepWizardPanel({
     }
   };
 
-  const rosterSizeSummary = useMemo(() => {
-    const counts = new Map();
-    for (const row of roster || []) {
-      const sz = row.size || 'L';
-      counts.set(sz, (counts.get(sz) || 0) + (Number(row.qty) || 1));
+  const rosterComposition = useMemo(() => summarizeRosterComposition(roster), [roster]);
+  const rosterSizeSummary = rosterComposition.bySizeLabel;
+
+  const updateRowAt = (idx, patch) => {
+    onUpdateRoster(roster.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+  };
+
+  const handleAddRosterRow = (role = 'Jugador') => {
+    const keeper = isGoalkeeperRole(role);
+    const nextIdx = roster.length;
+    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
+    const nextRow = {
+      id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      name: keeper ? 'PORTERO' : `JUGADOR ${roster.length + 1}`,
+      number: keeper ? '1' : String(roster.length + 1),
+      size: 'L',
+      cut: defaultCut,
+      qty: 1,
+      role: keeper ? 'Portero' : 'Jugador',
+    };
+    onUpdateRoster([...roster, nextRow]);
+    onSelectRosterIndex?.(nextIdx);
+    onToast?.(keeper ? 'Portero añadido a la lista' : 'Jugador añadido a la lista');
+  };
+
+  const handleRemoveRosterRow = (idx) => {
+    if (roster.length <= 1) return;
+    const next = roster.filter((_, i) => i !== idx);
+    onUpdateRoster(next);
+    if (activeRosterIndex >= next.length) {
+      onSelectRosterIndex?.(Math.max(0, next.length - 1));
     }
-    return Array.from(counts.entries())
-      .map(([sz, qty]) => `${sz} ×${qty}`)
-      .join(' · ');
-  }, [roster]);
+  };
+
+  const handleInlineCsvImport = () => {
+    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
+    const parsed = parseRosterQuickLines(inlineCsvDraft, defaultCut);
+    if (parsed.length === 0) return;
+    onUpdateRoster([...roster, ...parsed]);
+    setInlineCsvDraft('');
+    onToast?.(`${parsed.length} filas agregadas a la lista del pedido`);
+  };
 
   const activeDorsalSlot = isShorts
     ? design.variableSlots?.playerNumberShorts
@@ -811,6 +853,283 @@ export default function GuidedStepWizardPanel({
                 })}
               </div>
             </div>
+
+            {/* 1E: Uniforme, Portero y Lista de Nombres para la Cantidad del Pedido */}
+            <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2.5 border border-emerald-200/80">
+              <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-800 px-1">
+                4. Lista de nombres y porteros ({totalUnits} prendas)
+              </legend>
+
+              {/* Resumen Jugadores vs Porteros + Tarifa */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro">
+                    {rosterComposition.playerUnits} Jugador{rosterComposition.playerUnits === 1 ? '' : 'es'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
+                    {rosterComposition.keeperUnits} Portero{rosterComposition.keeperUnits === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 tabular-nums-pro">
+                  {currentTierLabel} · ${unitPrice.toFixed(2)} c/u
+                </span>
+              </div>
+
+              {/* Botones rápidos + Jugador / + Portero / Tabla Completa */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddRosterRow('Jugador')}
+                  className="px-2.5 min-h-9 rounded-xl arza-pill-glass-green text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Añadir Jugador</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddRosterRow('Portero')}
+                  className="px-2.5 min-h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
+                  <span>Añadir Portero</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenRosterModal}
+                  className="ml-auto px-2.5 min-h-9 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Users className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                  <span>Tabla</span>
+                </button>
+              </div>
+
+              {/* Filas editables directamente en Paso 1 */}
+              <div className="space-y-2 max-h-[340px] overflow-y-auto pr-0.5">
+                {roster.map((row, idx) => {
+                  const isKeeper = isGoalkeeperRole(row.role);
+                  const isPreviewed = idx === activeRosterIndex;
+                  const rowIdPrefix = `${rosterFieldsetBaseId}-row-${idx}`;
+                  return (
+                    <div
+                      key={row.id || idx}
+                      className={`p-2.5 rounded-xl border space-y-2 transition-colors ${
+                        isKeeper
+                          ? 'bg-amber-50/70 border-amber-300'
+                          : isPreviewed
+                          ? 'bg-emerald-50/50 border-emerald-400'
+                          : 'bg-white/95 border-slate-200'
+                      }`}
+                    >
+                      {/* Cabecera de fila: Índice, Selector Rol (Jugador / Portero), Vista Previa y Borrar */}
+                      <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono font-black text-slate-500">
+                            {String(idx + 1).padStart(2, '0')}
+                          </span>
+                          <div
+                            className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200"
+                            role="group"
+                            aria-label={`Rol en lista fila ${idx + 1}`}
+                          >
+                            <button
+                              type="button"
+                              aria-pressed={!isKeeper}
+                              onClick={() => updateRowAt(idx, { role: 'Jugador' })}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                                !isKeeper
+                                  ? 'bg-[#111111] text-white'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Jugador
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={isKeeper}
+                              onClick={() => updateRowAt(idx, { role: 'Portero' })}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                                isKeeper
+                                  ? 'bg-[#C24100] text-white'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Portero
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            aria-pressed={isPreviewed}
+                            onClick={() => {
+                              onSelectRosterIndex?.(idx);
+                              onToast?.(`Mostrando #${row.number || '-'} ${row.name || 'S/N'}`);
+                            }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer border ${
+                              isPreviewed
+                                ? 'bg-emerald-700 text-white border-emerald-700'
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Eye className="w-3 h-3" aria-hidden="true" />
+                            <span>Ver</span>
+                          </button>
+
+                          {roster.length > 1 && (
+                            <button
+                              type="button"
+                              aria-label={`Eliminar fila ${idx + 1} (${row.name || 'sin nombre'})`}
+                              onClick={() => handleRemoveRosterRow(idx)}
+                              className="p-1 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Campos de datos con etiquetas explícitas (<label>) */}
+                      <div className="grid grid-cols-12 gap-1.5">
+                        <div className="col-span-6">
+                          <label
+                            htmlFor={`${rowIdPrefix}-name`}
+                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
+                          >
+                            Nombre
+                          </label>
+                          <input
+                            id={`${rowIdPrefix}-name`}
+                            type="text"
+                            value={row.name || ''}
+                            onChange={(e) =>
+                              updateRowAt(idx, { name: e.target.value.toUpperCase() })
+                            }
+                            placeholder="Ej: PÉREZ"
+                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900"
+                          />
+                        </div>
+
+                        <div className="col-span-3">
+                          <label
+                            htmlFor={`${rowIdPrefix}-num`}
+                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
+                          >
+                            Número
+                          </label>
+                          <input
+                            id={`${rowIdPrefix}-num`}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={3}
+                            value={row.number || ''}
+                            onChange={(e) => updateRowAt(idx, { number: e.target.value })}
+                            placeholder="10"
+                            className="w-full px-1.5 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-black text-center text-slate-900"
+                          />
+                        </div>
+
+                        <div className="col-span-3">
+                          <label
+                            htmlFor={`${rowIdPrefix}-qty`}
+                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
+                          >
+                            Cant.
+                          </label>
+                          <input
+                            id={`${rowIdPrefix}-qty`}
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={999}
+                            value={row.qty || 1}
+                            onChange={(e) =>
+                              updateRowAt(idx, {
+                                qty: Math.max(1, parseInt(e.target.value, 10) || 1),
+                              })
+                            }
+                            className="w-full px-1.5 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-mono font-bold text-center text-slate-900"
+                          />
+                        </div>
+
+                        <div className="col-span-5">
+                          <label
+                            htmlFor={`${rowIdPrefix}-size`}
+                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
+                          >
+                            Talla
+                          </label>
+                          <select
+                            id={`${rowIdPrefix}-size`}
+                            value={row.size || 'L'}
+                            onChange={(e) => updateRowAt(idx, { size: e.target.value })}
+                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900"
+                          >
+                            {ROSTER_SIZE_OPTIONS.map((sz) => (
+                              <option key={sz} value={sz}>
+                                {sz}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="col-span-7">
+                          <label
+                            htmlFor={`${rowIdPrefix}-cut`}
+                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
+                          >
+                            Corte (Caballero / Dama / Niño)
+                          </label>
+                          <select
+                            id={`${rowIdPrefix}-cut`}
+                            value={row.cut || 'MEN_PRO_SLIM'}
+                            onChange={(e) => updateRowAt(idx, { cut: e.target.value })}
+                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-800"
+                          >
+                            {ROSTER_CUT_OPTIONS.map((c) => (
+                              <option key={c.value} value={c.value}>
+                                {c.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pegado Rápido desde Excel / WhatsApp */}
+              <details className="rounded-xl bg-white/80 border border-slate-200 p-2 group">
+                <summary className="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-700">
+                  <span>Pegado rápido Excel / WhatsApp</span>
+                  <ChevronRight
+                    className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <label htmlFor={quickCsvId} className="block text-[10px] text-slate-600">
+                    Una línea por uniforme: <span className="font-mono">NOMBRE, NÚMERO, TALLA, PORTERO/JUGADOR, CANT</span>
+                  </label>
+                  <textarea
+                    id={quickCsvId}
+                    rows={2}
+                    value={inlineCsvDraft}
+                    onChange={(e) => setInlineCsvDraft(e.target.value)}
+                    placeholder={'RODRÍGUEZ, 10, L, Jugador, 1\nSANTOS, 1, XL, Portero, 1'}
+                    className="w-full rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleInlineCsvImport}
+                    className="w-full min-h-9 rounded-xl arza-btn-glass-green text-xs font-bold cursor-pointer"
+                  >
+                    Importar Filas a la Lista
+                  </button>
+                </div>
+              </details>
+            </fieldset>
           </div>
         )}
 
@@ -956,12 +1275,12 @@ export default function GuidedStepWizardPanel({
                   </div>
                 )}
 
-                {/* 2C: Texturas Reales de Tela 3D y Trama Sublimada */}
+                {/* 2C: Texturas Reales de Tela y Trama Sublimada */}
                 <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
                       <Layers className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                      <span>Textura de Tela 3D (Tejido Real)</span>
+                      <span>Textura de Tela (Tejido Real)</span>
                     </span>
                     <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                       Micro-relieve
@@ -1587,6 +1906,38 @@ export default function GuidedStepWizardPanel({
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {roster.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Previsualizar de tu lista ({roster.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {roster.slice(0, 8).map((r, rIdx) => {
+                          const keeper = isGoalkeeperRole(r.role);
+                          const isCur = rIdx === activeRosterIndex;
+                          return (
+                            <button
+                              key={r.id || rIdx}
+                              type="button"
+                              aria-pressed={isCur}
+                              onClick={() => onSelectRosterIndex?.(rIdx)}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
+                                isCur
+                                  ? 'bg-[#111111] text-white border-[#111111]'
+                                  : keeper
+                                  ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              #{r.number || '-'} {r.name || 'S/N'}
+                              {keeper ? ' · Port.' : ''}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2">
                       <label htmlFor={sampleNameId} className="text-[11px] font-bold text-slate-700 block mb-1">
@@ -1859,29 +2210,43 @@ export default function GuidedStepWizardPanel({
               )}
             </div>
 
-            {/* 4C: Resumen de Tallas */}
-            <div className="p-3 rounded-2xl arza-pill-glass-green flex items-center justify-between gap-2.5">
-              <div className="min-w-0">
-                <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
-                  <span>Lista de Tallas ({totalUnits} prendas)</span>
-                </div>
-                <p className="text-[11px] text-emerald-800 truncate">
-                  {currentTierLabel} • ${unitPrice.toFixed(2)} USD c/u
-                </p>
-                {rosterSizeSummary && (
-                  <p className="text-[10px] font-mono text-emerald-900/80 truncate mt-0.5">
-                    {rosterSizeSummary}
+            {/* 4C: Resumen de Lista de Nombres y Porteros */}
+            <div className="p-3 rounded-2xl arza-pill-glass-green flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
+                    <span>
+                      Pedido Total: {totalUnits} prendas ({rosterComposition.playerUnits} Jug. + {rosterComposition.keeperUnits} Port.)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 truncate mt-0.5">
+                    {currentTierLabel} • ${unitPrice.toFixed(2)} USD c/u
                   </p>
-                )}
+                  {rosterSizeSummary && (
+                    <p className="text-[10px] font-mono text-emerald-900/80 truncate mt-0.5">
+                      {rosterSizeSummary}
+                    </p>
+                  )}
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={onOpenRosterModal}
-                className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-emerald-900 border border-emerald-300 text-xs font-bold shrink-0 cursor-pointer"
-              >
-                Editar Tallas →
-              </button>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => navigateToStep(1)}
+                  className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-slate-900 border border-emerald-300 text-xs font-bold cursor-pointer"
+                >
+                  ← Editar en Paso 1
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenRosterModal}
+                  className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-emerald-900 border border-emerald-300 text-xs font-bold cursor-pointer"
+                >
+                  Editar Tallas →
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1919,7 +2284,7 @@ export default function GuidedStepWizardPanel({
             >
               <span>
                 {wizardStep === 1
-                  ? 'Siguiente: Elegir Diseño'
+                  ? 'Siguiente: Diseño y Tela'
                   : wizardStep === 2
                   ? 'Siguiente: Elegir Colores'
                   : 'Siguiente: Logos y Pedido'}

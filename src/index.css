@@ -79,12 +79,13 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  --label-2: "Corte";
-  --label-3: "Talla";
-  --label-4: "Cant.";
-  --label-5: "Nombre Espalda";
-  --label-6: "Dorsal";
-  --label-7: "Acción";
+  --label-2: "Rol";
+  --label-3: "Corte";
+  --label-4: "Talla";
+  --label-5: "Cant.";
+  --label-6: "Nombre Espalda";
+  --label-7: "Dorsal";
+  --label-8: "Acción";
 }
 
 .roster-data-table thead {
@@ -140,6 +141,7 @@
   .roster-data-table td:nth-child(5)::before { content: var(--label-5) ": "; }
   .roster-data-table td:nth-child(6)::before { content: var(--label-6) ": "; }
   .roster-data-table td:nth-child(7)::before { content: var(--label-7) ": "; }
+  .roster-data-table td:nth-child(8)::before { content: var(--label-8) ": "; }
 }
 
 /* Custom scrollbar for design panels */

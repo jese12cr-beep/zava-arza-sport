@@ -820,11 +820,100 @@ export function createInitialMasterDesign() {
   return createDefaultDesignForProduct('futbol_jersey_pro_vneck');
 }
 
+export const ROSTER_CUT_OPTIONS = [
+  { value: 'MEN_PRO_SLIM', label: 'Caballero Slim' },
+  { value: 'MEN_CLASSIC', label: 'Caballero Clásico' },
+  { value: 'WOMEN_FIT', label: 'Dama Entallado' },
+  { value: 'YOUTH_KIDS', label: 'Infantil / Juvenil' },
+];
+
+export const ROSTER_SIZE_OPTIONS = ['128', '140', '152', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+export function isGoalkeeperRole(role = '') {
+  return /portero|arquero|keeper|\bgk\b/i.test(String(role || ''));
+}
+
+export function summarizeRosterComposition(roster = []) {
+  let totalUnits = 0;
+  let keeperUnits = 0;
+  let playerUnits = 0;
+  const sizeCounts = new Map();
+
+  for (const row of roster || []) {
+    const qty = Math.max(1, Number(row?.qty) || 1);
+    totalUnits += qty;
+    if (isGoalkeeperRole(row?.role)) {
+      keeperUnits += qty;
+    } else {
+      playerUnits += qty;
+    }
+    const sz = row?.size || 'L';
+    sizeCounts.set(sz, (sizeCounts.get(sz) || 0) + qty);
+  }
+
+  const bySizeLabel = Array.from(sizeCounts.entries())
+    .map(([sz, q]) => `${sz} ×${q}`)
+    .join(' · ');
+
+  return { totalUnits, keeperUnits, playerUnits, bySizeLabel };
+}
+
+export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM') {
+  const lines = String(rawText || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  return lines.map((line, i) => {
+    const parts = line
+      .split(/[,;\t|]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const name = (parts[0] || `JUGADOR ${i + 1}`).toUpperCase();
+    const number = parts[1] && /^#?\d{1,3}$/.test(parts[1]) ? parts[1].replace('#', '') : String(i + 1);
+
+    let size = 'L';
+    let role = 'Jugador';
+    let cut = defaultCut;
+    let qty = 1;
+
+    for (const token of parts.slice(2)) {
+      const upper = token.toUpperCase();
+      if (ROSTER_SIZE_OPTIONS.includes(upper)) {
+        size = upper;
+        if (/^(128|140|152)$/.test(upper)) cut = 'YOUTH_KIDS';
+      } else if (isGoalkeeperRole(token)) {
+        role = 'Portero';
+      } else if (/^jugad/i.test(token)) {
+        role = 'Jugador';
+      } else if (/dama|mujer|women/i.test(token)) {
+        cut = 'WOMEN_FIT';
+      } else if (/niño|nino|infantil|juvenil|kids/i.test(token)) {
+        cut = 'YOUTH_KIDS';
+      } else if (/clasic|classic/i.test(token)) {
+        cut = 'MEN_CLASSIC';
+      } else if (/^\d{1,3}$/.test(token)) {
+        qty = Math.max(1, parseInt(token, 10) || 1);
+      }
+    }
+
+    return {
+      id: `p_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`,
+      name,
+      number,
+      size,
+      cut,
+      qty,
+      role,
+    };
+  });
+}
+
 export const INITIAL_TEAM_ROSTER = [
-  { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'RODRÍGUEZ', number: '10', role: 'Capitán' },
-  { id: 'r2', cut: 'MEN_PRO_SLIM', size: 'M', qty: 1, name: 'FERNÁNDEZ-GARCÍA', number: '7', role: 'Titular (Nombre Largo)' },
-  { id: 'r3', cut: 'WOMEN_FIT', size: 'S', qty: 1, name: 'VALERIA M.', number: '9', role: 'Titular' },
-  { id: 'r4', cut: 'MEN_CLASSIC', size: 'XL', qty: 1, name: 'SANTOS', number: '1', role: 'Portero / Pivot' },
-  { id: 'r5', cut: 'YOUTH_KIDS', size: '152', qty: 2, name: 'MATEO', number: '14', role: 'Cantera' },
-  { id: 'r6', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'JORDAN', number: '23', role: 'Escolta' },
+  { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'RODRÍGUEZ', number: '10', role: 'Jugador' },
+  { id: 'r2', cut: 'MEN_PRO_SLIM', size: 'M', qty: 1, name: 'FERNÁNDEZ-GARCÍA', number: '7', role: 'Jugador' },
+  { id: 'r3', cut: 'WOMEN_FIT', size: 'S', qty: 1, name: 'VALERIA M.', number: '9', role: 'Jugador' },
+  { id: 'r4', cut: 'MEN_CLASSIC', size: 'XL', qty: 1, name: 'SANTOS', number: '1', role: 'Portero' },
+  { id: 'r5', cut: 'YOUTH_KIDS', size: '152', qty: 2, name: 'MATEO', number: '14', role: 'Jugador' },
+  { id: 'r6', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'JORDAN', number: '23', role: 'Jugador' },
 ];

@@ -123,8 +123,8 @@ export default function Hero({ onStartDesigning }) {
           TU UNIFORME EN 4 PASOS.
         </h1>
 
-        <p className="mt-3 text-sm sm:text-base text-[#111111] font-body-lg max-w-[54ch]">
-          1. Modelo · 2. Corte y Tela · 3. Colores · 4. Logos y Pedido. Sublimación digital en telas técnicas XS a XXL.
+        <p className="mt-3 text-sm sm:text-base text-[#111111] font-body-lg max-w-[60ch]">
+          1. Uniforme, Portero y Nombres · 2. Diseño y Tela · 3. Colores · 4. Logos y Pedido. Sublimación digital en telas técnicas XS a XXL.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

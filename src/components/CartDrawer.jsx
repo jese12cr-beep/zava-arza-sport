@@ -514,7 +514,7 @@ export default function CartDrawer({
               <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" aria-hidden="true" />
               <p className="text-sm font-bold text-slate-700">No hay pedidos agregados</p>
               <p className="text-xs text-slate-500 mt-1">
-                Personaliza una equipación en el diseñador 3D y pulsa «Finalizar Pedido».
+                Personaliza una equipación y pulsa «Finalizar Pedido».
               </p>
             </div>
           ) : (
@@ -523,6 +523,14 @@ export default function CartDrawer({
               <div className="space-y-2.5">
                 {items.map((item, index) => {
                   const unitCount = getItemUnits(item);
+                  const keeperCount =
+                    item.keeperUnits ??
+                    (item.roster || []).reduce(
+                      (acc, r) =>
+                        acc + (/portero|arquero/i.test(r.role || '') ? Number(r.qty) || 1 : 0),
+                      0
+                    );
+                  const fieldCount = Math.max(0, unitCount - keeperCount);
                   return (
                     <div
                       key={item.cartId || index}
@@ -535,6 +543,14 @@ export default function CartDrawer({
                           </h3>
                           <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5 font-medium">
                             <span>{unitCount} prendas</span>
+                            {keeperCount > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="font-bold text-[#C24100]">
+                                  {fieldCount} Jug. + {keeperCount} Port.
+                                </span>
+                              </>
+                            )}
                             <span>•</span>
                             <span className="font-bold text-emerald-700">${item.unitPrice} c/u</span>
                             <span>•</span>
@@ -568,6 +584,32 @@ export default function CartDrawer({
                           </span>
                         )}
                       </div>
+
+                      {item.roster && item.roster.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-slate-200/60 flex flex-wrap gap-1">
+                          {item.roster.slice(0, 6).map((r, rIdx) => {
+                            const isKeeper = /portero|arquero/i.test(r.role || '');
+                            return (
+                              <span
+                                key={r.id || rIdx}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                  isKeeper
+                                    ? 'bg-amber-50 border-amber-300 text-amber-950 font-bold'
+                                    : 'bg-white border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                #{r.number || '-'} {r.name || 'S/N'} · {r.size}
+                                {isKeeper ? ' · Portero' : ''}
+                              </span>
+                            );
+                          })}
+                          {item.roster.length > 6 && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                              +{item.roster.length - 6} más
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

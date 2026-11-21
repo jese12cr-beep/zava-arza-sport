@@ -74,6 +74,11 @@ import {
   VOLUME_TIERS,
   computeOwayoAutoContrastHex,
   createDefaultDesignForProduct,
+  ROSTER_CUT_OPTIONS,
+  ROSTER_SIZE_OPTIONS,
+  isGoalkeeperRole,
+  parseRosterQuickLines,
+  summarizeRosterComposition,
 } from '../../engine/core/designStore';
 import { MEXICO_PRO_KITS } from '../../data/mexicoKitsData';
 import { UCL_PRO_KITS } from '../../data/uclKitsData';
@@ -100,10 +105,10 @@ import GuidedStepWizardPanel from './GuidedStepWizardPanel';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 
 const GUIDED_STEP_SHORT_LABELS = {
-  1: 'Modelo',
+  1: 'Uniforme',
   2: 'Diseño',
   3: 'Colores',
-  4: 'Logos',
+  4: 'Pedido',
 };
 
 const OWAYO_TABS = [
@@ -143,14 +148,9 @@ const ESSENTIAL_SPORT_COLORS = [
   { hex: '#4C1D95', name: 'Púrpura Oscuro' },
 ];
 
-const CUT_OPTIONS = [
-  { value: 'MEN_PRO_SLIM', label: 'Hombre Slim' },
-  { value: 'MEN_CLASSIC', label: 'Hombre Clásico' },
-  { value: 'WOMEN_FIT', label: 'Mujer Entallado' },
-  { value: 'YOUTH_KIDS', label: 'Infantil / Juvenil' },
-];
+const CUT_OPTIONS = ROSTER_CUT_OPTIONS;
 
-const SIZE_OPTIONS = ['128', '140', '152', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+const SIZE_OPTIONS = ROSTER_SIZE_OPTIONS;
 
 const PANEL_TO_CAMERA = {
   front: 'front',
@@ -501,7 +501,8 @@ export default function HybridStudioWorkspace({
     number: '10',
     size: 'L',
   };
-  const totalUnits = roster.reduce((acc, r) => acc + (Number(r.qty) || 1), 0);
+  const rosterComposition = useMemo(() => summarizeRosterComposition(roster), [roster]);
+  const totalUnits = rosterComposition.totalUnits;
   const currentTier =
     VOLUME_TIERS.find((t) => totalUnits >= t.min && totalUnits <= t.max) || VOLUME_TIERS[0];
   const unitPrice = +(currentProduct.basePrice * (1 - currentTier.discountPct / 100)).toFixed(2);
@@ -1139,27 +1140,12 @@ export default function HybridStudioWorkspace({
 
   // --- Importador Rápido CSV para `Ejemplares` ---
   const handleImportCsvRoster = () => {
-    const lines = csvQuickInput
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length === 0) return;
-    const parsed = lines.map((line, i) => {
-      const parts = line.split(/[,;\t]/).map((s) => s.trim());
-      return {
-        id: `p_${Date.now()}_${i}`,
-        name: (parts[0] || `JUGADOR ${i + 1}`).toUpperCase(),
-        number: parts[1] || String(i + 1),
-        size: SIZE_OPTIONS.includes((parts[2] || '').toUpperCase())
-          ? parts[2].toUpperCase()
-          : 'L',
-        cut: 'MEN_PRO_SLIM',
-        qty: Math.max(1, parseInt(parts[3], 10) || 1),
-      };
-    });
+    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
+    const parsed = parseRosterQuickLines(csvQuickInput, defaultCut);
+    if (parsed.length === 0) return;
     onUpdateRoster([...roster, ...parsed]);
     setCsvQuickInput('');
-    showToast(`${parsed.length} jugadores importados a Ejemplares`);
+    showToast(`${parsed.length} filas importadas a Ejemplares`);
   };
 
   // --- Auditoría de Pre-Vuelo (`Revisión del diseño`) ---
@@ -2045,6 +2031,7 @@ export default function HybridStudioWorkspace({
                   activePlayer={activePlayer}
                   roster={roster}
                   activeRosterIndex={activeRosterIndex}
+                  onSelectRosterIndex={setActiveRosterIndex}
                   onUpdateRoster={onUpdateRoster}
                   totalUnits={totalUnits}
                   unitPrice={unitPrice}
@@ -4359,41 +4346,65 @@ export default function HybridStudioWorkspace({
         </aside>
       </div>
 
-      {/* ==================== MODAL 1: EJEMPLARES (LISTA DE TALLAS, NOMBRES Y NÚMEROS OWAYO) ==================== */}
+      {/* ==================== MODAL 1: EJEMPLARES (LISTA DE NOMBRES, PORTEROS Y CANTIDADES) ==================== */}
       <LightDismissModal
         isOpen={isRosterModalOpen}
         onClose={() => setIsRosterModalOpen(false)}
         titleId="roster-modal-title"
-        subtitle="Tabla Relacional de Ejemplares ARZA SPORT (Sin duplicar imágenes)"
-        title={`Ejemplares del Equipo (${totalUnits} prendas • $${totalPrice.toFixed(2)} USD)`}
+        subtitle="Lista de Nombres, Porteros y Tallas ARZA SPORT"
+        title={`Ejemplares (${totalUnits} prendas · ${rosterComposition.playerUnits} Jug. + ${rosterComposition.keeperUnits} Port. · $${totalPrice.toFixed(2)} USD)`}
         maxWidthClass="max-w-5xl"
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-slate-600 font-medium">
-              Cada fila genera su propio nombre y dorsal vinculados al mismo ID maestro{' '}
-              <code className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{design.designId}</code>. Haz clic en «Ver en 3D» para inspeccionar cualquier talla.
+              Marca quién es <strong className="text-[#C24100]">Portero</strong> o <strong className="text-slate-900">Jugador</strong> en tu lista vinculada a{' '}
+              <code className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{design.designId}</code>.
             </p>
-            <button
-              type="button"
-              onClick={() =>
-                onUpdateRoster([
-                  ...roster,
-                  {
-                    id: `p_${Date.now()}`,
-                    name: 'NUEVO JUGADOR',
-                    number: String(roster.length + 1),
-                    size: 'L',
-                    cut: 'MEN_PRO_SLIM',
-                    qty: 1,
-                  },
-                ])
-              }
-              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              Añadir Jugador / Talla
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateRoster([
+                    ...roster,
+                    {
+                      id: `p_${Date.now()}`,
+                      name: 'NUEVO JUGADOR',
+                      number: String(roster.length + 1),
+                      size: 'L',
+                      cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
+                      qty: 1,
+                      role: 'Jugador',
+                    },
+                  ])
+                }
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Añadir Jugador / Talla
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateRoster([
+                    ...roster,
+                    {
+                      id: `pk_${Date.now()}`,
+                      name: 'PORTERO',
+                      number: '1',
+                      size: 'L',
+                      cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
+                      qty: 1,
+                      role: 'Portero',
+                    },
+                  ])
+                }
+                className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-black flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-[#C24100]" />
+                Añadir Portero
+              </button>
+            </div>
           </div>
 
           <div className="roster-table-wrapper rounded-2xl border border-slate-200 bg-white shadow-xs">
@@ -4401,6 +4412,7 @@ export default function HybridStudioWorkspace({
               <thead className="bg-slate-50 text-slate-700 text-[11px] uppercase border-b border-slate-200">
                 <tr>
                   <th className="p-2.5">#</th>
+                  <th className="p-2.5">Rol</th>
                   <th className="p-2.5">Corte</th>
                   <th className="p-2.5">Talla</th>
                   <th className="p-2.5">Cant.</th>
@@ -4412,14 +4424,40 @@ export default function HybridStudioWorkspace({
               <tbody className="divide-y divide-slate-100">
                 {roster.map((row, idx) => {
                   const isPreviewed = idx === activeRosterIndex;
+                  const keeper = isGoalkeeperRole(row.role);
                   return (
                     <tr
                       key={row.id || idx}
-                      className={isPreviewed ? 'bg-amber-50/70' : 'hover:bg-slate-50/70 transition-colors'}
+                      className={
+                        keeper
+                          ? 'bg-amber-50/60'
+                          : isPreviewed
+                          ? 'bg-emerald-50/60'
+                          : 'hover:bg-slate-50/70 transition-colors'
+                      }
                     >
                       <th scope="row" className="p-2.5 font-mono text-slate-700">
                         {String(idx + 1).padStart(2, '0')}
                       </th>
+                      <td className="p-2">
+                        <select
+                          aria-label={`Rol fila ${idx + 1}`}
+                          value={keeper ? 'Portero' : 'Jugador'}
+                          onChange={(e) =>
+                            onUpdateRoster(
+                              roster.map((r, i) => (i === idx ? { ...r, role: e.target.value } : r))
+                            )
+                          }
+                          className={`border rounded-lg px-2 py-1 text-xs font-bold ${
+                            keeper
+                              ? 'bg-amber-100 border-amber-400 text-amber-950'
+                              : 'bg-white border-slate-300 text-slate-800'
+                          }`}
+                        >
+                          <option value="Jugador">Jugador</option>
+                          <option value="Portero">Portero</option>
+                        </select>
+                      </td>
                       <td className="p-2">
                         <select
                           value={row.cut}
@@ -4532,14 +4570,14 @@ export default function HybridStudioWorkspace({
           {/* Pegado rápido desde Excel / CSV */}
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
             <span className="text-xs font-bold text-slate-700 block">
-              Pegado Rápido desde Excel / WhatsApp (`NOMBRE, NÚMERO, TALLA, CANTIDAD`)
+              Pegado Rápido desde Excel / WhatsApp (`NOMBRE, NÚMERO, TALLA, ROL, CANTIDAD`)
             </span>
             <div className="flex flex-col sm:flex-row gap-2">
               <textarea
                 rows={2}
                 value={csvQuickInput}
                 onChange={(e) => setCsvQuickInput(e.target.value)}
-                placeholder={'JORDAN, 23, XL, 1\nPIPPEN, 33, L, 1'}
+                placeholder={'RODRÍGUEZ, 10, L, Jugador, 1\nSANTOS, 1, XL, Portero, 1'}
                 className="flex-1 rounded-xl bg-white/85 border border-slate-300 p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
               />
               <button

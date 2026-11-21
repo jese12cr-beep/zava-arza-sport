@@ -20,6 +20,7 @@ import {
   createInitialMasterDesign,
   createDefaultDesignForProduct,
   generateDesignId,
+  summarizeRosterComposition,
 } from './engine/core/designStore';
 
 function createInitialKitSnapshot() {
@@ -241,34 +242,41 @@ export default function App() {
   };
 
   const createCartEntryFromBundle = useCallback(
-    (bundle, existingCartId = null) => ({
-      cartId: existingCartId || `item_${Date.now()}`,
-      designId: design.designId,
-      product: {
-        id: currentProduct.id,
-        name: currentProduct.name,
-        type: currentProduct.renderMode,
-        description: `${bundle.pricing.totalUnits} prendas vinculadas a ${design.designId}`,
-      },
-      design: {
-        baseColor: design.colorZones.primary?.hex,
-        sleeveColor: design.colorZones.sleeves?.hex,
-        pattern: design.patternId,
-        playerName: roster[0]?.name || 'EQUIPO',
-        playerNumber: roster[0]?.number || '10',
-        sponsorText: (design.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
-      },
-      roster: roster.map((r, i) => ({
-        id: r.id || i,
-        name: r.name,
-        number: r.number,
-        qty: Number(r.qty) || 1,
-        size: `${r.size} (${r.cut}) x${Number(r.qty) || 1}`,
-      })),
-      totalUnits: bundle.pricing.totalUnits,
-      unitPrice: bundle.pricing.unitPrice.toFixed(2),
-      totalPrice: bundle.pricing.totalOrderPrice.toFixed(2),
-    }),
+    (bundle, existingCartId = null) => {
+      const comp = summarizeRosterComposition(roster);
+      const keeperNote = comp.keeperUnits > 0 ? ` (${comp.playerUnits} Jug. + ${comp.keeperUnits} Port.)` : '';
+      return {
+        cartId: existingCartId || `item_${Date.now()}`,
+        designId: design.designId,
+        product: {
+          id: currentProduct.id,
+          name: currentProduct.name,
+          type: currentProduct.renderMode,
+          description: `${bundle.pricing.totalUnits} prendas${keeperNote} vinculadas a ${design.designId}`,
+        },
+        design: {
+          baseColor: design.colorZones.primary?.hex,
+          sleeveColor: design.colorZones.sleeves?.hex,
+          pattern: design.patternId,
+          playerName: roster[0]?.name || 'EQUIPO',
+          playerNumber: roster[0]?.number || '10',
+          sponsorText: (design.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
+        },
+        roster: roster.map((r, i) => ({
+          id: r.id || i,
+          name: r.name,
+          number: r.number,
+          role: r.role || 'Jugador',
+          qty: Number(r.qty) || 1,
+          size: `${r.size} (${r.cut}) x${Number(r.qty) || 1}`,
+        })),
+        keeperUnits: comp.keeperUnits,
+        playerUnits: comp.playerUnits,
+        totalUnits: bundle.pricing.totalUnits,
+        unitPrice: bundle.pricing.unitPrice.toFixed(2),
+        totalPrice: bundle.pricing.totalOrderPrice.toFixed(2),
+      };
+    },
     [currentProduct, design, roster]
   );
 
@@ -319,7 +327,7 @@ export default function App() {
 
   const handleSelectCatalogProduct = (engineId) => {
     handleSwitchProduct(engineId);
-    setStudioInitialStep(2);
+    setStudioInitialStep(1);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
