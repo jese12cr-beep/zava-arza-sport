@@ -24,6 +24,9 @@ import {
   FABRIC_WEAVES,
   ROSTER_CUT_OPTIONS,
   ROSTER_SIZE_OPTIONS,
+  GLOVE_SIZE_OPTIONS,
+  GLOVE_CUT_STYLES,
+  GLOVE_PAIR_UNIT_PRICE,
   SPORT_FONTS,
   VECTOR_CREST_PRESETS,
   VOLUME_TIERS,
@@ -115,6 +118,13 @@ export default function GuidedStepWizardPanel({
   wizardStep,
   onStepChange,
   design,
+  goalkeeperDesign,
+  glovesDesign,
+  activeKitRole = 'field',
+  includeGloves = true,
+  onSwitchKitRole,
+  onCommitGlovesDesign,
+  onToggleIncludeGloves,
   currentProduct,
   pairedProduct,
   genderModule,
@@ -139,9 +149,12 @@ export default function GuidedStepWizardPanel({
   activeRosterIndex,
   onSelectRosterIndex,
   onUpdateRoster,
+  rosterComposition: propRosterComp,
   totalUnits,
   unitPrice,
   totalPrice,
+  glovesTotal = 0,
+  grandTotalPrice,
   currentTierLabel,
   onFilesSelected,
   onAddPresetCrest,
@@ -175,6 +188,12 @@ export default function GuidedStepWizardPanel({
   const customTextInputId = useId();
   const rosterFieldsetBaseId = useId();
   const quickCsvId = useId();
+  const glovesToggleId = useId();
+  const gloveCrestToggleId = useId();
+  const gloveStrapNameToggleId = useId();
+  const isEditingGloves = activeKitRole === 'gloves';
+  const isEditingKeeper = activeKitRole === 'goalkeeper';
+  const displayGrandTotal = Number.isFinite(grandTotalPrice) ? grandTotalPrice : totalPrice;
 
   const isShorts = ['football_shorts', 'basketball_shorts'].includes(currentProduct?.garmentShape);
   const isJacket = currentProduct?.garmentCategory === 'jacket';
@@ -295,6 +314,16 @@ export default function GuidedStepWizardPanel({
   const hasFourthZone = Boolean(activeFishMeta?.baseColors?.includes('D'));
 
   const visibleZoneButtons = useMemo(() => {
+    if (isEditingGloves && glovesDesign?.colorZones) {
+      const gc = glovesDesign.colorZones;
+      return [
+        { id: 'palm', label: 'Palma Látex', hex: gc.palm?.hex || '#ffffff' },
+        { id: 'primary', label: 'Dorso Guante', hex: gc.primary?.hex || '#111111' },
+        { id: 'accents', label: 'Acentos / Dedos', hex: gc.accents?.hex || '#fa5400' },
+        { id: 'strap', label: 'Cinta Muñequera', hex: gc.strap?.hex || '#059669' },
+        { id: 'strapText', label: 'Texto Cinta', hex: gc.strapText?.hex || '#ffffff' },
+      ];
+    }
     const list = [
       { id: 'primary', label: 'Principal', hex: design.colorZones.primary?.hex || '#111111' },
       { id: 'secondary', label: 'Segundo color', hex: design.colorZones.secondary?.hex || '#fa5400' },
@@ -326,12 +355,43 @@ export default function GuidedStepWizardPanel({
       });
     }
     return list;
-  }, [design.colorZones, garmentShape, hasSleeves, isShorts, hasFourthZone]);
+  }, [
+    isEditingGloves,
+    glovesDesign?.colorZones,
+    design.colorZones,
+    garmentShape,
+    hasSleeves,
+    isShorts,
+    hasFourthZone,
+  ]);
 
   const safeActiveColorZone = visibleZoneButtons.some((z) => z.id === activeColorZone)
     ? activeColorZone
     : visibleZoneButtons[0]?.id || 'primary';
-  const activeZoneColorObj = design.colorZones?.[safeActiveColorZone] || design.colorZones?.primary;
+  const activeZoneColorObj = isEditingGloves
+    ? glovesDesign?.colorZones?.[safeActiveColorZone] || glovesDesign?.colorZones?.primary
+    : design.colorZones?.[safeActiveColorZone] || design.colorZones?.primary;
+
+  const updateActiveColorZoneUnified = (zoneKey, colorObj, recordHistory = false) => {
+    if (isEditingGloves && glovesDesign) {
+      onCommitGlovesDesign?.(
+        {
+          ...glovesDesign,
+          colorZones: {
+            ...glovesDesign.colorZones,
+            [zoneKey]: {
+              hex: colorObj.hex,
+              pantone: colorObj.pantone || 'PMS Custom',
+              code: colorObj.code || colorObj.name || 'Custom',
+            },
+          },
+        },
+        recordHistory
+      );
+      return;
+    }
+    onUpdateColorZone?.(zoneKey, colorObj, recordHistory);
+  };
 
   const spotOptions = useMemo(() => {
     if (isShorts) {
@@ -531,11 +591,23 @@ export default function GuidedStepWizardPanel({
     }
   };
 
-  const rosterComposition = useMemo(() => summarizeRosterComposition(roster), [roster]);
+  const rosterComposition = useMemo(
+    () => propRosterComp || summarizeRosterComposition(roster, includeGloves),
+    [propRosterComp, roster, includeGloves]
+  );
   const rosterSizeSummary = rosterComposition.bySizeLabel;
 
   const updateRowAt = (idx, patch) => {
-    onUpdateRoster(roster.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+    onUpdateRoster(
+      roster.map((row, i) => {
+        if (i !== idx) return row;
+        const merged = { ...row, ...patch };
+        if (isGoalkeeperRole(merged.role) && !merged.gloveSize) {
+          merged.gloveSize = '9';
+        }
+        return merged;
+      })
+    );
   };
 
   const handleAddRosterRow = (role = 'Jugador') => {
@@ -550,10 +622,11 @@ export default function GuidedStepWizardPanel({
       cut: defaultCut,
       qty: 1,
       role: keeper ? 'Portero' : 'Jugador',
+      gloveSize: keeper ? '9' : undefined,
     };
     onUpdateRoster([...roster, nextRow]);
     onSelectRosterIndex?.(nextIdx);
-    onToast?.(keeper ? 'Portero añadido a la lista' : 'Jugador añadido a la lista');
+    onToast?.(keeper ? 'Portero (Manga Larga) añadido a la lista' : 'Jugador añadido a la lista');
   };
 
   const handleRemoveRosterRow = (idx) => {
@@ -587,6 +660,54 @@ export default function GuidedStepWizardPanel({
     onAddQuickText(cleaned);
     setCustomTextDraft('');
   };
+
+  const renderKitRoleBanner = () => (
+    <div className="p-2.5 rounded-2xl bg-slate-900/5 border border-slate-200 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+          Pieza del Equipo Activa
+        </span>
+        {isEditingKeeper && (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300">
+            Manga Larga Fija
+          </span>
+        )}
+        {isEditingGloves && (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
+            Guantes 3D · ${GLOVE_PAIR_UNIT_PRICE} c/par
+          </span>
+        )}
+      </div>
+      <div
+        role="group"
+        aria-label="Cambiar prenda activa entre Campo, Portero Manga Larga y Guantes 3D"
+        className="grid grid-cols-3 gap-1"
+      >
+        {[
+          { id: 'field', label: 'Campo' },
+          { id: 'goalkeeper', label: 'Portero M.L.' },
+          { id: 'gloves', label: 'Guantes 3D' },
+        ].map((item) => {
+          const active = activeKitRole === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onSwitchKitRole?.(item.id)}
+              className={`min-h-9 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer border ${
+                active
+                  ? 'arza-btn-glass-green shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -857,22 +978,47 @@ export default function GuidedStepWizardPanel({
             {/* 1E: Uniforme, Portero y Lista de Nombres para la Cantidad del Pedido */}
             <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2.5 border border-emerald-200/80">
               <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-800 px-1">
-                4. Lista de nombres y porteros ({totalUnits} prendas)
+                4. Lista de nombres, portero y guantes ({totalUnits} prendas)
               </legend>
 
-              {/* Resumen Jugadores vs Porteros + Tarifa */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro">
-                    {rosterComposition.playerUnits} Jugador{rosterComposition.playerUnits === 1 ? '' : 'es'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
-                    {rosterComposition.keeperUnits} Portero{rosterComposition.keeperUnits === 1 ? '' : 's'}
+              {/* Resumen Jugadores vs Portero Manga Larga vs Guantes 3D + Tarifa */}
+              <div className="space-y-2 pb-2 border-b border-slate-200/70">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro">
+                      {rosterComposition.playerUnits} Campo
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
+                      {rosterComposition.keeperUnits} Portero Manga Larga
+                    </span>
+                    {rosterComposition.glovePairs > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black tabular-nums-pro">
+                        +{rosterComposition.glovePairs} Par Guantes
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-600 tabular-nums-pro">
+                    {currentTierLabel} · ${unitPrice.toFixed(2)} c/u
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-600 tabular-nums-pro">
-                  {currentTierLabel} · ${unitPrice.toFixed(2)} c/u
-                </span>
+
+                {rosterComposition.keeperUnits > 0 && (
+                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-amber-50/75 border border-amber-200">
+                    <label
+                      htmlFor={glovesToggleId}
+                      className="text-[11px] font-bold text-amber-950 cursor-pointer select-none flex-1"
+                    >
+                      Incluir Guantes 3D de Portero (${GLOVE_PAIR_UNIT_PRICE} USD / par)
+                    </label>
+                    <input
+                      id={glovesToggleId}
+                      type="checkbox"
+                      checked={includeGloves}
+                      onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
+                      className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Botones rápidos + Jugador / + Portero / Tabla Completa */}
@@ -1052,12 +1198,12 @@ export default function GuidedStepWizardPanel({
                           />
                         </div>
 
-                        <div className="col-span-5">
+                        <div className={isKeeper && includeGloves ? 'col-span-4' : 'col-span-5'}>
                           <label
                             htmlFor={`${rowIdPrefix}-size`}
                             className="block text-[10px] font-bold text-slate-600 mb-0.5"
                           >
-                            Talla
+                            Talla {isKeeper ? 'M.L.' : ''}
                           </label>
                           <select
                             id={`${rowIdPrefix}-size`}
@@ -1073,12 +1219,35 @@ export default function GuidedStepWizardPanel({
                           </select>
                         </div>
 
-                        <div className="col-span-7">
+                        {isKeeper && includeGloves && (
+                          <div className="col-span-3">
+                            <label
+                              htmlFor={`${rowIdPrefix}-glove`}
+                              className="block text-[10px] font-bold text-amber-900 mb-0.5"
+                            >
+                              Guante
+                            </label>
+                            <select
+                              id={`${rowIdPrefix}-glove`}
+                              value={row.gloveSize || '9'}
+                              onChange={(e) => updateRowAt(idx, { gloveSize: e.target.value })}
+                              className="w-full px-1.5 min-h-9 rounded-lg bg-amber-50 border border-amber-300 text-xs font-bold text-amber-950"
+                            >
+                              {GLOVE_SIZE_OPTIONS.map((gs) => (
+                                <option key={gs} value={gs}>
+                                  T{gs}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div className={isKeeper && includeGloves ? 'col-span-5' : 'col-span-7'}>
                           <label
                             htmlFor={`${rowIdPrefix}-cut`}
                             className="block text-[10px] font-bold text-slate-600 mb-0.5"
                           >
-                            Corte (Caballero / Dama / Niño)
+                            {isKeeper && includeGloves ? 'Corte' : 'Corte (Caballero / Dama / Niño)'}
                           </label>
                           <select
                             id={`${rowIdPrefix}-cut`}
@@ -1136,6 +1305,113 @@ export default function GuidedStepWizardPanel({
         {/* ==================== PASO 2: DISEÑO, TELA Y FORMA ==================== */}
         {wizardStep === 2 && (
           <div className="space-y-4">
+            {renderKitRoleBanner()}
+
+            {isEditingKeeper && (
+              <div className="p-3 rounded-2xl bg-amber-50/90 border border-amber-300 space-y-1">
+                <div className="text-xs font-black text-amber-950 flex items-center justify-between gap-2">
+                  <span>Manga Larga Obligatoria (Estándar Portero)</span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-[10px] font-mono">
+                    MANGA LARGA
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-900 leading-snug">
+                  El jersey de portero siempre se confecciona con manga larga completa, puños elásticos ajustados y colores de alto contraste respecto al equipo de campo.
+                </p>
+              </div>
+            )}
+
+            {isEditingGloves && glovesDesign ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-slate-900">
+                      1. Corte de Palma Profesional (Látex Contact 4mm)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {GLOVE_CUT_STYLES.map((cutObj) => {
+                      const isSel = (glovesDesign.gloveCut || 'hybrid') === cutObj.id;
+                      return (
+                        <button
+                          key={cutObj.id}
+                          type="button"
+                          aria-pressed={isSel}
+                          onClick={() => {
+                            onCommitGlovesDesign?.({ ...glovesDesign, gloveCut: cutObj.id }, true);
+                            onToast?.(`Corte ${cutObj.label} seleccionado en Guantes 3D`);
+                          }}
+                          className={`w-full p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                            isSel
+                              ? 'arza-btn-glass-green'
+                              : 'bg-white/90 hover:bg-white text-slate-900 border-slate-200'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-black">{cutObj.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                isSel ? 'text-emerald-100' : 'text-slate-600'
+                              }`}
+                            >
+                              {cutObj.desc}
+                            </div>
+                          </div>
+                          {isSel && <Check className="w-4 h-4 shrink-0" aria-hidden="true" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
+                  <span className="text-xs font-black text-slate-900 block">
+                    2. Detalles del Dorso y Muñequera
+                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <label
+                      htmlFor={gloveCrestToggleId}
+                      className="text-xs font-bold text-slate-800 cursor-pointer flex-1"
+                    >
+                      Aplicar escudo del equipo en el dorso
+                    </label>
+                    <input
+                      id={gloveCrestToggleId}
+                      type="checkbox"
+                      checked={glovesDesign.includeCrest !== false}
+                      onChange={(e) =>
+                        onCommitGlovesDesign?.(
+                          { ...glovesDesign, includeCrest: e.target.checked },
+                          true
+                        )
+                      }
+                      className="w-4 h-4 accent-[#fa5400] cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/70">
+                    <label
+                      htmlFor={gloveStrapNameToggleId}
+                      className="text-xs font-bold text-slate-800 cursor-pointer flex-1"
+                    >
+                      Grabar nombre y # del portero en cinta velcro
+                    </label>
+                    <input
+                      id={gloveStrapNameToggleId}
+                      type="checkbox"
+                      checked={glovesDesign.strapNameEnabled !== false}
+                      onChange={(e) =>
+                        onCommitGlovesDesign?.(
+                          { ...glovesDesign, strapNameEnabled: e.target.checked },
+                          true
+                        )
+                      }
+                      className="w-4 h-4 accent-[#fa5400] cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* 2A: Diseño activo + filtros dinámicos envueltos sin recorte */}
             <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
@@ -1408,12 +1684,17 @@ export default function GuidedStepWizardPanel({
                     )}
                   </div>
                 </div>
+              </>
+            )}
           </div>
         )}
 
         {/* ==================== PASO 3: PALETA DE COLORES ==================== */}
         {wizardStep === 3 && (
           <div className="space-y-3.5">
+            {renderKitRoleBanner()}
+
+            {!isEditingGloves && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
@@ -1468,12 +1749,14 @@ export default function GuidedStepWizardPanel({
                 })}
               </div>
             </div>
+            )}
 
             <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-slate-900">
-                  Ajustar por zona
+                  {isEditingGloves ? 'Colores de Guantes 3D' : 'Ajustar por zona'}
                 </span>
+                {!isEditingGloves && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1495,6 +1778,7 @@ export default function GuidedStepWizardPanel({
                   <RefreshCw className="w-3 h-3" aria-hidden="true" />
                   <span>Invertir Principal ↔ Segundo</span>
                 </button>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-1.5">
@@ -1538,7 +1822,7 @@ export default function GuidedStepWizardPanel({
                         aria-label={`${c.name} (${c.hex})`}
                         aria-pressed={isCur}
                         onClick={() =>
-                          onUpdateColorZone(
+                          updateActiveColorZoneUnified(
                             safeActiveColorZone,
                             {
                               hex: c.hex,
@@ -1581,7 +1865,7 @@ export default function GuidedStepWizardPanel({
                     type="color"
                     value={activeZoneColorObj?.hex || '#fa5400'}
                     onChange={(e) =>
-                      onUpdateColorZone(
+                      updateActiveColorZoneUnified(
                         safeActiveColorZone,
                         {
                           hex: e.target.value,
@@ -1595,7 +1879,30 @@ export default function GuidedStepWizardPanel({
                   />
                 </div>
 
-                {pairedProduct && !['accessory', 'jacket'].includes(pairedProduct.garmentCategory) && (
+                {isEditingGloves && goalkeeperDesign && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCommitGlovesDesign?.(
+                        {
+                          ...glovesDesign,
+                          colorZones: {
+                            ...glovesDesign.colorZones,
+                            strap: goalkeeperDesign.colorZones?.primary || glovesDesign.colorZones.strap,
+                            accents: goalkeeperDesign.colorZones?.accents || glovesDesign.colorZones.accents,
+                          },
+                        },
+                        true
+                      );
+                      onToast?.('Colores de cintas y acentos sincronizados con Portero');
+                    }}
+                    className="w-full py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold transition-colors cursor-pointer"
+                  >
+                    Sincronizar colores con Uniforme de Portero →
+                  </button>
+                )}
+
+                {pairedProduct && !isEditingGloves && !['accessory', 'jacket'].includes(pairedProduct.garmentCategory) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1615,6 +1922,7 @@ export default function GuidedStepWizardPanel({
         {/* ==================== PASO 4: LOGOS, DORSALES Y PEDIDO ==================== */}
         {wizardStep === 4 && (
           <div className="space-y-3">
+            {renderKitRoleBanner()}
             {/* 4A: Subida de Escudos / Sponsors */}
             <div className="p-3 rounded-2xl arza-glass-card space-y-2.5">
               <div className="flex items-center justify-between">
@@ -2210,22 +2518,37 @@ export default function GuidedStepWizardPanel({
               )}
             </div>
 
-            {/* 4C: Resumen de Lista de Nombres y Porteros */}
+            {/* 4C: Resumen Completo Equipación + Portero Manga Larga + Guantes 3D */}
             <div className="p-3 rounded-2xl arza-pill-glass-green flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 w-full">
                   <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
                     <Users className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
                     <span>
-                      Pedido Total: {totalUnits} prendas ({rosterComposition.playerUnits} Jug. + {rosterComposition.keeperUnits} Port.)
+                      Equipación Total: {totalUnits} uniformes
+                      {rosterComposition.glovePairs > 0
+                        ? ` + ${rosterComposition.glovePairs} par guantes 3D`
+                        : ''}
                     </span>
                   </div>
-                  <p className="text-[11px] text-emerald-800 truncate mt-0.5">
-                    {currentTierLabel} • ${unitPrice.toFixed(2)} USD c/u
-                  </p>
+                  <div className="mt-1.5 space-y-0.5 text-[11px] text-emerald-900">
+                    <div>
+                      • <strong>{rosterComposition.playerUnits}</strong> Uniforme Campo ({currentProduct.shortName}) · ${(unitPrice * rosterComposition.playerUnits).toFixed(2)} USD
+                    </div>
+                    {rosterComposition.keeperUnits > 0 && (
+                      <div>
+                        • <strong>{rosterComposition.keeperUnits}</strong> Portero Manga Larga Fija · ${(unitPrice * rosterComposition.keeperUnits).toFixed(2)} USD
+                      </div>
+                    )}
+                    {rosterComposition.glovePairs > 0 && (
+                      <div>
+                        • <strong>{rosterComposition.glovePairs}</strong> Guantes Pro 3D ({rosterComposition.byGloveSizeLabel || 'T9'}) · ${glovesTotal.toFixed(2)} USD
+                      </div>
+                    )}
+                  </div>
                   {rosterSizeSummary && (
-                    <p className="text-[10px] font-mono text-emerald-900/80 truncate mt-0.5">
-                      {rosterSizeSummary}
+                    <p className="text-[10px] font-mono text-emerald-900/80 truncate mt-1">
+                      Tallas: {rosterSizeSummary}
                     </p>
                   )}
                 </div>
@@ -2256,10 +2579,11 @@ export default function GuidedStepWizardPanel({
       <div className="shrink-0 p-3 sm:p-3.5 border-t border-slate-200/80 bg-white/75 backdrop-blur-md space-y-2">
         <div className="flex items-center justify-between text-xs px-0.5">
           <span className="text-slate-600 font-medium">
-            {totalUnits} uds • <strong className="text-slate-900">{currentProduct.shortName}</strong>
+            {totalUnits} uds{rosterComposition.glovePairs > 0 ? ` + ${rosterComposition.glovePairs} par guantes` : ''} •{' '}
+            <strong className="text-slate-900">{currentProduct.shortName}</strong>
           </span>
           <span className="font-black text-slate-900 tabular-nums-pro">
-            ${totalPrice.toFixed(2)} USD
+            ${displayGrandTotal.toFixed(2)} USD
           </span>
         </div>
 

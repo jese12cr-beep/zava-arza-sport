@@ -356,9 +356,244 @@ const sharedZipperHardwareMaterial = new THREE.MeshStandardMaterial({
 /**
  * Instancia un `THREE.Group` con todas las piezas del modelo `.mirl` conectadas a sus materiales individuales por pieza.
  */
-export function instantiateMirlGarmentGroup(template, partMaterialsMap, neckLabelMat, hemFlagMat) {
+/**
+ * Extends a short-sleeve MIRL arm BufferGeometry (LeftArm / RightArm) cleanly down to
+ * wrist length (mandatory Goalkeeper Long Sleeve) while keeping outward normals, UVs,
+ * and a snug ribbed wrist cuff collar geometry.
+ */
+function extendShortSleeveGeometryToLong(srcGeo, extensionFactor = 1.18) {
+  const posAttr = srcGeo.attributes?.position;
+  const uvAttr = srcGeo.attributes?.uv;
+  const idxAttr = srcGeo.index;
+  if (!posAttr || !idxAttr) {
+    return { armGeometry: srcGeo, cuffGeometry: null };
+  }
+
+  const quantKey = (i) => {
+    const x = Math.round(posAttr.getX(i) * 2000);
+    const y = Math.round(posAttr.getY(i) * 2000);
+    const z = Math.round(posAttr.getZ(i) * 2000);
+    return `${x}_${y}_${z}`;
+  };
+
+  // Count undirected position-keyed edges & retain directed triangle half-edges
+  const edgeMap = new Map();
+  const triCount = idxAttr.count / 3;
+  for (let t = 0; t < triCount; t++) {
+    const tri = [idxAttr.getX(t * 3), idxAttr.getX(t * 3 + 1), idxAttr.getX(t * 3 + 2)];
+    for (let e = 0; e < 3; e++) {
+      const a = tri[e];
+      const b = tri[(e + 1) % 3];
+      const ka = quantKey(a);
+      const kb = quantKey(b);
+      if (ka === kb) continue;
+      const undir = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+      const prev = edgeMap.get(undir);
+      if (!prev) {
+        edgeMap.set(undir, { count: 1, a, b, ka, kb });
+      } else {
+        prev.count += 1;
+      }
+    }
+  }
+
+  const boundaryEdges = [];
+  for (const info of edgeMap.values()) {
+    if (info.count === 1) boundaryEdges.push(info);
+  }
+  if (boundaryEdges.length < 6) {
+    return { armGeometry: srcGeo, cuffGeometry: null };
+  }
+
+  // Group boundary edges into connected closed/open loops via posKey adjacency
+  const adj = new Map();
+  boundaryEdges.forEach((edge, idx) => {
+    if (!adj.has(edge.ka)) adj.set(edge.ka, []);
+    if (!adj.has(edge.kb)) adj.set(edge.kb, []);
+    adj.get(edge.ka).push(idx);
+    adj.get(edge.kb).push(idx);
+  });
+
+  const visited = new Uint8Array(boundaryEdges.length);
+  const loops = [];
+  for (let start = 0; start < boundaryEdges.length; start++) {
+    if (visited[start]) continue;
+    const queue = [start];
+    visited[start] = 1;
+    const comp = [];
+    while (queue.length) {
+      const cur = queue.shift();
+      const edge = boundaryEdges[cur];
+      comp.push(edge);
+      for (const nextKey of [edge.ka, edge.kb]) {
+        for (const nbIdx of adj.get(nextKey) || []) {
+          if (!visited[nbIdx]) {
+            visited[nbIdx] = 1;
+            queue.push(nbIdx);
+          }
+        }
+      }
+    }
+    if (comp.length >= 6) {
+      const c = new THREE.Vector3();
+      const seenKeys = new Set();
+      let uniqCount = 0;
+      for (const edge of comp) {
+        if (!seenKeys.has(edge.ka)) {
+          seenKeys.add(edge.ka);
+          c.x += posAttr.getX(edge.a);
+          c.y += posAttr.getY(edge.a);
+          c.z += posAttr.getZ(edge.a);
+          uniqCount++;
+        }
+      }
+      if (uniqCount > 0) c.divideScalar(uniqCount);
+      loops.push({ edges: comp, centroid: c });
+    }
+  }
+
+  if (loops.length < 2) {
+    return { armGeometry: srcGeo, cuffGeometry: null };
+  }
+
+  // Pick distal cuff loop (largest |x| from torso midline and lowest y) vs proximal armhole
+  loops.sort((la, lb) => {
+    const scoreA = Math.abs(la.centroid.x) * 1.4 - la.centroid.y;
+    const scoreB = Math.abs(lb.centroid.x) * 1.4 - lb.centroid.y;
+    return scoreB - scoreA;
+  });
+
+  const distalLoop = loops[0];
+  const armholeLoop = loops[loops.length - 1];
+
+  // Primary arm direction from armhole center through short cuff center (pointing down/out along A-pose arm)
+  const armDir = new THREE.Vector3().subVectors(distalLoop.centroid, armholeLoop.centroid);
+  const shortLen = Math.max(0.25, armDir.length());
+  armDir.normalize();
+  // Ensure gentle anatomical forearm drop (-Y) + slight natural forward flex (+Z)
+  armDir.y = Math.min(armDir.y, -0.45);
+  armDir.z += 0.08;
+  armDir.normalize();
+
+  const extDist = Math.max(0.95, Math.min(1.42, shortLen * 2.15)) * extensionFactor;
+  const sleeveRings = 9;
+  const cuffRings = 2;
+
+  // Compute radial vectors around distal cuff centroid
+  const posArr = Array.from(posAttr.array);
+  const uvArr = uvAttr ? Array.from(uvAttr.array) : [];
+  const idxArr = Array.from(idxAttr.array);
+  const cuffPositions = [];
+  const cuffUvs = [];
+  const cuffIndices = [];
+
+  const getRingTransform = (origIdx, t, isCuff = false) => {
+    const ox = posAttr.getX(origIdx) - distalLoop.centroid.x;
+    const oy = posAttr.getY(origIdx) - distalLoop.centroid.y;
+    const oz = posAttr.getZ(origIdx) - distalLoop.centroid.z;
+
+    // Gentle elbow bend & anatomical forearm taper to snug wrist cuff
+    const bendDown = Math.pow(t, 1.5) * 0.14;
+    const elbowFwd = Math.sin(t * Math.PI * 0.75) * 0.065;
+    const taper = isCuff ? 0.61 : 1 - 0.37 * Math.pow(t, 1.08);
+    const advance = t * extDist;
+
+    const nx = distalLoop.centroid.x + armDir.x * advance + ox * taper;
+    const ny = distalLoop.centroid.y + armDir.y * advance - bendDown + oy * taper;
+    const nz = distalLoop.centroid.z + armDir.z * advance + elbowFwd + oz * taper;
+
+    const ou = uvAttr ? uvAttr.getX(origIdx) : 0.5;
+    const ov = uvAttr ? uvAttr.getY(origIdx) : 0.5;
+    const nv = Math.max(0.02, Math.min(0.98, ov * (1 - t * 0.45) + 0.04 * t));
+    return { x: nx, y: ny, z: nz, u: ou, v: nv };
+  };
+
+  // Clone base vertices per ring cleanly so seam UVs stay intact
+  const addVertex = (x, y, z, u, v, targetPos, targetUv) => {
+    const idx = targetPos.length / 3;
+    targetPos.push(x, y, z);
+    if (targetUv) targetUv.push(u, v);
+    return idx;
+  };
+
+  // Extrude sleeve body rings (0 .. sleeveRings)
+  const sleeveRingCache = new Map();
+  const getOrCreateSleeveVert = (origIdx, ringStep) => {
+    const key = `${origIdx}_${ringStep}`;
+    if (sleeveRingCache.has(key)) return sleeveRingCache.get(key);
+    if (ringStep === 0) {
+      sleeveRingCache.set(key, origIdx);
+      return origIdx;
+    }
+    const t = ringStep / sleeveRings;
+    const pt = getRingTransform(origIdx, t * 0.91, false);
+    const nIdx = addVertex(pt.x, pt.y, pt.z, pt.u, pt.v, posArr, uvArr.length ? uvArr : null);
+    sleeveRingCache.set(key, nIdx);
+    return nIdx;
+  };
+
+  for (let r = 0; r < sleeveRings; r++) {
+    for (const edge of distalLoop.edges) {
+      const a0 = getOrCreateSleeveVert(edge.a, r);
+      const b0 = getOrCreateSleeveVert(edge.b, r);
+      const a1 = getOrCreateSleeveVert(edge.a, r + 1);
+      const b1 = getOrCreateSleeveVert(edge.b, r + 1);
+      idxArr.push(b0, a0, a1);
+      idxArr.push(b0, a1, b1);
+    }
+  }
+
+  // Extrude ribbed wrist cuff collar (final 9% -> 100%)
+  const cuffRingCache = new Map();
+  const getOrCreateCuffVert = (origIdx, step) => {
+    const key = `${origIdx}_${step}`;
+    if (cuffRingCache.has(key)) return cuffRingCache.get(key);
+    const t = 0.91 + (step / cuffRings) * 0.09;
+    const pt = getRingTransform(origIdx, t, step > 0);
+    // Subtle raised cuff thickness at step 0..1
+    const idx = addVertex(pt.x, pt.y, pt.z, pt.u, step / cuffRings, cuffPositions, cuffUvs);
+    cuffRingCache.set(key, idx);
+    return idx;
+  };
+
+  for (let r = 0; r < cuffRings; r++) {
+    for (const edge of distalLoop.edges) {
+      const a0 = getOrCreateCuffVert(edge.a, r);
+      const b0 = getOrCreateCuffVert(edge.b, r);
+      const a1 = getOrCreateCuffVert(edge.a, r + 1);
+      const b1 = getOrCreateCuffVert(edge.b, r + 1);
+      cuffIndices.push(b0, a0, a1);
+      cuffIndices.push(b0, a1, b1);
+    }
+  }
+
+  const extendedArmGeo = new THREE.BufferGeometry();
+  extendedArmGeo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  if (uvArr.length) {
+    extendedArmGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvArr, 2));
+  }
+  extendedArmGeo.setIndex(idxArr);
+  extendedArmGeo.computeVertexNormals();
+
+  const cuffGeometry = new THREE.BufferGeometry();
+  cuffGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cuffPositions, 3));
+  cuffGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(cuffUvs, 2));
+  cuffGeometry.setIndex(cuffIndices);
+  cuffGeometry.computeVertexNormals();
+
+  return { armGeometry: extendedArmGeo, cuffGeometry };
+}
+
+export function instantiateMirlGarmentGroup(
+  template,
+  partMaterialsMap,
+  neckLabelMat,
+  hemFlagMat,
+  options = {},
+) {
   const group = new THREE.Group();
   group.name = 'OwayoMirlGarmentGroup';
+  const useLongSleeves = options?.sleeveLength === 'long';
 
   const fallbackMat =
     partMaterialsMap.Front ||
@@ -387,7 +622,15 @@ export function instantiateMirlGarmentGroup(template, partMaterialsMap, neckLabe
       mat = fallbackMat;
     }
 
-    const mesh = new THREE.Mesh(part.geometry, mat);
+    let finalGeometry = part.geometry;
+    let cuffGeo = null;
+    if (useLongSleeves && (part.name === 'LeftArm' || part.name === 'RightArm')) {
+      const res = extendShortSleeveGeometryToLong(part.geometry, 1.0);
+      finalGeometry = res.armGeometry;
+      cuffGeo = res.cuffGeometry;
+    }
+
+    const mesh = new THREE.Mesh(finalGeometry, mat);
     mesh.name = part.name;
     mesh.castShadow = part.name !== 'Etikett';
     mesh.receiveShadow = true;
@@ -399,6 +642,20 @@ export function instantiateMirlGarmentGroup(template, partMaterialsMap, neckLabe
       faces: part.anzFaces,
     };
     group.add(mesh);
+
+    if (cuffGeo) {
+      const cuffMat = partMaterialsMap.Collar || partMaterialsMap.CollarOutside || mat;
+      const cuffMesh = new THREE.Mesh(cuffGeo, cuffMat);
+      cuffMesh.name = `${part.name}Cuff`;
+      cuffMesh.castShadow = true;
+      cuffMesh.receiveShadow = true;
+      cuffMesh.userData = {
+        partName: `${part.name}Cuff`,
+        panel: 'collar',
+        isDroppable: false,
+      };
+      group.add(cuffMesh);
+    }
   }
 
   return group;

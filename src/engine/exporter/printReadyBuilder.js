@@ -8,7 +8,7 @@
  * 3. Construye el payload `POST /cart/add.js` de Shopify agrupando tallas sin Base64.
  */
 
-import { VOLUME_TIERS } from '../core/designStore';
+import { VOLUME_TIERS, isGoalkeeperRole, GLOVE_PAIR_UNIT_PRICE } from '../core/designStore';
 
 function escapeXml(str = '') {
   return String(str)
@@ -116,12 +116,25 @@ export function generateSublimationCutSheetSVG(design, product, roster = []) {
       ? 'M 70 12 L 86 12 Q 115 34 144 12 L 160 12 Q 166 102 210 138 L 206 450 L 24 450 L 20 138 Q 64 102 70 12 Z'
       : 'M 48 15 L 182 15 L 214 72 L 207 450 L 23 450 L 16 72 Z';
 
+    const isLongSleeve = !isBasketballTank && (design?.sleeveLength === 'long' || design?.isGoalkeeper);
     const armPiecesXml = isBasketballTank
       ? `
     <rect x="5" y="12" width="268" height="24" fill="${cSleeves}" stroke="#ec4899" stroke-width="1.2" stroke-dasharray="4 3"/>
     <text x="138" y="50" text-anchor="middle" font-family="monospace" font-size="9" fill="#94a3b8">PIEZA 03: AERMELBAND LINKS (110×4.8cm • R-TEX 3)</text>
     <rect x="5" y="68" width="268" height="24" fill="${cSleeves}" stroke="#ec4899" stroke-width="1.2" stroke-dasharray="4 3"/>
     <text x="138" y="106" text-anchor="middle" font-family="monospace" font-size="9" fill="#94a3b8">PIEZA 04: AERMELBAND RECHTS (110×4.8cm • R-TEX 3)</text>
+  `
+      : isLongSleeve
+      ? `
+    <path d="M 18 6 Q 66 -6 114 6 L 106 116 L 26 116 Z" fill="${cSleeves}" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <rect x="26" y="102" width="80" height="12" fill="${cCollar}" stroke="#facc15" stroke-width="0.9"/>
+    <text x="66" y="129" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#10b981">MANGA LARGA GK IZQ.</text>
+
+    <g transform="translate(145, 0)">
+      <path d="M 18 6 Q 66 -6 114 6 L 106 116 L 26 116 Z" fill="${cSleeves}" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <rect x="26" y="102" width="80" height="12" fill="${cCollar}" stroke="#facc15" stroke-width="0.9"/>
+      <text x="66" y="129" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#10b981">MANGA LARGA GK DER.</text>
+    </g>
   `
       : `
     <path d="M 22 8 Q 68 -4 114 8 L 132 105 L 4 105 Z" fill="${cSleeves}" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="5 3"/>
@@ -240,12 +253,33 @@ export function generateSublimationCutSheetSVG(design, product, roster = []) {
 </svg>`;
 }
 
-export function buildShopifyAndManufacturingBundle(design, product, roster = [], previewWebpUrl = '') {
-  const totalUnits = roster.reduce((sum, r) => sum + (Number(r.qty) || 1), 0);
+export function buildShopifyAndManufacturingBundle(
+  design,
+  product,
+  roster = [],
+  previewWebpUrl = '',
+  kitExtras = null
+) {
+  let totalUnits = 0;
+  let playerUnits = 0;
+  let keeperUnits = 0;
+  for (const r of roster) {
+    const q = Math.max(1, Number(r.qty) || 1);
+    totalUnits += q;
+    if (isGoalkeeperRole(r.role)) keeperUnits += q;
+    else playerUnits += q;
+  }
+
   const tier =
     VOLUME_TIERS.find((t) => totalUnits >= t.min && totalUnits <= t.max) || VOLUME_TIERS[0];
   const unitPrice = +(product.basePrice * (1 - tier.discountPct / 100)).toFixed(2);
-  const totalOrderPrice = +(unitPrice * totalUnits).toFixed(2);
+  const garmentsSubtotal = +(unitPrice * totalUnits).toFixed(2);
+
+  const includeGloves = kitExtras?.includeGloves !== false && keeperUnits > 0;
+  const glovePairs = includeGloves ? keeperUnits : 0;
+  const glovesUnitPrice = Number(kitExtras?.glovesDesign?.unitPrice) || GLOVE_PAIR_UNIT_PRICE;
+  const glovesTotalPrice = +(glovesUnitPrice * glovePairs).toFixed(2);
+  const totalOrderPrice = +(garmentsSubtotal + glovesTotalPrice).toFixed(2);
 
   const uuidNameBack = design.variableSlots?.playerNameBack?.textObjectUUID || 'uuid-slot-name-back';
   const uuidNumBack = design.variableSlots?.playerNumberBack?.textObjectUUID || 'uuid-slot-num-back';
@@ -342,13 +376,53 @@ export function buildShopifyAndManufacturingBundle(design, product, roster = [],
     },
   }));
 
+  if (glovePairs > 0 && kitExtras?.glovesDesign) {
+    const gkKeepers = roster.filter((r) => isGoalkeeperRole(r.role));
+    shopifyItems.push({
+      id: 99001,
+      quantity: glovePairs,
+      properties: {
+        Producto: 'Guantes de Portero Pro 3D ARZA',
+        Corte_Palma: kitExtras.glovesDesign.gloveCut || 'hybrid',
+        Tallas_Guante: gkKeepers.map((r) => `#${r.number} ${r.name} (T${r.gloveSize || '9'})`).join(', '),
+        _arza_design_id: kitExtras.glovesDesign.designId,
+        _arza_category: 'goalkeeper_gloves_3d',
+      },
+    });
+  }
+
   return {
     pricing: {
       totalUnits,
+      playerUnits,
+      keeperUnits,
+      glovePairs,
+      glovesUnitPrice,
+      glovesTotalPrice,
+      garmentsSubtotal,
       tier,
       unitPrice,
       totalOrderPrice,
     },
+    goalkeeperSpec:
+      keeperUnits > 0
+        ? {
+            sleeveLength: 'long',
+            keeperUnits,
+            designId: kitExtras?.goalkeeperDesign?.designId || design.designId,
+            colors: kitExtras?.goalkeeperDesign?.colorZones || design.colorZones,
+          }
+        : null,
+    glovesSpec:
+      glovePairs > 0
+        ? {
+            glovePairs,
+            unitPrice: glovesUnitPrice,
+            totalPrice: glovesTotalPrice,
+            gloveCut: kitExtras?.glovesDesign?.gloveCut || 'hybrid',
+            colors: kitExtras?.glovesDesign?.colorZones || null,
+          }
+        : null,
     shopifyCartAddPayload: {
       items: shopifyItems,
     },

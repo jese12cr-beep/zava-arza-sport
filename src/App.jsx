@@ -19,6 +19,8 @@ import {
   INITIAL_TEAM_ROSTER,
   createInitialMasterDesign,
   createDefaultDesignForProduct,
+  createDefaultGoalkeeperDesign,
+  createDefaultGlovesDesign,
   generateDesignId,
   summarizeRosterComposition,
 } from './engine/core/designStore';
@@ -28,9 +30,14 @@ function createInitialKitSnapshot() {
   for (const prod of ENGINE_PRODUCTS) {
     designsByProduct[prod.id] = createDefaultDesignForProduct(prod.id);
   }
+  const baseField = designsByProduct.futbol_jersey_pro_vneck;
   return {
     activeProductId: 'futbol_jersey_pro_vneck',
+    activeKitRole: 'field',
+    includeGloves: true,
     designsByProduct,
+    goalkeeperDesign: createDefaultGoalkeeperDesign('futbol_jersey_pro_vneck', baseField),
+    glovesDesign: createDefaultGlovesDesign(baseField),
   };
 }
 
@@ -74,11 +81,19 @@ export default function App() {
 
   const currentSnapshot = history[historyIdx] || history[0];
   const activeProductId = currentSnapshot?.activeProductId || 'futbol_jersey_pro_vneck';
-  const design =
+  const activeKitRole = currentSnapshot?.activeKitRole || 'field';
+  const includeGloves = currentSnapshot?.includeGloves !== false;
+  const fieldDesign =
     currentSnapshot?.designsByProduct?.[activeProductId] ||
     (currentSnapshot?.designsByProduct
       ? Object.values(currentSnapshot.designsByProduct)[0]
       : createInitialMasterDesign());
+  const goalkeeperDesign =
+    currentSnapshot?.goalkeeperDesign ||
+    createDefaultGoalkeeperDesign(activeProductId, fieldDesign);
+  const glovesDesign =
+    currentSnapshot?.glovesDesign || createDefaultGlovesDesign(fieldDesign);
+  const design = activeKitRole === 'goalkeeper' ? goalkeeperDesign : fieldDesign;
 
   const [roster, setRoster] = useState(INITIAL_TEAM_ROSTER);
   const [artworkRegistry, setArtworkRegistry] = useState({});
@@ -150,8 +165,19 @@ export default function App() {
   const handleCommitDesign = useCallback(
     (nextDesign, recordUndo = true) => {
       pushSnapshot((snap) => {
+        if (snap.activeKitRole === 'goalkeeper') {
+          return {
+            ...snap,
+            goalkeeperDesign: {
+              ...nextDesign,
+              isGoalkeeper: true,
+              sleeveLength: 'long',
+            },
+          };
+        }
         const pid = nextDesign.productModelId || snap.activeProductId;
         return {
+          ...snap,
           activeProductId: pid,
           designsByProduct: {
             ...snap.designsByProduct,
@@ -159,6 +185,36 @@ export default function App() {
           },
         };
       }, recordUndo);
+    },
+    [pushSnapshot]
+  );
+
+  const handleSwitchKitRole = useCallback(
+    (nextRole) => {
+      pushSnapshot((snap) => ({
+        ...snap,
+        activeKitRole: nextRole || 'field',
+      }), false);
+    },
+    [pushSnapshot]
+  );
+
+  const handleCommitGlovesDesign = useCallback(
+    (nextGloves, recordUndo = true) => {
+      pushSnapshot((snap) => ({
+        ...snap,
+        glovesDesign: nextGloves,
+      }), recordUndo);
+    },
+    [pushSnapshot]
+  );
+
+  const handleToggleIncludeGloves = useCallback(
+    (nextInclude) => {
+      pushSnapshot((snap) => ({
+        ...snap,
+        includeGloves: Boolean(nextInclude),
+      }), true);
     },
     [pushSnapshot]
   );
@@ -171,6 +227,8 @@ export default function App() {
         const resolved =
           existing || createDefaultDesignForProduct(targetProductId, curDesign?.colorZones || null);
         return {
+          ...snap,
+          activeKitRole: 'field',
           activeProductId: targetProductId,
           designsByProduct: {
             ...snap.designsByProduct,
@@ -243,41 +301,63 @@ export default function App() {
 
   const createCartEntryFromBundle = useCallback(
     (bundle, existingCartId = null) => {
-      const comp = summarizeRosterComposition(roster);
-      const keeperNote = comp.keeperUnits > 0 ? ` (${comp.playerUnits} Jug. + ${comp.keeperUnits} Port.)` : '';
+      const comp = summarizeRosterComposition(roster, includeGloves);
+      const keeperNote = comp.keeperUnits > 0 ? ` (${comp.playerUnits} Jug. + ${comp.keeperUnits} Port. Manga Larga)` : '';
+      const glovesNote = comp.glovePairs > 0 ? ` + ${comp.glovePairs} par guantes 3D` : '';
       return {
         cartId: existingCartId || `item_${Date.now()}`,
-        designId: design.designId,
+        designId: fieldDesign.designId,
         product: {
           id: currentProduct.id,
           name: currentProduct.name,
           type: currentProduct.renderMode,
-          description: `${bundle.pricing.totalUnits} prendas${keeperNote} vinculadas a ${design.designId}`,
+          description: `${bundle.pricing.totalUnits} prendas${keeperNote}${glovesNote} vinculadas a ${fieldDesign.designId}`,
         },
         design: {
-          baseColor: design.colorZones.primary?.hex,
-          sleeveColor: design.colorZones.sleeves?.hex,
-          pattern: design.patternId,
+          baseColor: fieldDesign.colorZones.primary?.hex,
+          sleeveColor: fieldDesign.colorZones.sleeves?.hex,
+          pattern: fieldDesign.patternId,
           playerName: roster[0]?.name || 'EQUIPO',
           playerNumber: roster[0]?.number || '10',
-          sponsorText: (design.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
+          sponsorText: (fieldDesign.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
         },
+        goalkeeperSpec:
+          comp.keeperUnits > 0
+            ? {
+                sleeveLength: 'long',
+                primaryColor: goalkeeperDesign.colorZones?.primary?.hex,
+                secondaryColor: goalkeeperDesign.colorZones?.secondary?.hex,
+                keeperUnits: comp.keeperUnits,
+              }
+            : null,
+        glovesSpec:
+          comp.glovePairs > 0
+            ? {
+                glovePairs: comp.glovePairs,
+                gloveCut: glovesDesign.gloveCut,
+                unitPrice: glovesDesign.unitPrice,
+                totalPrice: +(glovesDesign.unitPrice * comp.glovePairs).toFixed(2),
+                colors: glovesDesign.colorZones,
+              }
+            : null,
         roster: roster.map((r, i) => ({
           id: r.id || i,
           name: r.name,
           number: r.number,
           role: r.role || 'Jugador',
+          gloveSize: r.gloveSize || '9',
           qty: Number(r.qty) || 1,
           size: `${r.size} (${r.cut}) x${Number(r.qty) || 1}`,
         })),
         keeperUnits: comp.keeperUnits,
         playerUnits: comp.playerUnits,
+        glovePairs: comp.glovePairs,
         totalUnits: bundle.pricing.totalUnits,
         unitPrice: bundle.pricing.unitPrice.toFixed(2),
         totalPrice: bundle.pricing.totalOrderPrice.toFixed(2),
       };
     },
-    [currentProduct, design, roster]
+    [currentProduct, fieldDesign, goalkeeperDesign, glovesDesign, includeGloves, roster]
   );
 
   const handleConfirmAddToCart = (bundle) => {
@@ -290,10 +370,16 @@ export default function App() {
   };
 
   const handleFinishOrderToCheckout = () => {
-    const bundle = buildShopifyAndManufacturingBundle(design, currentProduct, roster);
+    const fieldProduct =
+      ENGINE_PRODUCTS.find((p) => p.id === fieldDesign.productModelId) || currentProduct;
+    const bundle = buildShopifyAndManufacturingBundle(fieldDesign, fieldProduct, roster, '', {
+      goalkeeperDesign,
+      glovesDesign,
+      includeGloves,
+    });
     setCartItems((prev) => {
       const matchIdx = prev.findIndex(
-        (item) => item.designId === design.designId && item.product?.id === currentProduct.id
+        (item) => item.designId === fieldDesign.designId && item.product?.id === fieldProduct.id
       );
       if (matchIdx >= 0) {
         const updated = [...prev];
@@ -342,6 +428,13 @@ export default function App() {
       {appMode === 'studio' ? (
         <HybridStudioWorkspace
           design={design}
+          goalkeeperDesign={goalkeeperDesign}
+          glovesDesign={glovesDesign}
+          activeKitRole={activeKitRole}
+          includeGloves={includeGloves}
+          onSwitchKitRole={handleSwitchKitRole}
+          onCommitGlovesDesign={handleCommitGlovesDesign}
+          onToggleIncludeGloves={handleToggleIncludeGloves}
           designsByProduct={currentSnapshot.designsByProduct}
           onSwitchProduct={handleSwitchProduct}
           onSyncPairedColors={handleSyncPairedColors}

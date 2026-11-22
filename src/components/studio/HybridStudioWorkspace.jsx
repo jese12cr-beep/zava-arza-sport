@@ -76,6 +76,8 @@ import {
   createDefaultDesignForProduct,
   ROSTER_CUT_OPTIONS,
   ROSTER_SIZE_OPTIONS,
+  GLOVE_SIZE_OPTIONS,
+  GLOVE_PAIR_UNIT_PRICE,
   isGoalkeeperRole,
   parseRosterQuickLines,
   summarizeRosterComposition,
@@ -252,6 +254,13 @@ function LightDismissModal({ isOpen, onClose, titleId, title, subtitle, maxWidth
 
 export default function HybridStudioWorkspace({
   design,
+  goalkeeperDesign,
+  glovesDesign,
+  activeKitRole = 'field',
+  includeGloves = true,
+  onSwitchKitRole,
+  onCommitGlovesDesign,
+  onToggleIncludeGloves,
   designsByProduct,
   onSwitchProduct,
   onSyncPairedColors,
@@ -501,12 +510,29 @@ export default function HybridStudioWorkspace({
     number: '10',
     size: 'L',
   };
-  const rosterComposition = useMemo(() => summarizeRosterComposition(roster), [roster]);
+  const rosterComposition = useMemo(
+    () => summarizeRosterComposition(roster, includeGloves),
+    [roster, includeGloves]
+  );
   const totalUnits = rosterComposition.totalUnits;
   const currentTier =
     VOLUME_TIERS.find((t) => totalUnits >= t.min && totalUnits <= t.max) || VOLUME_TIERS[0];
   const unitPrice = +(currentProduct.basePrice * (1 - currentTier.discountPct / 100)).toFixed(2);
   const totalPrice = +(unitPrice * totalUnits).toFixed(2);
+  const glovesUnitPrice = Number(glovesDesign?.unitPrice) || GLOVE_PAIR_UNIT_PRICE;
+  const glovesTotal = +(glovesUnitPrice * rosterComposition.glovePairs).toFixed(2);
+  const grandTotalPrice = +(totalPrice + glovesTotal).toFixed(2);
+
+  const handleRoleSwitch = (nextRole) => {
+    onSwitchKitRole?.(nextRole);
+    if (nextRole === 'goalkeeper' || nextRole === 'gloves') {
+      const gkIdx = roster.findIndex((r) => isGoalkeeperRole(r.role));
+      if (gkIdx >= 0) setActiveRosterIndex(gkIdx);
+    } else if (nextRole === 'field') {
+      const fpIdx = roster.findIndex((r) => !isGoalkeeperRole(r.role));
+      if (fpIdx >= 0) setActiveRosterIndex(fpIdx);
+    }
+  };
 
   const allDecals = design.decals || [];
   const logoDecals = allDecals.filter((d) => d.type !== 'STATIC_TEXT');
@@ -1878,6 +1904,8 @@ export default function HybridStudioWorkspace({
             >
               <GarmentCanvas3D
                 design={design}
+                activeKitRole={activeKitRole}
+                glovesDesign={glovesDesign}
                 activePlayer={activePlayer}
                 artworkRegistry={artworkRegistry}
                 cameraPreset={cameraPreset}
@@ -1931,6 +1959,47 @@ export default function HybridStudioWorkspace({
                 decorative
                 className="h-9 sm:h-11 xl:h-12 w-auto saturate-75 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
               />
+            </div>
+          )}
+
+          {/* Selector flotante rápido: Uniforme Campo | Portero Manga Larga | Guantes 3D */}
+          {viewportMode !== '2d_pliego' && (
+            <div
+              role="group"
+              aria-label="Cambiar pieza del kit del equipo"
+              className="pointer-events-auto absolute bottom-2.5 left-2.5 sm:bottom-3.5 sm:left-4 z-20 flex items-center gap-1 p-1 rounded-full arza-glass-card shadow-sm"
+            >
+              {[
+                { id: 'field', label: 'Equipo Campo', count: rosterComposition.playerUnits },
+                { id: 'goalkeeper', label: 'Portero · Manga Larga', count: rosterComposition.keeperUnits },
+                { id: 'gloves', label: 'Guantes 3D', count: rosterComposition.glovePairs },
+              ].map((pill) => {
+                const active = activeKitRole === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleRoleSwitch(pill.id)}
+                    className={`min-h-8 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                      active
+                        ? 'arza-btn-glass-green'
+                        : 'text-slate-700 hover:bg-white/75 hover:text-slate-950'
+                    }`}
+                  >
+                    <span>{pill.label}</span>
+                    {pill.count > 0 && (
+                      <span
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${
+                          active ? 'bg-black/20 text-white' : 'bg-slate-200/80 text-slate-700'
+                        }`}
+                      >
+                        {pill.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -2009,6 +2078,13 @@ export default function HybridStudioWorkspace({
                   wizardStep={wizardStep}
                   onStepChange={setWizardStep}
                   design={design}
+                  goalkeeperDesign={goalkeeperDesign}
+                  glovesDesign={glovesDesign}
+                  activeKitRole={activeKitRole}
+                  includeGloves={includeGloves}
+                  onSwitchKitRole={handleRoleSwitch}
+                  onCommitGlovesDesign={onCommitGlovesDesign}
+                  onToggleIncludeGloves={onToggleIncludeGloves}
                   currentProduct={currentProduct}
                   pairedProduct={pairedProduct}
                   genderModule={genderModule}
@@ -2033,9 +2109,12 @@ export default function HybridStudioWorkspace({
                   activeRosterIndex={activeRosterIndex}
                   onSelectRosterIndex={setActiveRosterIndex}
                   onUpdateRoster={onUpdateRoster}
+                  rosterComposition={rosterComposition}
                   totalUnits={totalUnits}
                   unitPrice={unitPrice}
                   totalPrice={totalPrice}
+                  glovesTotal={glovesTotal}
+                  grandTotalPrice={grandTotalPrice}
                   currentTierLabel={currentTier.label}
                   onFilesSelected={handleFilesSelected}
                   onAddPresetCrest={handleAddPresetCrest}
@@ -4396,6 +4475,7 @@ export default function HybridStudioWorkspace({
                       cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
                       qty: 1,
                       role: 'Portero',
+                      gloveSize: '9',
                     },
                   ])
                 }
@@ -4412,7 +4492,7 @@ export default function HybridStudioWorkspace({
               <thead className="bg-slate-50 text-slate-700 text-[11px] uppercase border-b border-slate-200">
                 <tr>
                   <th className="p-2.5">#</th>
-                  <th className="p-2.5">Rol</th>
+                  <th className="p-2.5">Rol / Guante</th>
                   <th className="p-2.5">Corte</th>
                   <th className="p-2.5">Talla</th>
                   <th className="p-2.5">Cant.</th>
@@ -4439,13 +4519,21 @@ export default function HybridStudioWorkspace({
                       <th scope="row" className="p-2.5 font-mono text-slate-700">
                         {String(idx + 1).padStart(2, '0')}
                       </th>
-                      <td className="p-2">
+                      <td className="p-2 space-y-1">
                         <select
                           aria-label={`Rol fila ${idx + 1}`}
                           value={keeper ? 'Portero' : 'Jugador'}
                           onChange={(e) =>
                             onUpdateRoster(
-                              roster.map((r, i) => (i === idx ? { ...r, role: e.target.value } : r))
+                              roster.map((r, i) =>
+                                i === idx
+                                  ? {
+                                      ...r,
+                                      role: e.target.value,
+                                      gloveSize: e.target.value === 'Portero' ? r.gloveSize || '9' : r.gloveSize,
+                                    }
+                                  : r
+                              )
                             )
                           }
                           className={`border rounded-lg px-2 py-1 text-xs font-bold ${
@@ -4457,6 +4545,27 @@ export default function HybridStudioWorkspace({
                           <option value="Jugador">Jugador</option>
                           <option value="Portero">Portero</option>
                         </select>
+                        {keeper && includeGloves && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-amber-900">Guante:</span>
+                            <select
+                              aria-label={`Talla guante fila ${idx + 1}`}
+                              value={row.gloveSize || '9'}
+                              onChange={(e) =>
+                                onUpdateRoster(
+                                  roster.map((r, i) => (i === idx ? { ...r, gloveSize: e.target.value } : r))
+                                )
+                              }
+                              className="bg-white border border-amber-300 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800"
+                            >
+                              {GLOVE_SIZE_OPTIONS.map((gs) => (
+                                <option key={gs} value={gs}>
+                                  T{gs}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </td>
                       <td className="p-2">
                         <select

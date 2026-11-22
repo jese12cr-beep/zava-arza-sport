@@ -737,6 +737,7 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
     engineVersion: '5.0.0',
     productModelId: prod.id,
     collarStyle: 'v-neck',
+    sleeveLength: 'short',
     patternId: prod.defaultDesignId || 'pure',
     surfacePatternId: 'none',
     surfacePatternOpacity: 0.16,
@@ -816,6 +817,98 @@ export function createDefaultDesignForProduct(productModelId = 'futbol_jersey_pr
   };
 }
 
+export const GLOVE_SIZE_OPTIONS = ['7', '8', '9', '10', '11'];
+
+export const GLOVE_CUT_STYLES = [
+  { id: 'negative', label: 'Corte Negativo', desc: 'Costuras internas · ajuste ceñido de máximo tacto' },
+  { id: 'roll_finger', label: 'Roll Finger', desc: 'Látex envolvente 360° en dedos · mayor agarre' },
+  { id: 'hybrid', label: 'Híbrido Pro', desc: 'Ergonomía mixta profesional · palma Contact 4mm' },
+];
+
+export const GLOVE_PAIR_UNIT_PRICE = 28.0;
+
+/**
+ * Generates the mandatory Long-Sleeve Goalkeeper uniform design with contrasting
+ * high-visibility team colors and cloned club decals/typography from the field kit.
+ */
+export function createDefaultGoalkeeperDesign(productId = 'futbol_jersey_pro_vneck', fieldDesign = null) {
+  const keeperProductId =
+    productId === 'futbol_jersey_f3w_women' ? 'futbol_jersey_f3w_women' : 'futbol_jersey_pro_vneck';
+  const fieldPrimary = (fieldDesign?.colorZones?.primary?.hex || '').toLowerCase();
+  const isFieldEmerald = /^#(059669|0f622f|10b981|16a34a)$/i.test(fieldPrimary);
+
+  const keeperColors = isFieldEmerald
+    ? {
+        primary: { hex: '#0284c7', pantone: 'PMS 2995 C', code: 'Cian Eléctrico GK', owayoCode: 'A' },
+        secondary: { hex: '#0f172a', pantone: 'PMS 289 C', code: 'Marino Profundo', owayoCode: 'B' },
+        accents: { hex: '#facc15', pantone: 'PMS 107 C', code: 'Volt Limón', owayoCode: 'C' },
+        quaternary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'D' },
+        collar: { hex: '#facc15', pantone: 'PMS 107 C', code: 'Volt Limón', owayoCode: 'K' },
+        sleeves: { hex: '#0284c7', pantone: 'PMS 2995 C', code: 'Cian Eléctrico GK', owayoCode: 'SLL/SLR' },
+      }
+    : {
+        primary: { hex: '#059669', pantone: 'PMS 3395 C', code: 'Esmeralda Portero', owayoCode: 'A' },
+        secondary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'B' },
+        accents: { hex: '#facc15', pantone: 'PMS 107 C', code: 'Volt Limón', owayoCode: 'C' },
+        quaternary: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'White 1', owayoCode: 'D' },
+        collar: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Carbón ARZA', owayoCode: 'K' },
+        sleeves: { hex: '#059669', pantone: 'PMS 3395 C', code: 'Esmeralda Portero', owayoCode: 'SLL/SLR' },
+      };
+
+  const base = createDefaultDesignForProduct(keeperProductId, keeperColors);
+  return {
+    ...base,
+    isGoalkeeper: true,
+    sleeveLength: 'long',
+    patternId: fieldDesign?.patternId && fieldDesign.patternId !== 'pure' ? fieldDesign.patternId : base.patternId,
+    fabricWeaveId: fieldDesign?.fabricWeaveId || base.fabricWeaveId,
+    collarStyle: fieldDesign?.collarStyle || base.collarStyle,
+    decals: fieldDesign?.decals ? structuredClone(fieldDesign.decals) : base.decals,
+    variableSlots: fieldDesign?.variableSlots
+      ? {
+          ...structuredClone(fieldDesign.variableSlots),
+          playerNumberFront: {
+            ...(fieldDesign.variableSlots.playerNumberFront || base.variableSlots.playerNumberFront),
+            enabled: true,
+          },
+          playerNumberBack: {
+            ...(fieldDesign.variableSlots.playerNumberBack || base.variableSlots.playerNumberBack),
+            enabled: true,
+          },
+          playerNameBack: {
+            ...(fieldDesign.variableSlots.playerNameBack || base.variableSlots.playerNameBack),
+            enabled: true,
+          },
+        }
+      : base.variableSlots,
+  };
+}
+
+/**
+ * Generates default 3D Goalkeeper Gloves configuration paired cleanly with the kit.
+ */
+export function createDefaultGlovesDesign(fieldDesign = null) {
+  const accentHex = fieldDesign?.colorZones?.secondary?.hex || '#fa5400';
+  return {
+    designId: generateDesignId(),
+    modelUrl: 'models/goalkeeper_gloves_gk1.glb',
+    gloveCut: 'hybrid',
+    unitPrice: GLOVE_PAIR_UNIT_PRICE,
+    includeCrest: true,
+    strapNameEnabled: true,
+    strapNumberEnabled: true,
+    patternId: fieldDesign?.patternId || 'pure',
+    decals: fieldDesign?.decals ? structuredClone(fieldDesign.decals) : [],
+    colorZones: {
+      palm: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'Látex Contact Blanco', owayoCode: 'PALM' },
+      primary: { hex: '#111111', pantone: 'PMS Black 6 C', code: 'Dorso Carbón', owayoCode: 'BACK' },
+      accents: { hex: accentHex, pantone: 'PMS 1655 C', code: 'Acentos Dedos', owayoCode: 'GUSSET' },
+      strap: { hex: '#059669', pantone: 'PMS 3395 C', code: 'Cinta Muñequera', owayoCode: 'STRAP' },
+      strapText: { hex: '#ffffff', pantone: 'PMS Bright White', code: 'Texto Muñequera', owayoCode: 'TXT' },
+    },
+  };
+}
+
 export function createInitialMasterDesign() {
   return createDefaultDesignForProduct('futbol_jersey_pro_vneck');
 }
@@ -833,17 +926,22 @@ export function isGoalkeeperRole(role = '') {
   return /portero|arquero|keeper|\bgk\b/i.test(String(role || ''));
 }
 
-export function summarizeRosterComposition(roster = []) {
+export function summarizeRosterComposition(roster = [], includeGloves = true) {
   let totalUnits = 0;
   let keeperUnits = 0;
   let playerUnits = 0;
   const sizeCounts = new Map();
+  const gloveSizeCounts = new Map();
 
   for (const row of roster || []) {
     const qty = Math.max(1, Number(row?.qty) || 1);
     totalUnits += qty;
     if (isGoalkeeperRole(row?.role)) {
       keeperUnits += qty;
+      if (includeGloves) {
+        const gSz = String(row?.gloveSize || '9');
+        gloveSizeCounts.set(gSz, (gloveSizeCounts.get(gSz) || 0) + qty);
+      }
     } else {
       playerUnits += qty;
     }
@@ -855,7 +953,18 @@ export function summarizeRosterComposition(roster = []) {
     .map(([sz, q]) => `${sz} ×${q}`)
     .join(' · ');
 
-  return { totalUnits, keeperUnits, playerUnits, bySizeLabel };
+  const byGloveSizeLabel = Array.from(gloveSizeCounts.entries())
+    .map(([sz, q]) => `T${sz} ×${q}`)
+    .join(' · ');
+
+  return {
+    totalUnits,
+    keeperUnits,
+    playerUnits,
+    glovePairs: includeGloves ? keeperUnits : 0,
+    bySizeLabel,
+    byGloveSizeLabel,
+  };
 }
 
 export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM') {
@@ -876,6 +985,7 @@ export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM')
     let role = 'Jugador';
     let cut = defaultCut;
     let qty = 1;
+    let gloveSize = '9';
 
     for (const token of parts.slice(2)) {
       const upper = token.toUpperCase();
@@ -892,6 +1002,8 @@ export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM')
         cut = 'YOUTH_KIDS';
       } else if (/clasic|classic/i.test(token)) {
         cut = 'MEN_CLASSIC';
+      } else if (/^(?:g|guante|t)?\s*(7|8|9|10|11)$/i.test(token)) {
+        gloveSize = token.match(/(7|8|9|10|11)/)[1];
       } else if (/^\d{1,3}$/.test(token)) {
         qty = Math.max(1, parseInt(token, 10) || 1);
       }
@@ -905,6 +1017,7 @@ export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM')
       cut,
       qty,
       role,
+      gloveSize: role === 'Portero' ? gloveSize : undefined,
     };
   });
 }
@@ -913,7 +1026,7 @@ export const INITIAL_TEAM_ROSTER = [
   { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'RODRÍGUEZ', number: '10', role: 'Jugador' },
   { id: 'r2', cut: 'MEN_PRO_SLIM', size: 'M', qty: 1, name: 'FERNÁNDEZ-GARCÍA', number: '7', role: 'Jugador' },
   { id: 'r3', cut: 'WOMEN_FIT', size: 'S', qty: 1, name: 'VALERIA M.', number: '9', role: 'Jugador' },
-  { id: 'r4', cut: 'MEN_CLASSIC', size: 'XL', qty: 1, name: 'SANTOS', number: '1', role: 'Portero' },
+  { id: 'r4', cut: 'MEN_CLASSIC', size: 'XL', qty: 1, name: 'SANTOS', number: '1', role: 'Portero', gloveSize: '9' },
   { id: 'r5', cut: 'YOUTH_KIDS', size: '152', qty: 2, name: 'MATEO', number: '14', role: 'Jugador' },
   { id: 'r6', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'JORDAN', number: '23', role: 'Jugador' },
 ];

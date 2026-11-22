@@ -124,7 +124,7 @@ export default function Hero({ onStartDesigning }) {
         </h1>
 
         <p className="mt-3 text-sm sm:text-base text-[#111111] font-body-lg max-w-[60ch]">
-          1. Uniforme, Portero y Nombres · 2. Diseño y Tela · 3. Colores · 4. Logos y Pedido. Sublimación digital en telas técnicas XS a XXL.
+          1. Uniforme, Portero, Guantes y Nombres · 2. Diseño y Tela · 3. Colores · 4. Logos y Pedido. Sublimación digital en telas técnicas XS a XXL.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

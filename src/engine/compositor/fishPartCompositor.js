@@ -503,7 +503,7 @@ function getOrRenderBasePartCanvas(mirlKey, partName, maskEntry, design) {
 /**
  * Dibuja los 8 escudos e insignias vectoriales integrados en coordenadas físicas milimétricas `[-w/2..w/2, -h/2..h/2]`.
  */
-function drawPresetVectorCrestMm(ctx, presetId, wMm, hMm, design, tintHex = '') {
+export function drawPresetVectorCrestMm(ctx, presetId, wMm, hMm, design, tintHex = '') {
   const cMain = tintHex || design.colorZones.accents?.hex || '#ffcd00';
   const cDark = tintHex ? shiftHexBrightness(tintHex, -60) : design.colorZones.secondary?.hex || '#0c2340';
   const cLight = tintHex || '#ffffff';

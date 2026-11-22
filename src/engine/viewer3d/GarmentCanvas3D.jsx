@@ -22,11 +22,13 @@ import {
   instantiateMirlGarmentGroup,
   buildNeckLabelCanvasTexture,
 } from './mirlModelLoader';
+import { loadAndBindGarmentGLB } from './glbModelLoader';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 import {
   loadFishDesignMasks,
   resolveActiveFishDesignMeta,
   composeGarmentPartCanvas,
+  drawPresetVectorCrestMm,
 } from '../compositor/fishPartCompositor';
 import { FABRIC_WEAVES, ENGINE_PRODUCTS } from '../core/designStore';
 import {
@@ -50,6 +52,10 @@ const CAMERA_PRESETS = {
   left_leg: { pos: [4.1, 0.14, 2.9], target: [0.42, 0.02, 0] },
   interior_tag: { pos: [0, 0.92, 2.35], target: [0, 0.62, -0.18] },
   macro_weave: { pos: [0.52, 0.42, 2.05], target: [0.22, 0.35, 0.25] },
+  gloves_pair: { pos: [1.45, 0.22, 4.95], target: [0, -0.02, 0] },
+  gloves_back: { pos: [0, 0.14, 5.15], target: [0, 0, 0] },
+  gloves_palm: { pos: [0.32, 0.12, -5.05], target: [0, 0, 0] },
+  gloves_strap: { pos: [0.55, -0.78, 3.25], target: [0, -0.82, 0] },
 };
 
 const ALL_POSSIBLE_MESH_PARTS = [
@@ -143,6 +149,121 @@ const VARIABLE_SLOT_LABELS = {
   playerNumberShorts: 'Número Pierna Short',
 };
 
+function paintGlovesCanvases(
+  backCanvas,
+  strapCanvas,
+  glovesDesign,
+  garmentDesign,
+  activePlayer,
+  artworkRegistry
+) {
+  if (!backCanvas || !strapCanvas) return;
+  const gColors = glovesDesign?.colorZones || {};
+  const backHex = gColors.primary?.hex || '#111111';
+  const accentHex = gColors.accents?.hex || '#fa5400';
+  const palmHex = gColors.palm?.hex || '#ffffff';
+  const strapHex = gColors.strap?.hex || '#059669';
+  const strapTextHex = gColors.strapText?.hex || '#ffffff';
+
+  // 1. Dorso / Backhand 1024x1024
+  const bCtx = backCanvas.getContext('2d');
+  const bW = backCanvas.width;
+  const bH = backCanvas.height;
+  bCtx.clearRect(0, 0, bW, bH);
+  bCtx.fillStyle = backHex;
+  bCtx.fillRect(0, 0, bW, bH);
+
+  // Dynamic punch-zone geometric chevrons across knuckles & lower backhand
+  bCtx.save();
+  bCtx.fillStyle = accentHex;
+  bCtx.globalAlpha = 0.92;
+  // Knuckle chevron armor bar
+  bCtx.beginPath();
+  bCtx.moveTo(bW * 0.14, bH * 0.44);
+  bCtx.lineTo(bW * 0.50, bH * 0.34);
+  bCtx.lineTo(bW * 0.86, bH * 0.44);
+  bCtx.lineTo(bW * 0.86, bH * 0.50);
+  bCtx.lineTo(bW * 0.50, bH * 0.40);
+  bCtx.lineTo(bW * 0.14, bH * 0.50);
+  bCtx.closePath();
+  bCtx.fill();
+
+  // Secondary parallel silicone punch ribs on fingers
+  bCtx.globalAlpha = 0.72;
+  for (let i = 0; i < 3; i++) {
+    const yBand = bH * (0.62 + i * 0.065);
+    bCtx.fillRect(bW * 0.24, yBand, bW * 0.52, bH * 0.018);
+  }
+  bCtx.restore();
+
+  // Subtle palm-tone cuff stripe above wrist
+  bCtx.fillStyle = palmHex;
+  bCtx.globalAlpha = 0.22;
+  bCtx.fillRect(0, bH * 0.88, bW, bH * 0.025);
+  bCtx.globalAlpha = 1;
+
+  // Club crest rendered on Backhand center (uses custom image or team preset crest)
+  if (glovesDesign?.includeCrest !== false) {
+    const decalsList =
+      (glovesDesign?.decals?.length ? glovesDesign.decals : garmentDesign?.decals) || [];
+    const crestDecal =
+      decalsList.find((d) => d.type === 'CUSTOM_IMAGE' || d.type === 'PRESET_CREST') || null;
+    bCtx.save();
+    bCtx.translate(bW * 0.50, bH * 0.67);
+    if (crestDecal?.type === 'CUSTOM_IMAGE' && crestDecal.assetId && artworkRegistry?.[crestDecal.assetId]?.image) {
+      const img = artworkRegistry[crestDecal.assetId].image;
+      const box = bW * 0.24;
+      const aspect = (img.width || 1) / (img.height || 1);
+      const dw = aspect >= 1 ? box : box * aspect;
+      const dh = aspect >= 1 ? box / aspect : box;
+      bCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    } else {
+      const presetId = crestDecal?.presetId || 'arza_official';
+      drawPresetVectorCrestMm(
+        bCtx,
+        presetId,
+        bW * 0.24,
+        bH * 0.24,
+        garmentDesign || { colorZones: { primary: { hex: backHex }, secondary: { hex: accentHex }, accents: { hex: palmHex } } },
+        crestDecal?.tintHex || ''
+      );
+    }
+    bCtx.restore();
+  }
+
+  // 2. Muñequera / Wrist Strap 1024x320 (Keeper Name + Number + ARZA badge)
+  const sCtx = strapCanvas.getContext('2d');
+  const sW = strapCanvas.width;
+  const sH = strapCanvas.height;
+  sCtx.clearRect(0, 0, sW, sH);
+  sCtx.fillStyle = strapHex;
+  sCtx.fillRect(0, 0, sW, sH);
+
+  // Stitch & accent edge rails
+  sCtx.fillStyle = accentHex;
+  sCtx.fillRect(0, 0, sW, sH * 0.08);
+  sCtx.fillRect(0, sH * 0.92, sW, sH * 0.08);
+
+  const keeperName = String(activePlayer?.name || 'SANTOS').toUpperCase().slice(0, 14);
+  const keeperNum = String(activePlayer?.number || '1').slice(0, 3);
+  const showName = glovesDesign?.strapNameEnabled !== false;
+  const showNum = glovesDesign?.strapNumberEnabled !== false;
+  const strapLabel = [showNum ? `#${keeperNum}` : '', showName ? keeperName : 'ARZA GK']
+    .filter(Boolean)
+    .join(' ');
+
+  sCtx.save();
+  sCtx.fillStyle = strapTextHex;
+  sCtx.textAlign = 'center';
+  sCtx.textBaseline = 'middle';
+  sCtx.font = "900 94px 'Bebas Neue', 'Oswald', Impact, sans-serif";
+  sCtx.fillText(strapLabel || 'ARZA GK', sW * 0.5, sH * 0.46, sW * 0.78);
+  sCtx.globalAlpha = 0.75;
+  sCtx.font = '700 28px Inter, system-ui, sans-serif';
+  sCtx.fillText(`ARZA SPORT · PRO ${(glovesDesign?.gloveCut || 'hybrid').toUpperCase()}`, sW * 0.5, sH * 0.78);
+  sCtx.restore();
+}
+
 export default function GarmentCanvas3D({
   design,
   activePlayer,
@@ -165,6 +286,8 @@ export default function GarmentCanvas3D({
   onUndo,
   onRedo,
   canvasSnapshotRef,
+  activeKitRole = 'field',
+  glovesDesign = null,
 }) {
   const stageWrapperRef = useRef(null);
   const mountRef = useRef(null);
@@ -608,6 +731,61 @@ export default function GarmentCanvas3D({
       side: THREE.DoubleSide,
     });
 
+    // Materiales y canvas dinámicos para Guantes de Portero 3D (.glb)
+    const gloveBackCanvas = document.createElement('canvas');
+    gloveBackCanvas.width = 1024;
+    gloveBackCanvas.height = 1024;
+    const gloveBackTex = new THREE.CanvasTexture(gloveBackCanvas);
+    gloveBackTex.colorSpace = THREE.SRGBColorSpace;
+    gloveBackTex.anisotropy = maxAniso;
+
+    const gloveStrapCanvas = document.createElement('canvas');
+    gloveStrapCanvas.width = 1024;
+    gloveStrapCanvas.height = 320;
+    const gloveStrapTex = new THREE.CanvasTexture(gloveStrapCanvas);
+    gloveStrapTex.colorSpace = THREE.SRGBColorSpace;
+    gloveStrapTex.anisotropy = maxAniso;
+
+    const glovePalmMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#ffffff'),
+      bumpMap: ribBumpTex,
+      bumpScale: 0.004,
+      roughness: 0.72,
+      metalness: 0.02,
+      clearcoat: 0.08,
+      clearcoatRoughness: 0.55,
+      side: THREE.DoubleSide,
+    });
+    const gloveBackMat = new THREE.MeshPhysicalMaterial({
+      map: gloveBackTex,
+      roughness: 0.54,
+      metalness: 0.06,
+      sheen: 0.35,
+      sheenRoughness: 0.45,
+      side: THREE.DoubleSide,
+    });
+    const gloveAccentMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#fa5400'),
+      bumpMap: ribBumpTex,
+      bumpScale: 0.006,
+      roughness: 0.68,
+      metalness: 0.04,
+      side: THREE.DoubleSide,
+    });
+    const gloveStrapMat = new THREE.MeshStandardMaterial({
+      map: gloveStrapTex,
+      roughness: 0.48,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+    });
+    const gloveMaterials = {
+      palm: glovePalmMat,
+      backhand: gloveBackMat,
+      accents: gloveAccentMat,
+      strap: gloveStrapMat,
+      body: gloveBackMat,
+    };
+
     const jerseyContainer = new THREE.Group();
     scene.add(jerseyContainer);
 
@@ -648,6 +826,11 @@ export default function GarmentCanvas3D({
       partMaterials,
       neckLabelMat,
       hemFlagMat,
+      gloveBackCanvas,
+      gloveBackTex,
+      gloveStrapCanvas,
+      gloveStrapTex,
+      gloveMaterials,
       jerseyContainer,
       targetCamPos,
       targetLookAt,
@@ -764,18 +947,21 @@ export default function GarmentCanvas3D({
       neckLabelTex.dispose();
       neckLabelMat.dispose();
       hemFlagMat.dispose();
+      gloveBackTex.dispose();
+      gloveStrapTex.dispose();
+      glovePalmMat.dispose();
+      gloveBackMat.dispose();
+      gloveAccentMat.dispose();
+      gloveStrapMat.dispose();
       renderer.dispose();
     };
   }, []);
 
-  // 2. Cargar geometría binaria exacta `.mirl` cuando cambia la prenda activa (Camiseta o Short)
+  // 2. Cargar geometría binaria exacta `.mirl` o Guantes `.glb` cuando cambia la prenda / rol activo
   useEffect(() => {
     let cancelled = false;
     const st = sceneStateRef.current;
     if (!st) return;
-
-    const prod = ENGINE_PRODUCTS.find((p) => p.id === design.productModelId) || ENGINE_PRODUCTS[0];
-    const mirlUrl = prod.mirlUrl || '/models/football_f3_ka.mirl';
 
     // Limpiar malla previa inmediatamente para nunca mostrar otra prenda mientras carga la nueva
     while (st.jerseyContainer.children.length > 0) {
@@ -783,6 +969,53 @@ export default function GarmentCanvas3D({
     }
     st.renderNow?.();
     setModelStats((prev) => ({ ...prev, loading: true }));
+
+    if (activeKitRole === 'gloves') {
+      const glbUrl = resolveAssetUrl(glovesDesign?.modelUrl || 'models/goalkeeper_gloves_gk1.glb');
+      loadAndBindGarmentGLB(glbUrl, st.gloveMaterials)
+        .then(({ modelGroup, meshManifest }) => {
+          if (cancelled || !sceneStateRef.current) return;
+          const curSt = sceneStateRef.current;
+          while (curSt.jerseyContainer.children.length > 0) {
+            curSt.jerseyContainer.remove(curSt.jerseyContainer.children[0]);
+          }
+          curSt.jerseyContainer.add(modelGroup);
+          if (curSt.floorShadow) {
+            curSt.floorShadow.position.y = -1.32;
+          }
+          paintGlovesCanvases(
+            curSt.gloveBackCanvas,
+            curSt.gloveStrapCanvas,
+            glovesDesign,
+            design,
+            activePlayer,
+            artworkRegistry
+          );
+          curSt.gloveBackTex.needsUpdate = true;
+          curSt.gloveStrapTex.needsUpdate = true;
+
+          const totalVerts = meshManifest.reduce((acc, m) => acc + (m.vertexCount || 0), 0);
+          setModelStats({
+            loading: false,
+            vertices: totalVerts,
+            faces: Math.round(totalVerts / 3),
+          });
+          curSt.renderNow?.();
+        })
+        .catch((err) => {
+          console.error('Error cargando modelo GLB de guantes:', err);
+          if (!cancelled) setModelStats({ loading: false, vertices: 0, faces: 0 });
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const prod = ENGINE_PRODUCTS.find((p) => p.id === design.productModelId) || ENGINE_PRODUCTS[0];
+    const mirlUrl = prod.mirlUrl || '/models/football_f3_ka.mirl';
+    const effectiveSleeveLength =
+      activeKitRole === 'goalkeeper' || design?.sleeveLength === 'long' ? 'long' : 'short';
 
     loadMirlModelTemplate(mirlUrl)
       .then((template) => {
@@ -795,7 +1028,8 @@ export default function GarmentCanvas3D({
           template,
           curSt.partMaterials,
           curSt.neckLabelMat,
-          curSt.hemFlagMat
+          curSt.hemFlagMat,
+          { sleeveLength: effectiveSleeveLength }
         );
         curSt.jerseyContainer.add(group);
 
@@ -826,7 +1060,28 @@ export default function GarmentCanvas3D({
     return () => {
       cancelled = true;
     };
-  }, [design.productModelId]);
+  }, [design.productModelId, design.sleeveLength, activeKitRole, glovesDesign?.modelUrl]);
+
+  // 2b. Sincronizar materiales y texturas de Guantes 3D en vivo a 60 FPS
+  useEffect(() => {
+    const st = sceneStateRef.current;
+    if (!st || activeKitRole !== 'gloves') return;
+    const gColors = glovesDesign?.colorZones || {};
+    st.gloveMaterials.palm.color.set(gColors.palm?.hex || '#ffffff');
+    st.gloveMaterials.accents.color.set(gColors.accents?.hex || '#fa5400');
+    st.gloveMaterials.palm.roughness = glovesDesign?.gloveCut === 'negative' ? 0.78 : 0.68;
+    paintGlovesCanvases(
+      st.gloveBackCanvas,
+      st.gloveStrapCanvas,
+      glovesDesign,
+      design,
+      activePlayer,
+      artworkRegistry
+    );
+    st.gloveBackTex.needsUpdate = true;
+    st.gloveStrapTex.needsUpdate = true;
+    st.renderNow?.();
+  }, [activeKitRole, glovesDesign, design, activePlayer, artworkRegistry]);
 
   // 3. Cargar archivo de máscaras `.fish` (o limpiar máscaras para diseño liso `Pure`)
   useEffect(() => {
@@ -910,7 +1165,7 @@ export default function GarmentCanvas3D({
   // 6. Re-componer texturas por pieza a 60 FPS (durante arrastre solo repinta la pieza activa en < 1 ms)
   useEffect(() => {
     const st = sceneStateRef.current;
-    if (!st) return;
+    if (!st || activeKitRole === 'gloves') return;
 
     const masksMap = fishMasksRef.current;
     let partsToUpdate = activeMeshPartNamesRef.current;
@@ -986,14 +1241,23 @@ export default function GarmentCanvas3D({
     st.controls.autoRotateSpeed = 1.5;
   }, [autoRotate, isDraggingObject]);
 
+  const effectiveCameraPreset =
+    activeKitRole === 'gloves'
+      ? cameraPreset?.startsWith('gloves_')
+        ? cameraPreset
+        : 'gloves_pair'
+      : cameraPreset?.startsWith('gloves_')
+      ? 'three_quarter'
+      : cameraPreset;
+
   useEffect(() => {
     const st = sceneStateRef.current;
     if (!st) return;
-    const preset = CAMERA_PRESETS[cameraPreset] || CAMERA_PRESETS.three_quarter;
+    const preset = CAMERA_PRESETS[effectiveCameraPreset] || CAMERA_PRESETS.three_quarter;
     st.targetCamPos.set(...preset.pos);
     st.targetLookAt.set(...preset.target);
     st.setTransition(true);
-  }, [cameraPreset, cameraPulse, localCamPulse]);
+  }, [effectiveCameraPreset, cameraPulse, localCamPulse]);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -1021,7 +1285,7 @@ export default function GarmentCanvas3D({
 
   // 8. Selección y Arrastre Directo Raycast UV a 60 FPS (Decals + Slots Variables + Respeto a `Fijar objeto`)
   const handlePointerDown = (e) => {
-    if (e.button !== 0 || !sceneStateRef.current) return;
+    if (e.button !== 0 || !sceneStateRef.current || activeKitRole === 'gloves') return;
 
     const hit = raycastDroppableUV(e.clientX, e.clientY);
     if (!hit) return;
@@ -1221,32 +1485,40 @@ export default function GarmentCanvas3D({
     : null;
 
   const isTank = !isShorts && (design.productModelId.includes('basketball') || design.productModelId.includes('tank'));
-  const quickCameraButtons = isShorts
-    ? [
-        { id: 'three_quarter', label: '3/4' },
-        { id: 'front', label: 'Frente' },
-        { id: 'back', label: 'Atrás' },
-        { id: 'right_leg', label: 'Pierna Der.' },
-        { id: 'left_leg', label: 'Pierna Izq.' },
-        { id: 'interior_tag', label: 'Interior' },
-      ]
-    : isTank
-    ? [
-        { id: 'three_quarter', label: '3/4' },
-        { id: 'front', label: 'Frente' },
-        { id: 'back', label: 'Espalda' },
-        { id: 'right_sleeve', label: 'Costado Der.' },
-        { id: 'left_sleeve', label: 'Costado Izq.' },
-        { id: 'interior_tag', label: 'Interior' },
-      ]
-    : [
-        { id: 'three_quarter', label: '3/4' },
-        { id: 'front', label: 'Frente' },
-        { id: 'back', label: 'Espalda' },
-        { id: 'right_sleeve', label: 'Manga Der.' },
-        { id: 'left_sleeve', label: 'Manga Izq.' },
-        { id: 'interior_tag', label: 'Interior' },
-      ];
+  const quickCameraButtons =
+    activeKitRole === 'gloves'
+      ? [
+          { id: 'gloves_pair', label: '3/4 Par' },
+          { id: 'gloves_back', label: 'Dorso' },
+          { id: 'gloves_palm', label: 'Palma Látex' },
+          { id: 'gloves_strap', label: 'Muñequera' },
+        ]
+      : isShorts
+      ? [
+          { id: 'three_quarter', label: '3/4' },
+          { id: 'front', label: 'Frente' },
+          { id: 'back', label: 'Atrás' },
+          { id: 'right_leg', label: 'Pierna Der.' },
+          { id: 'left_leg', label: 'Pierna Izq.' },
+          { id: 'interior_tag', label: 'Interior' },
+        ]
+      : isTank
+      ? [
+          { id: 'three_quarter', label: '3/4' },
+          { id: 'front', label: 'Frente' },
+          { id: 'back', label: 'Espalda' },
+          { id: 'right_sleeve', label: 'Costado Der.' },
+          { id: 'left_sleeve', label: 'Costado Izq.' },
+          { id: 'interior_tag', label: 'Interior' },
+        ]
+      : [
+          { id: 'three_quarter', label: '3/4' },
+          { id: 'front', label: 'Frente' },
+          { id: 'back', label: 'Espalda' },
+          { id: 'right_sleeve', label: 'Manga Der.' },
+          { id: 'left_sleeve', label: 'Manga Izq.' },
+          { id: 'interior_tag', label: 'Interior' },
+        ];
 
   return (
     <div ref={stageWrapperRef} className="garment-3d-stage relative w-full h-full min-h-[280px] sm:min-h-[400px]">
@@ -1272,7 +1544,11 @@ export default function GarmentCanvas3D({
       <div className="hidden sm:flex absolute top-4 left-4 items-center gap-2.5 z-10 select-none">
         <ArzaLogo theme="light" className="h-8 w-auto" />
         <span className="text-[11px] font-semibold text-neutral-600 tracking-wide border-l border-neutral-300 pl-2">
-          Studio 3D
+          {activeKitRole === 'gloves'
+            ? 'Guantes GK Pro 3D'
+            : activeKitRole === 'goalkeeper' || design?.sleeveLength === 'long'
+            ? 'Portero · Manga Larga'
+            : 'Studio 3D'}
         </span>
       </div>
 
@@ -1284,7 +1560,7 @@ export default function GarmentCanvas3D({
             type="button"
             onClick={() => triggerCameraPreset(btn.id)}
             className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all border cursor-pointer shrink-0 ${
-              cameraPreset === btn.id
+              effectiveCameraPreset === btn.id
                 ? 'arza-btn-glass-green'
                 : 'arza-glass-card text-slate-800 hover:border-emerald-500/50 hover:text-emerald-950'
             }`}

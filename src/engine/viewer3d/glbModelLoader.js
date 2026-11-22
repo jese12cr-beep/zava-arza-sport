@@ -50,6 +50,7 @@ export async function loadAndBindGarmentGLB(urlOrBlobUrl, dynamicMaterials = {})
   wrapper.add(root);
 
   const meshManifest = [];
+  const zoneMeshes = {};
 
   root.traverse((node) => {
     if (!node.isMesh) return;
@@ -65,10 +66,16 @@ export async function loadAndBindGarmentGLB(urlOrBlobUrl, dynamicMaterials = {})
     const bakedNormalMap = node.material?.normalMap || null;
 
     let assignedZone = 'body';
-    if (/collar|neck|cuello/.test(tag)) {
-      assignedZone = 'collar';
-    } else if (/cuff|trim|ribete|puno/.test(tag)) {
+    if (/palmlatex|palm|palma/.test(tag)) {
+      assignedZone = 'palm';
+    } else if (/wriststrap|strap|munequera/.test(tag)) {
+      assignedZone = 'strap';
+    } else if (/backhand|dorso/.test(tag)) {
+      assignedZone = 'backhand';
+    } else if (/gusset|finger|dedos|cuff|trim|ribete|puno/.test(tag)) {
       assignedZone = 'accents';
+    } else if (/collar|neck|cuello/.test(tag)) {
+      assignedZone = 'collar';
     } else if (/sleeve|manga/.test(tag)) {
       assignedZone = 'sleeves';
     } else if (/stitch|costura|seam/.test(tag)) {
@@ -76,16 +83,30 @@ export async function loadAndBindGarmentGLB(urlOrBlobUrl, dynamicMaterials = {})
     }
 
     if (dynamicMaterials[assignedZone]) {
-      const clonedMat = dynamicMaterials[assignedZone].clone();
-      if (bakedAoMap) {
-        clonedMat.aoMap = bakedAoMap;
-        clonedMat.aoMapIntensity = 1.0;
+      if (bakedAoMap || bakedNormalMap) {
+        const clonedMat = dynamicMaterials[assignedZone].clone();
+        if (bakedAoMap) {
+          clonedMat.aoMap = bakedAoMap;
+          clonedMat.aoMapIntensity = 1.0;
+        }
+        if (bakedNormalMap && !clonedMat.normalMap) {
+          clonedMat.normalMap = bakedNormalMap;
+        }
+        node.material = clonedMat;
+      } else {
+        // Direct live reference allows reactive color & CanvasTexture updates on gloves
+        node.material = dynamicMaterials[assignedZone];
       }
-      if (bakedNormalMap && !clonedMat.normalMap) {
-        clonedMat.normalMap = bakedNormalMap;
-      }
-      node.material = clonedMat;
     }
+
+    node.userData = {
+      partName: node.name || assignedZone,
+      panel: assignedZone,
+      isDroppable: assignedZone === 'backhand' || assignedZone === 'strap',
+    };
+
+    if (!zoneMeshes[assignedZone]) zoneMeshes[assignedZone] = [];
+    zoneMeshes[assignedZone].push(node);
 
     meshManifest.push({
       meshName: node.name || 'unnamed_mesh',
@@ -100,6 +121,7 @@ export async function loadAndBindGarmentGLB(urlOrBlobUrl, dynamicMaterials = {})
   return {
     modelGroup: wrapper,
     meshManifest,
+    zoneMeshes,
     originalDimensions: { x: +size.x.toFixed(3), y: +size.y.toFixed(3), z: +size.z.toFixed(3) },
   };
 }

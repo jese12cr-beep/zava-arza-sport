@@ -547,7 +547,15 @@ export default function CartDrawer({
                               <>
                                 <span>•</span>
                                 <span className="font-bold text-[#C24100]">
-                                  {fieldCount} Jug. + {keeperCount} Port.
+                                  {fieldCount} Jug. + {keeperCount} Port. (Manga Larga)
+                                </span>
+                              </>
+                            )}
+                            {item.glovePairs > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="font-bold text-slate-800">
+                                  +{item.glovePairs} Par Guantes Pro
                                 </span>
                               </>
                             )}
@@ -573,8 +581,24 @@ export default function CartDrawer({
                             className="w-2.5 h-2.5 rounded-full border border-slate-300"
                             style={{ backgroundColor: item.design.baseColor }}
                           />
-                          <span>Base {item.design.baseColor}</span>
+                          <span>Campo {item.design.baseColor}</span>
                         </span>
+                        {item.goalkeeperSpec && (
+                          <span className="bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1.5 font-bold">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full border border-amber-400"
+                              style={{ backgroundColor: item.goalkeeperSpec.primaryColor || '#059669' }}
+                            />
+                            <span>Portero Manga Larga</span>
+                          </span>
+                        )}
+                        {item.glovesSpec && (
+                          <span className="bg-slate-900 text-white px-2 py-0.5 rounded flex items-center gap-1.5 font-bold">
+                            <span>
+                              Guantes ({item.glovesSpec.glovePairs}×${Number(item.glovesSpec.unitPrice || 28).toFixed(0)} · {(item.glovesSpec.gloveCut || 'hybrid').replace('_', ' ')})
+                            </span>
+                          </span>
+                        )}
                         <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono font-medium">
                           #{item.design.playerNumber || '10'} {item.design.playerName || 'PRO'}
                         </span>
@@ -598,8 +622,10 @@ export default function CartDrawer({
                                     : 'bg-white border-slate-200 text-slate-700'
                                 }`}
                               >
+                                {isKeeper
+                                  ? `[PORT M.L.${item.glovePairs > 0 && r.gloveSize ? ` · G${r.gloveSize}` : ''}] `
+                                  : ''}
                                 #{r.number || '-'} {r.name || 'S/N'} · {r.size}
-                                {isKeeper ? ' · Portero' : ''}
                               </span>
                             );
                           })}
