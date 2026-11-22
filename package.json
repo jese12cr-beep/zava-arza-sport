@@ -2,6 +2,7 @@
   "name": "arza-sport-studio",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://jese12cr-beep.github.io/zava-arza-sport/",
   "type": "module",
   "scripts": {
     "dev": "vite",

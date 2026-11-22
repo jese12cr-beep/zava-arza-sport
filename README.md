@@ -1,9 +1,11 @@
-# ARZA SPORT™ Studio 3D — By Grupo Zava
+# ARZA SPORT™ — Equipaciones Deportivas Personalizadas By Grupo Zava
 
-Aplicación web estática 100% autónoma de personalización deportiva en tiempo real con motor 3D WebGL (`Three.js`), compositing UV en HTML5 Canvas, 13 moldes industriales `.mirl` + patronaje 2D escala `1:1` y asistente guiado de 4 pasos.
+**Sitio Web Público Activo:** [https://jese12cr-beep.github.io/zava-arza-sport/](https://jese12cr-beep.github.io/zava-arza-sport/)
 
-- **Código madre (Repositorio GitHub):** `https://github.com/jese12cr-beep/zava-arza-sport` (rama `main`)
-- **Sitio público activo (Sin depender de tu PC):** `https://jese12cr-beep.github.io/zava-arza-sport/`
+Aplicación web estática 100% autónoma de personalización deportiva en tiempo real con motor WebGL (`Three.js`), compositing UV en HTML5 Canvas, 13 moldes industriales `.mirl` + patronaje 2D escala `1:1`, uniforme de portero obligatorio en manga larga, configurador de guantes 3D (`.glb`) y asistente guiado de 4 pasos.
+
+- **Sitio público activo (Sin depender de tu PC):** [https://jese12cr-beep.github.io/zava-arza-sport/](https://jese12cr-beep.github.io/zava-arza-sport/)
+- **Código madre (Repositorio GitHub):** [https://github.com/jese12cr-beep/zava-arza-sport](https://github.com/jese12cr-beep/zava-arza-sport) (rama `main`)
 - **Despliegue automático:** Cada `git push` a `main` ejecuta `.github/workflows/deploy.yml` en GitHub Actions y publica `./dist` en GitHub Pages en ~30 segundos.
 
 ---
