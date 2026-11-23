@@ -46,7 +46,7 @@ export const ENGINE_PRODUCTS = [
     defaultDesignId: 'tackle',
     basePrice: 34.0,
     shopifyVariantBase: 44901234567001,
-    badge: 'Molde Maestro Zava • 29 Cortes Exclusivos',
+    badge: 'Molde Maestro Zava • 44 Cortes Exclusivos',
   },
   {
     id: 'futbol_jersey_f3w_women',
@@ -65,7 +65,7 @@ export const ENGINE_PRODUCTS = [
     defaultDesignId: 'tackle',
     basePrice: 34.0,
     shopifyVariantBase: 44901234567002,
-    badge: 'Corte Dama Anatómico • 29 Cortes Exclusivos',
+    badge: 'Corte Dama Anatómico • 44 Cortes Exclusivos',
   },
   {
     id: 'football_shorts_fp3',

@@ -7,7 +7,7 @@ export const PRODUCT_MEDIA_REGISTRY = {
     kind: 'jersey',
     fitLabel: 'Corte Caballero',
     fabricSummary: 'TS-Tex™ 145g',
-    desc: 'Jersey ZAVA Apex V1 con cuello ergonómico, tejido TS-Tex y 29 cortes de sublimación.',
+    desc: 'Jersey ZAVA Apex V1 con cuello ergonómico, tejido TS-Tex y 44 cortes de sublimación.',
   },
   futbol_jersey_f3w_women: {
     image: resolveAssetUrl('assets/showcase/futbol_f3w_women.jpg'),

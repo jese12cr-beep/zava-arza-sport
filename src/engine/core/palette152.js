@@ -1943,6 +1943,156 @@ export const FOOTBALL_FISH_DESIGNS = [
     "outlineZones": [],
     "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
     "sizeKB": 43.6
+  },
+  {
+    "id": "burn",
+    "name": "Burn",
+    "category": "Moderno",
+    "fileUrl": "/designs/football_f3_ka/burn.fish",
+    "baseColors": ["A", "B", "C", "D"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 72.4
+  },
+  {
+    "id": "orion",
+    "name": "Orion",
+    "category": "Geométrico",
+    "fileUrl": "/designs/football_f3_ka/orion.fish",
+    "baseColors": ["A", "B", "C", "D"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 57.2
+  },
+  {
+    "id": "dirt",
+    "name": "Dirt",
+    "category": "Degradado",
+    "fileUrl": "/designs/football_f3_ka/dirt.fish",
+    "baseColors": ["A", "B"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 258.3
+  },
+  {
+    "id": "zebra",
+    "name": "Zebra",
+    "category": "Moderno",
+    "fileUrl": "/designs/football_f3_ka/zebra.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 57.0
+  },
+  {
+    "id": "ajax",
+    "name": "Ajax",
+    "category": "Clásico",
+    "fileUrl": "/designs/football_f3_ka/ajax.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 34.1
+  },
+  {
+    "id": "calcio",
+    "name": "Calcio",
+    "category": "Clásico",
+    "fileUrl": "/designs/football_f3_ka/calcio.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 34.0
+  },
+  {
+    "id": "san_siro",
+    "name": "San Siro",
+    "category": "Moderno",
+    "fileUrl": "/designs/football_f3_ka/san_siro.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 40.7
+  },
+  {
+    "id": "hattrick",
+    "name": "Hattrick",
+    "category": "Moderno",
+    "fileUrl": "/designs/football_f3_ka/hattrick.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 49.3
+  },
+  {
+    "id": "maracana",
+    "name": "Maracaná",
+    "category": "Rayas",
+    "fileUrl": "/designs/football_f3_ka/maracana.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 33.4
+  },
+  {
+    "id": "olympique",
+    "name": "Olympique",
+    "category": "Geométrico",
+    "fileUrl": "/designs/football_f3_ka/olympique.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 32.9
+  },
+  {
+    "id": "deportivo",
+    "name": "Deportivo",
+    "category": "Clásico",
+    "fileUrl": "/designs/football_f3_ka/deportivo.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 35.2
+  },
+  {
+    "id": "spartak",
+    "name": "Spartak",
+    "category": "Geométrico",
+    "fileUrl": "/designs/football_f3_ka/spartak.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 32.9
+  },
+  {
+    "id": "final",
+    "name": "Final",
+    "category": "Minimalista",
+    "fileUrl": "/designs/football_f3_ka/final.fish",
+    "baseColors": ["A", "B"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 32.5
+  },
+  {
+    "id": "victory",
+    "name": "Victory",
+    "category": "Minimalista",
+    "fileUrl": "/designs/football_f3_ka/victory.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 36.9
+  },
+  {
+    "id": "captain",
+    "name": "Captain",
+    "category": "Minimalista",
+    "fileUrl": "/designs/football_f3_ka/captain.fish",
+    "baseColors": ["A", "B", "C"],
+    "outlineZones": [],
+    "parts": ["Back", "Collar", "Front", "LeftArm", "RightArm"],
+    "sizeKB": 37.9
   }
 ];
 
