@@ -36,6 +36,7 @@ function createInitialKitSnapshot() {
     activeProductId: 'futbol_jersey_pro_vneck',
     activeKitRole: 'field',
     includeGloves: true,
+    editedProductIds: {},
     designsByProduct,
     goalkeeperDesign: createDefaultGoalkeeperDesign('futbol_jersey_pro_vneck', baseField),
     glovesDesign: createDefaultGlovesDesign(baseField),
@@ -197,6 +198,10 @@ export default function App() {
         return {
           ...snap,
           activeProductId: pid,
+          editedProductIds: {
+            ...(snap.editedProductIds || {}),
+            [pid]: true,
+          },
           designsByProduct: {
             ...snap.designsByProduct,
             [pid]: nextDesign,
@@ -268,6 +273,10 @@ export default function App() {
         createDefaultDesignForProduct(pairedId, sourceDesign?.colorZones);
       return {
         ...snap,
+        editedProductIds: {
+          ...(snap.editedProductIds || {}),
+          [pairedId]: true,
+        },
         designsByProduct: {
           ...snap.designsByProduct,
           [pairedId]: {
@@ -329,9 +338,54 @@ export default function App() {
       const keeperNote = comp.keeperUnits > 0 ? ` (${comp.playerUnits} Jug. + ${comp.keeperUnits} Port. Manga Larga)` : '';
       const glovesNote = comp.glovePairs > 0 ? ` + ${comp.glovePairs} par guantes` : '';
       const weaveMeta = FABRIC_WEAVES.find((w) => w.id === fieldDesign.fabricWeaveId);
+
+      const resolveCheckoutKitVisuals = () => {
+        if (targetProd.garmentCategory === 'accessory') {
+          return {
+            topProductId: targetProd.id,
+            topDesign: fieldDesign,
+            bottomProductId: null,
+            bottomDesign: null,
+          };
+        }
+        if (targetProd.garmentCategory === 'shorts') {
+          const pairedTopId = targetProd.pairedProductId || 'futbol_jersey_pro_vneck';
+          const hasEditedTop = Boolean(currentSnapshot?.editedProductIds?.[pairedTopId]);
+          const topRaw = currentSnapshot?.designsByProduct?.[pairedTopId];
+          return {
+            topProductId: pairedTopId,
+            topDesign:
+              hasEditedTop && topRaw
+                ? topRaw
+                : createDefaultDesignForProduct(pairedTopId, fieldDesign.colorZones),
+            bottomProductId: targetProd.id,
+            bottomDesign: fieldDesign,
+          };
+        }
+        const pairedBotId =
+          (targetProd.garmentCategory === 'jacket'
+            ? 'football_shorts_fp3'
+            : targetProd.pairedProductId) || 'football_shorts_fp3';
+        const hasEditedBot = Boolean(currentSnapshot?.editedProductIds?.[pairedBotId]);
+        const botRaw = currentSnapshot?.designsByProduct?.[pairedBotId];
+        return {
+          topProductId: targetProd.id,
+          topDesign: fieldDesign,
+          bottomProductId: pairedBotId,
+          bottomDesign:
+            hasEditedBot && botRaw
+              ? botRaw
+              : createDefaultDesignForProduct(pairedBotId, fieldDesign.colorZones),
+        };
+      };
+      const kitVisuals = resolveCheckoutKitVisuals();
+
       return {
         cartId: existingCartId || `item_${Date.now()}`,
         designId: fieldDesign.designId,
+        ...kitVisuals,
+        goalkeeperFullDesign: comp.keeperUnits > 0 ? goalkeeperDesign : null,
+        glovesFullDesign: comp.glovePairs > 0 ? glovesDesign : null,
         product: {
           id: targetProd.id,
           name: targetProd.name,
@@ -345,8 +399,8 @@ export default function App() {
           pattern: fieldDesign.patternId,
           collarStyle: fieldDesign.proCollar || fieldDesign.collarStyle || 'v_neck',
           fabricName: weaveMeta?.name || 'Tejido Técnico ARZA',
-          playerName: roster[0]?.name || 'EQUIPO',
-          playerNumber: roster[0]?.number || '10',
+          playerName: roster[0]?.name || '',
+          playerNumber: roster[0]?.number || '',
           sponsorText: (fieldDesign.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
         },
         goalkeeperSpec:
@@ -386,7 +440,7 @@ export default function App() {
         totalPrice: bundle.pricing.totalOrderPrice.toFixed(2),
       };
     },
-    [currentProduct, fieldDesign, goalkeeperDesign, glovesDesign, includeGloves, roster]
+    [currentProduct, currentSnapshot, fieldDesign, goalkeeperDesign, glovesDesign, includeGloves, roster]
   );
 
   const handleSelectGoalkeeperKit = useCallback(() => {
@@ -554,6 +608,7 @@ export default function App() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
+        artworkRegistry={artworkRegistry}
         onRemoveItem={(id) => setCartItems((prev) => prev.filter((x) => x.cartId !== id))}
         onClearCart={() => setCartItems([])}
         onOpenQuoteModal={() => {

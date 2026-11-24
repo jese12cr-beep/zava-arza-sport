@@ -17,6 +17,7 @@ import {
   Package,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import FullKitPreview3D from './studio/FullKitPreview3D';
 import {
   ARZA_CONTACT,
   buildFactoryOrderSummaryText,
@@ -155,6 +156,7 @@ export default function CartDrawer({
   isOpen,
   onClose,
   items,
+  artworkRegistry = {},
   onRemoveItem,
   onClearCart,
   onOpenQuoteModal,
@@ -201,6 +203,7 @@ export default function CartDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [copiedKey, setCopiedKey] = useState('');
+  const [previewItemIndex, setPreviewItemIndex] = useState(0);
 
   const uid = useId();
   const emailId = `${uid}-email`;
@@ -412,7 +415,15 @@ export default function CartDrawer({
           ? `${installments} MSI de $${monthlyMsiAmount} USD`
           : 'Pago en una exhibición',
       speiClabe: paymentMethod === 'spei' ? SPEI_CLABE : null,
-      snapshotItems: [...items],
+      snapshotItems: items.map(
+        ({
+          topDesign: _td,
+          bottomDesign: _bd,
+          goalkeeperFullDesign: _gd,
+          glovesFullDesign: _gld,
+          ...lightItem
+        }) => lightItem
+      ),
     });
     setPaymentReceipt(receiptRecord);
     setIsSubmitting(false);
@@ -443,6 +454,9 @@ export default function CartDrawer({
   const showItemsBadgeCount = paymentReceipt
     ? paymentReceipt.units
     : totalQuantity;
+  const showLiveShowcase = Boolean(isOpen && items.length > 0 && !paymentReceipt);
+  const safePreviewIndex = Math.min(previewItemIndex, Math.max(0, items.length - 1));
+  const previewItem = items[safePreviewIndex] || items[0] || null;
 
   return (
     <dialog
@@ -453,9 +467,32 @@ export default function CartDrawer({
         onClose();
       }}
       aria-labelledby="cart-title"
-      className="p-0 m-0 ml-auto mr-0 h-full max-h-screen w-full sm:max-w-lg bg-white/92 backdrop-blur-xl text-slate-900 border-l border-white/75 backdrop:bg-slate-950/45 backdrop:backdrop-blur-xs shadow-2xl open:flex open:flex-col"
+      className={`p-0 bg-white/95 backdrop-blur-xl text-slate-900 backdrop:bg-slate-950/50 backdrop:backdrop-blur-xs shadow-2xl open:flex open:flex-col transition-all ${
+        showLiveShowcase
+          ? 'm-0 lg:m-auto h-full max-h-screen lg:h-[90dvh] lg:max-h-[840px] w-full lg:w-[1060px] lg:max-w-[95vw] border-l lg:border border-white/75 lg:rounded-3xl overflow-hidden'
+          : 'm-0 ml-auto mr-0 h-full max-h-screen w-full sm:max-w-lg border-l border-white/75'
+      }`}
     >
-      <div className="p-4 sm:p-6 flex flex-col h-full min-h-0">
+      <div
+        className={
+          showLiveShowcase
+            ? 'flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col lg:grid lg:grid-cols-12'
+            : 'p-4 sm:p-6 flex flex-col h-full min-h-0'
+        }
+      >
+        {showLiveShowcase && (
+          <div className="shrink-0 h-[310px] sm:h-[360px] lg:h-full lg:col-span-6 border-b lg:border-b-0 lg:border-r border-slate-200/80 min-h-0">
+            <FullKitPreview3D item={previewItem} artworkRegistry={artworkRegistry} />
+          </div>
+        )}
+
+        <div
+          className={
+            showLiveShowcase
+              ? 'p-4 sm:p-6 flex flex-col lg:h-full min-h-0 lg:col-span-6'
+              : 'contents'
+          }
+        >
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between pb-3.5 border-b border-slate-200/80">
           <div className="flex items-center gap-2 min-w-0">
@@ -466,7 +503,7 @@ export default function CartDrawer({
               </h2>
               {!paymentReceipt && items.length > 0 && (
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Revisa tus equipaciones y elige método de pago
+                  Gira tu kit 3D completo en vivo y confirma tu compra
                 </p>
               )}
             </div>
@@ -492,7 +529,7 @@ export default function CartDrawer({
         </div>
 
         {/* Cuerpo Principal Desplazable */}
-        <div className="flex-1 overflow-y-auto py-3.5 pr-0.5 space-y-4 min-h-0">
+        <div className="flex-1 lg:overflow-y-auto py-3.5 pr-0.5 space-y-4 min-h-0">
           {paymentReceipt ? (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
@@ -540,8 +577,10 @@ export default function CartDrawer({
                     <div className="min-w-0 pr-2">
                       <div className="font-bold text-slate-900 truncate">{it.product.name}</div>
                       <div className="text-[11px] text-slate-500">
-                        {getItemUnits(it)} prendas • #{it.design.playerNumber || '10'}{' '}
-                        {it.design.playerName || 'EQUIPO'}
+                        {getItemUnits(it)} {getItemUnits(it) === 1 ? 'prenda' : 'prendas'}
+                        {it.design?.pattern ? ` · Corte ${it.design.pattern}` : ''}
+                        {it.design?.playerNumber ? ` · #${it.design.playerNumber}` : ''}
+                        {it.design?.playerName ? ` ${it.design.playerName}` : ''}
                       </div>
                     </div>
                     <span className="font-black text-slate-900 shrink-0">${it.totalPrice} USD</span>
@@ -657,6 +696,22 @@ export default function CartDrawer({
                           <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
+
+                      {items.length > 1 && (
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewItemIndex(index)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
+                              safePreviewIndex === index
+                                ? 'bg-[#111111] text-white border-[#111111]'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                            }`}
+                          >
+                            {safePreviewIndex === index ? '✓ En visor 3D' : 'Ver kit 3D en vivo'}
+                          </button>
+                        </div>
+                      )}
 
                       <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap gap-1.5 text-[11px] text-slate-600">
                         <span className="bg-white px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1.5 font-medium">
@@ -1451,6 +1506,7 @@ export default function CartDrawer({
             </a>
           </div>
         )}
+        </div>
       </div>
     </dialog>
   );

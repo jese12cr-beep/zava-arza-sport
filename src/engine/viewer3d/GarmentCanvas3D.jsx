@@ -27,16 +27,25 @@ import { resolveAssetUrl } from '../../utils/assetUrl';
 import {
   loadFishDesignMasks,
   resolveActiveFishDesignMeta,
-  composeGarmentPartCanvas,
-  drawPresetVectorCrestMm,
 } from '../compositor/fishPartCompositor';
-import { FABRIC_WEAVES, ENGINE_PRODUCTS } from '../core/designStore';
+import { ENGINE_PRODUCTS } from '../core/designStore';
 import {
   getPartSpec,
   evaluateDecalPlacement,
   isShortsProduct,
   snapRotationAngle,
 } from '../core/boundingBoxMath';
+import {
+  ALL_POSSIBLE_MESH_PARTS,
+  PANEL_TO_PARTNAME,
+  addStudioGarmentLighting,
+  applyFabricWeaveToMaterials,
+  createGarmentSurfaceSet,
+  createGlovesSurfaceSet,
+  createSoftFloorShadowMesh,
+  paintGarmentSurfaceSet,
+  paintGlovesCanvases,
+} from './garmentMaterials3D';
 import ArzaLogo from '../../components/brand/ArzaLogo';
 
 // Lente teleobjetivo exacto de retrato Owayo v6 (`CAMERA_STANDARD_FOV = 30` en viewer-CmBNa226.js)
@@ -58,89 +67,6 @@ const CAMERA_PRESETS = {
   gloves_strap: { pos: [0.55, -0.78, 3.25], target: [0, -0.82, 0] },
 };
 
-const ALL_POSSIBLE_MESH_PARTS = [
-  'Front',
-  'Back',
-  'LeftArm',
-  'RightArm',
-  'RightLeg',
-  'LeftLeg',
-  'Collar',
-  'Krageneinfass',
-  'Aermelbandlinks',
-  'Aermelbandrechts',
-  // Dama Baloncesto
-  'Seitenteillinks',
-  'Seitenteilrechts',
-  // Dama Shorts Baloncesto
-  'RechtesBeinvorne',
-  'LinkesBeinvorne',
-  'RechtesBeinhinten',
-  'LinkesBeinhinten',
-  'Seitenstreifenrechts',
-  'Seitenstreifenlinks',
-  'Aufnaeher',
-  // Chaquetas Softshell Hombre & Dama
-  'FrontLeftPart',
-  'FrontRightPart',
-  'CollarOutside',
-  'CollarInside',
-  'Unterarmstreifenlinks',
-  'Unterarmstreifenrechts',
-  'RV',
-  'RVS-B',
-  'RVPL',
-  'RVPR',
-  'Toothmesh',
-  'Toothmesh_BG',
-  'GU',
-];
-
-const PANEL_TO_PARTNAME = {
-  front: 'Front',
-  back: 'Back',
-  left_arm: 'LeftArm',
-  right_arm: 'RightArm',
-  right_leg: 'RightLeg',
-  left_leg: 'LeftLeg',
-  collar: 'Collar',
-  front_left: 'FrontLeftPart',
-  front_right: 'FrontRightPart',
-  side_left: 'Seitenteillinks',
-  side_right: 'Seitenteilrechts',
-};
-
-/**
- * Inyecta la regla óptica real de sublimación textil interior (`innenseiteAufhellen` de Owayo v6):
- * El poliéster técnico blanco muestra penetración parcial (~38%) en la cara interior (`!gl_FrontFacing`).
- */
-function applyOwayoInnerSublimationShader(material, keySuffix) {
-  material.customProgramCacheKey = () => `owayo_v5_inner_sublimation_${keySuffix}`;
-  material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <map_fragment>',
-      `#include <map_fragment>
-      if (!gl_FrontFacing) {
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.96, 0.98), 0.62);
-      }`
-    );
-  };
-}
-
-const bumpTextureCache = new Map();
-function getOrLoadRealBumpTexture(url, repeatX = 48, repeatY = 48) {
-  const resolved = resolveAssetUrl(url);
-  const key = `${resolved}|${repeatX}|${repeatY}`;
-  if (bumpTextureCache.has(key)) return bumpTextureCache.get(key);
-  const loader = new THREE.TextureLoader();
-  const tex = loader.load(resolved);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeatX, repeatY);
-  bumpTextureCache.set(key, tex);
-  return tex;
-}
-
 const VARIABLE_SLOT_LABELS = {
   playerNameBack: 'Nombre Jugador (Espalda)',
   playerNumberBack: 'Dorsal Trasero',
@@ -148,121 +74,6 @@ const VARIABLE_SLOT_LABELS = {
   playerNumberSleeve: 'Número Manga',
   playerNumberShorts: 'Número Pierna Short',
 };
-
-function paintGlovesCanvases(
-  backCanvas,
-  strapCanvas,
-  glovesDesign,
-  garmentDesign,
-  activePlayer,
-  artworkRegistry
-) {
-  if (!backCanvas || !strapCanvas) return;
-  const gColors = glovesDesign?.colorZones || {};
-  const backHex = gColors.primary?.hex || '#111111';
-  const accentHex = gColors.accents?.hex || '#fa5400';
-  const palmHex = gColors.palm?.hex || '#ffffff';
-  const strapHex = gColors.strap?.hex || '#059669';
-  const strapTextHex = gColors.strapText?.hex || '#ffffff';
-
-  // 1. Dorso / Backhand 1024x1024
-  const bCtx = backCanvas.getContext('2d');
-  const bW = backCanvas.width;
-  const bH = backCanvas.height;
-  bCtx.clearRect(0, 0, bW, bH);
-  bCtx.fillStyle = backHex;
-  bCtx.fillRect(0, 0, bW, bH);
-
-  // Dynamic punch-zone geometric chevrons across knuckles & lower backhand
-  bCtx.save();
-  bCtx.fillStyle = accentHex;
-  bCtx.globalAlpha = 0.92;
-  // Knuckle chevron armor bar
-  bCtx.beginPath();
-  bCtx.moveTo(bW * 0.14, bH * 0.44);
-  bCtx.lineTo(bW * 0.50, bH * 0.34);
-  bCtx.lineTo(bW * 0.86, bH * 0.44);
-  bCtx.lineTo(bW * 0.86, bH * 0.50);
-  bCtx.lineTo(bW * 0.50, bH * 0.40);
-  bCtx.lineTo(bW * 0.14, bH * 0.50);
-  bCtx.closePath();
-  bCtx.fill();
-
-  // Secondary parallel silicone punch ribs on fingers
-  bCtx.globalAlpha = 0.72;
-  for (let i = 0; i < 3; i++) {
-    const yBand = bH * (0.62 + i * 0.065);
-    bCtx.fillRect(bW * 0.24, yBand, bW * 0.52, bH * 0.018);
-  }
-  bCtx.restore();
-
-  // Subtle palm-tone cuff stripe above wrist
-  bCtx.fillStyle = palmHex;
-  bCtx.globalAlpha = 0.22;
-  bCtx.fillRect(0, bH * 0.88, bW, bH * 0.025);
-  bCtx.globalAlpha = 1;
-
-  // Club crest rendered on Backhand center (uses custom image or team preset crest)
-  if (glovesDesign?.includeCrest !== false) {
-    const decalsList =
-      (glovesDesign?.decals?.length ? glovesDesign.decals : garmentDesign?.decals) || [];
-    const crestDecal =
-      decalsList.find((d) => d.type === 'CUSTOM_IMAGE' || d.type === 'PRESET_CREST') || null;
-    bCtx.save();
-    bCtx.translate(bW * 0.50, bH * 0.67);
-    if (crestDecal?.type === 'CUSTOM_IMAGE' && crestDecal.assetId && artworkRegistry?.[crestDecal.assetId]?.image) {
-      const img = artworkRegistry[crestDecal.assetId].image;
-      const box = bW * 0.24;
-      const aspect = (img.width || 1) / (img.height || 1);
-      const dw = aspect >= 1 ? box : box * aspect;
-      const dh = aspect >= 1 ? box / aspect : box;
-      bCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
-    } else {
-      const presetId = crestDecal?.presetId || 'arza_official';
-      drawPresetVectorCrestMm(
-        bCtx,
-        presetId,
-        bW * 0.24,
-        bH * 0.24,
-        garmentDesign || { colorZones: { primary: { hex: backHex }, secondary: { hex: accentHex }, accents: { hex: palmHex } } },
-        crestDecal?.tintHex || ''
-      );
-    }
-    bCtx.restore();
-  }
-
-  // 2. Muñequera / Wrist Strap 1024x320 (Keeper Name + Number + ARZA badge)
-  const sCtx = strapCanvas.getContext('2d');
-  const sW = strapCanvas.width;
-  const sH = strapCanvas.height;
-  sCtx.clearRect(0, 0, sW, sH);
-  sCtx.fillStyle = strapHex;
-  sCtx.fillRect(0, 0, sW, sH);
-
-  // Stitch & accent edge rails
-  sCtx.fillStyle = accentHex;
-  sCtx.fillRect(0, 0, sW, sH * 0.08);
-  sCtx.fillRect(0, sH * 0.92, sW, sH * 0.08);
-
-  const keeperName = String(activePlayer?.name || '').toUpperCase().slice(0, 14);
-  const keeperNum = String(activePlayer?.number || '').slice(0, 3);
-  const showName = glovesDesign?.strapNameEnabled !== false;
-  const showNum = glovesDesign?.strapNumberEnabled !== false;
-  const strapLabel = [showNum && keeperNum ? `#${keeperNum}` : '', showName && keeperName ? keeperName : '']
-    .filter(Boolean)
-    .join(' ') || 'ARZA GK';
-
-  sCtx.save();
-  sCtx.fillStyle = strapTextHex;
-  sCtx.textAlign = 'center';
-  sCtx.textBaseline = 'middle';
-  sCtx.font = "900 94px 'Bebas Neue', 'Oswald', Impact, sans-serif";
-  sCtx.fillText(strapLabel || 'ARZA GK', sW * 0.5, sH * 0.46, sW * 0.78);
-  sCtx.globalAlpha = 0.75;
-  sCtx.font = '700 28px Inter, system-ui, sans-serif';
-  sCtx.fillText(`ARZA SPORT · PRO ${(glovesDesign?.gloveCut || 'hybrid').toUpperCase()}`, sW * 0.5, sH * 0.78);
-  sCtx.restore();
-}
 
 export default function GarmentCanvas3D({
   design,
@@ -625,166 +436,21 @@ export default function GarmentCanvas3D({
       canvasSnapshotRef.current = renderer.domElement;
     }
 
-    const hemiLight = new THREE.HemisphereLight(0xf8fafc, 0x1e293b, 1.08);
-    scene.add(hemiLight);
-
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.85);
-    keyLight.position.set(2.9, 3.9, 4.6);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(1024, 1024);
-    scene.add(keyLight);
-
-    const fillLight = new THREE.DirectionalLight(0xe0f2fe, 0.88);
-    fillLight.position.set(-3.5, 1.6, 3.2);
-    scene.add(fillLight);
-
-    const backRimLight = new THREE.DirectionalLight(0xfef3c7, 1.35);
-    backRimLight.position.set(0.3, 2.8, -4.6);
-    scene.add(backRimLight);
-
-    const shadowCanvas = document.createElement('canvas');
-    shadowCanvas.width = 128;
-    shadowCanvas.height = 128;
-    const sCtx = shadowCanvas.getContext('2d');
-    const sGrad = sCtx.createRadialGradient(64, 64, 6, 64, 64, 62);
-    sGrad.addColorStop(0, 'rgba(0,0,0,0.52)');
-    sGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    sCtx.fillStyle = sGrad;
-    sCtx.fillRect(0, 0, 128, 128);
-    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
-
-    const floorShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.7, 1.8),
-      new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })
-    );
-    floorShadow.rotation.x = -Math.PI / 2;
-    floorShadow.position.y = -1.44;
+    addStudioGarmentLighting(scene);
+    const { floorShadow, shadowTex } = createSoftFloorShadowMesh(2.7, 1.8, -1.44);
     scene.add(floorShadow);
 
     const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    const partCanvases = {};
-    const partTextures = {};
-    const partMaterials = {};
-
-    const ribBumpTex = getOrLoadRealBumpTexture('/fabrics/bandstoff-rtex3.png', 28, 12);
-
-    for (const partName of ALL_POSSIBLE_MESH_PARTS) {
-      const c = document.createElement('canvas');
-      const isLargeBodyOrLeg =
-        partName === 'Front' ||
-        partName === 'Back' ||
-        partName === 'RightLeg' ||
-        partName === 'LeftLeg' ||
-        partName === 'FrontLeftPart' ||
-        partName === 'FrontRightPart' ||
-        partName === 'LinkesBeinvorne' ||
-        partName === 'RechtesBeinvorne' ||
-        partName === 'LinkesBeinhinten' ||
-        partName === 'RechtesBeinhinten';
-      c.width = isLargeBodyOrLeg ? 2048 : 1024;
-      c.height = isLargeBodyOrLeg
-        ? 2048
-        : partName === 'LeftArm' || partName === 'RightArm'
-        ? 1024
-        : partName.includes('Collar') || partName.includes('Krageneinfass')
-        ? 256
-        : 128;
-      partCanvases[partName] = c;
-
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = maxAniso;
-      tex.__lastW = c.width;
-      tex.__lastH = c.height;
-      partTextures[partName] = tex;
-
-      const isRibTrim =
-        partName === 'Collar' ||
-        partName === 'Krageneinfass' ||
-        partName === 'Aermelbandlinks' ||
-        partName === 'Aermelbandrechts';
-
-      const mat = new THREE.MeshPhysicalMaterial({
-        map: tex,
-        bumpMap: isRibTrim ? ribBumpTex : null,
-        bumpScale: isRibTrim ? 0.008 : 0.006,
-        roughness: isRibTrim ? 0.64 : 0.54,
-        metalness: 0.02,
-        sheen: 0.28,
-        sheenRoughness: 0.56,
-        sheenColor: new THREE.Color(0xffffff),
-        side: THREE.DoubleSide,
-      });
-      applyOwayoInnerSublimationShader(mat, partName);
-      partMaterials[partName] = mat;
-    }
-
-    const neckLabelTex = buildNeckLabelCanvasTexture(activePlayer?.size || 'L');
-    const neckLabelMat = new THREE.MeshStandardMaterial({
-      map: neckLabelTex,
-      roughness: 0.65,
-      side: THREE.DoubleSide,
-    });
-    const hemFlagMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#0f172a'),
-      roughness: 0.7,
-      side: THREE.DoubleSide,
-    });
-
-    // Materiales y canvas dinámicos para Guantes de Portero 3D (.glb)
-    const gloveBackCanvas = document.createElement('canvas');
-    gloveBackCanvas.width = 1024;
-    gloveBackCanvas.height = 1024;
-    const gloveBackTex = new THREE.CanvasTexture(gloveBackCanvas);
-    gloveBackTex.colorSpace = THREE.SRGBColorSpace;
-    gloveBackTex.anisotropy = maxAniso;
-
-    const gloveStrapCanvas = document.createElement('canvas');
-    gloveStrapCanvas.width = 1024;
-    gloveStrapCanvas.height = 320;
-    const gloveStrapTex = new THREE.CanvasTexture(gloveStrapCanvas);
-    gloveStrapTex.colorSpace = THREE.SRGBColorSpace;
-    gloveStrapTex.anisotropy = maxAniso;
-
-    const glovePalmMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#ffffff'),
-      bumpMap: ribBumpTex,
-      bumpScale: 0.004,
-      roughness: 0.72,
-      metalness: 0.02,
-      clearcoat: 0.08,
-      clearcoatRoughness: 0.55,
-      side: THREE.DoubleSide,
-    });
-    const gloveBackMat = new THREE.MeshPhysicalMaterial({
-      map: gloveBackTex,
-      roughness: 0.54,
-      metalness: 0.06,
-      sheen: 0.35,
-      sheenRoughness: 0.45,
-      side: THREE.DoubleSide,
-    });
-    const gloveAccentMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#fa5400'),
-      bumpMap: ribBumpTex,
-      bumpScale: 0.006,
-      roughness: 0.68,
-      metalness: 0.04,
-      side: THREE.DoubleSide,
-    });
-    const gloveStrapMat = new THREE.MeshStandardMaterial({
-      map: gloveStrapTex,
-      roughness: 0.48,
-      metalness: 0.05,
-      side: THREE.DoubleSide,
-    });
-    const gloveMaterials = {
-      palm: glovePalmMat,
-      backhand: gloveBackMat,
-      accents: gloveAccentMat,
-      strap: gloveStrapMat,
-      body: gloveBackMat,
-    };
+    const garmentSurface = createGarmentSurfaceSet(maxAniso, activePlayer?.size || 'L');
+    const glovesSurface = createGlovesSurfaceSet(maxAniso);
+    const { partCanvases, partTextures, partMaterials, neckLabelMat, hemFlagMat } = garmentSurface;
+    const {
+      gloveBackCanvas,
+      gloveBackTex,
+      gloveStrapCanvas,
+      gloveStrapTex,
+      gloveMaterials,
+    } = glovesSurface;
 
     const jerseyContainer = new THREE.Group();
     scene.add(jerseyContainer);
@@ -942,17 +608,11 @@ export default function GarmentCanvas3D({
       ro.disconnect();
       controls.removeEventListener('start', onControlStart);
       controls.dispose();
-      Object.values(partTextures).forEach((t) => t.dispose());
-      Object.values(partMaterials).forEach((m) => m.dispose());
-      neckLabelTex.dispose();
-      neckLabelMat.dispose();
-      hemFlagMat.dispose();
-      gloveBackTex.dispose();
-      gloveStrapTex.dispose();
-      glovePalmMat.dispose();
-      gloveBackMat.dispose();
-      gloveAccentMat.dispose();
-      gloveStrapMat.dispose();
+      garmentSurface.dispose();
+      glovesSurface.dispose();
+      floorShadow.geometry.dispose();
+      floorShadow.material.dispose();
+      shadowTex.dispose();
       renderer.dispose();
     };
   }, []);
@@ -1112,43 +772,7 @@ export default function GarmentCanvas3D({
   useEffect(() => {
     const st = sceneStateRef.current;
     if (!st) return;
-    const weave = FABRIC_WEAVES.find((w) => w.id === design.fabricWeaveId) || FABRIC_WEAVES[0];
-    const bumpTex = getOrLoadRealBumpTexture(weave.bumpUrl || '/fabrics/ts-tex.png', weave.uvRepeat, weave.uvRepeat);
-
-    [
-      'Front',
-      'Back',
-      'LeftArm',
-      'RightArm',
-      'RightLeg',
-      'LeftLeg',
-      'Collar',
-      'Krageneinfass',
-      'Aermelbandlinks',
-      'Aermelbandrechts',
-      'Seitenteillinks',
-      'Seitenteilrechts',
-      'RechtesBeinvorne',
-      'LinkesBeinvorne',
-      'RechtesBeinhinten',
-      'LinkesBeinhinten',
-      'Seitenstreifenrechts',
-      'Seitenstreifenlinks',
-      'Aufnaeher',
-      'FrontLeftPart',
-      'FrontRightPart',
-      'CollarOutside',
-      'CollarInside',
-      'Unterarmstreifenlinks',
-      'Unterarmstreifenrechts',
-    ].forEach((partName) => {
-      const mat = st.partMaterials[partName];
-      if (!mat) return;
-      mat.bumpMap = bumpTex;
-      mat.bumpScale = Math.abs(weave.bumpScale || 0.005) * 1.4;
-      mat.roughness = weave.roughness;
-      mat.needsUpdate = true;
-    });
+    applyFabricWeaveToMaterials(st.partMaterials, design.fabricWeaveId);
   }, [design.fabricWeaveId]);
 
   // 5. Actualizar etiqueta interior de talla (`Etikett`) cuando cambia el jugador activo
@@ -1180,49 +804,33 @@ export default function GarmentCanvas3D({
       lastDragPanelRef.current = null;
     }
 
-    for (const partName of partsToUpdate) {
-      const canvas = st.partCanvases[partName];
-      const tex = st.partTextures[partName];
-      if (!canvas || !tex) continue;
-
-      composeGarmentPartCanvas(
-        canvas,
-        partName,
-        design,
-        activePlayer,
-        artworkRegistry,
-        masksMap,
-        active3DOverlay
-          ? {
-              showGuides: true,
-              showSelectionBox: true,
-              panel: active3DOverlay.panel,
-              selectedDecalId: active3DOverlay.selectedDecalId,
-              selectedSlotKey: active3DOverlay.selectedSlotKey,
-              snapGuides: active3DOverlay.snapGuides,
-            }
-          : selectedDecalId || selectedSlotKey
-          ? {
-              showGuides: false,
-              showSelectionBox: true,
-              panel: null,
-              selectedDecalId,
-              selectedSlotKey,
-              snapGuides: null,
-            }
-          : null
-      );
-
-      // Si las dimensiones del canvas cambiaron respecto al buffer GPU anterior, liberar WebGLTexture para forzar glTexImage2D
-      if (tex.__lastW !== canvas.width || tex.__lastH !== canvas.height) {
-        tex.dispose();
-        tex.__lastW = canvas.width;
-        tex.__lastH = canvas.height;
-        const mat = st.partMaterials[partName];
-        if (mat) mat.needsUpdate = true;
-      }
-      tex.needsUpdate = true;
-    }
+    paintGarmentSurfaceSet(
+      st,
+      partsToUpdate,
+      design,
+      activePlayer,
+      artworkRegistry,
+      masksMap,
+      active3DOverlay
+        ? {
+            showGuides: true,
+            showSelectionBox: true,
+            panel: active3DOverlay.panel,
+            selectedDecalId: active3DOverlay.selectedDecalId,
+            selectedSlotKey: active3DOverlay.selectedSlotKey,
+            snapGuides: active3DOverlay.snapGuides,
+          }
+        : selectedDecalId || selectedSlotKey
+        ? {
+            showGuides: false,
+            showSelectionBox: true,
+            panel: null,
+            selectedDecalId,
+            selectedSlotKey,
+            snapGuides: null,
+          }
+        : null
+    );
   }, [
     design,
     activePlayer,
