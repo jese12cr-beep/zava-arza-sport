@@ -319,7 +319,7 @@ export function renderGarmentPanel(
   ctx,
   design,
   panel = 'front',
-  activePlayer = { name: 'RODRÍGUEZ', number: '10' },
+  activePlayer = { name: '', number: '' },
   artworkRegistry = {},
   interactiveOpts = { showGuides: false, selectedDecalId: null, is3DInteractive: false, snapGuides: null }
 ) {

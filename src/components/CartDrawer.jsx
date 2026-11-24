@@ -11,12 +11,24 @@ import {
   Wallet,
   Lock,
   ShieldCheck,
-  Scissors,
   AlertCircle,
+  Download,
+  MessageCircle,
+  Package,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import {
+  ARZA_CONTACT,
+  buildFactoryOrderSummaryText,
+  buildWhatsAppUrl,
+  downloadFactoryOrderSheetHtml,
+  formatCollarLabel,
+  formatCutLabel,
+  formatGloveCutLabel,
+  saveConfirmedOrder,
+} from '../utils/orderHistoryStore';
 
-const SPEI_CLABE = '646180110400928374';
+const SPEI_CLABE = ARZA_CONTACT.speiClabe;
 
 function getItemUnits(item) {
   return (
@@ -79,6 +91,27 @@ function validatePaymentField(name, value, extra = {}) {
     }
     return '';
   }
+  if (name === 'shippingName') {
+    if (trimmed.length < 2) return 'Error: Ingresa el nombre del responsable o capitán.';
+    return '';
+  }
+  if (name === 'phone') {
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 8) return 'Error: Ingresa un teléfono o WhatsApp válido (8–12 dígitos).';
+    return '';
+  }
+  if (name === 'shippingAddress') {
+    if (trimmed.length < 5) return 'Error: Ingresa calle, número y colonia para el envío.';
+    return '';
+  }
+  if (name === 'shippingCity') {
+    if (trimmed.length < 2) return 'Error: Ingresa ciudad y estado de entrega.';
+    return '';
+  }
+  if (name === 'shippingZip') {
+    if (!/^[a-zA-Z0-9\s-]{4,10}$/.test(trimmed)) return 'Error: Ingresa un código postal válido.';
+    return '';
+  }
   if (name === 'ccNumber') {
     const digits = trimmed.replace(/\D/g, '');
     if (!digits) return 'Error: Ingresa el número completo de tu tarjeta.';
@@ -125,10 +158,15 @@ export default function CartDrawer({
   onRemoveItem,
   onClearCart,
   onOpenQuoteModal,
-  onOpenProductionModal,
+  onOpenOrderTracking,
 }) {
   const dialogRef = useRef(null);
   const emailInputRef = useRef(null);
+  const shippingNameRef = useRef(null);
+  const phoneRef = useRef(null);
+  const shippingAddressRef = useRef(null);
+  const shippingCityRef = useRef(null);
+  const shippingZipRef = useRef(null);
   const ccNumberRef = useRef(null);
   const ccNameRef = useRef(null);
   const ccExpRef = useRef(null);
@@ -144,6 +182,11 @@ export default function CartDrawer({
 
   const [formValues, setFormValues] = useState({
     email: '',
+    shippingName: '',
+    phone: '',
+    shippingAddress: '',
+    shippingCity: '',
+    shippingZip: '',
     ccNumber: '',
     ccName: '',
     ccExp: '',
@@ -163,6 +206,16 @@ export default function CartDrawer({
   const emailId = `${uid}-email`;
   const emailHintId = `${uid}-email-hint`;
   const emailErrId = `${uid}-email-err`;
+  const shipNameId = `${uid}-ship-name`;
+  const shipNameErrId = `${uid}-ship-name-err`;
+  const phoneId = `${uid}-phone`;
+  const phoneErrId = `${uid}-phone-err`;
+  const shipAddrId = `${uid}-ship-addr`;
+  const shipAddrErrId = `${uid}-ship-addr-err`;
+  const shipCityId = `${uid}-ship-city`;
+  const shipCityErrId = `${uid}-ship-city-err`;
+  const shipZipId = `${uid}-ship-zip`;
+  const shipZipErrId = `${uid}-ship-zip-err`;
   const ccNumId = `${uid}-cc-num`;
   const ccNumHintId = `${uid}-cc-num-hint`;
   const ccNumErrId = `${uid}-cc-num-err`;
@@ -190,6 +243,9 @@ export default function CartDrawer({
       dialog.close();
     }
 
+    const handleNativeClose = () => {
+      if (isOpen) onClose();
+    };
     const handleBackdropClick = (event) => {
       if (event.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
@@ -203,11 +259,13 @@ export default function CartDrawer({
       }
     };
 
+    dialog.addEventListener('close', handleNativeClose);
     if (!('closedBy' in HTMLDialogElement.prototype)) {
       dialog.addEventListener('click', handleBackdropClick);
     }
 
     return () => {
+      dialog.removeEventListener('close', handleNativeClose);
       dialog.removeEventListener('click', handleBackdropClick);
     };
   }, [isOpen, onClose]);
@@ -272,35 +330,23 @@ export default function CartDrawer({
     setTimeout(() => setCopiedKey(''), 1800);
   };
 
-  const handleCopyShopifyPayload = () => {
-    const shopifyPayload = items.map((item) => ({
-      variant_id: item.product.id,
-      quantity: getItemUnits(item),
-      properties: {
-        _product_type: item.product.type,
-        _base_color: item.design.baseColor,
-        _sleeve_color: item.design.sleeveColor,
-        _pattern: item.design.pattern,
-        _player_name: item.design.playerName,
-        _player_number: item.design.playerNumber,
-        _sponsor: item.design.sponsorText,
-        _roster_data: item.roster ? JSON.stringify(item.roster) : 'Individual',
-      },
-    }));
-    handleCopyValue('shopify', JSON.stringify(shopifyPayload, null, 2));
-  };
-
   const handleSubmitPayment = (e) => {
     e.preventDefault();
     if (isSubmitting || items.length === 0) return;
 
+    const baseFields = ['email', 'shippingName', 'phone', 'shippingAddress', 'shippingCity', 'shippingZip'];
     const requiredFields =
       paymentMethod === 'card'
-        ? ['email', 'ccNumber', 'ccName', 'ccExp', 'ccCsc']
-        : ['email'];
+        ? [...baseFields, 'ccNumber', 'ccName', 'ccExp', 'ccCsc']
+        : baseFields;
 
     const refMap = {
       email: emailInputRef,
+      shippingName: shippingNameRef,
+      phone: phoneRef,
+      shippingAddress: shippingAddressRef,
+      shippingCity: shippingCityRef,
+      shippingZip: shippingZipRef,
       ccNumber: ccNumberRef,
       ccName: ccNameRef,
       ccExp: ccExpRef,
@@ -343,10 +389,21 @@ export default function CartDrawer({
         ? 'Apple Pay / Google Pay'
         : 'Mercado Pago Link';
 
-    setPaymentReceipt({
+    const receiptRecord = saveConfirmedOrder({
       folio,
+      createdAtLabel: new Date().toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+      statusLabel: 'Recibido · En revisión con taller',
       methodLabel: paidLabel,
       email: formValues.email.trim(),
+      customerName: formValues.shippingName.trim(),
+      phone: formValues.phone.trim(),
+      shippingAddress: formValues.shippingAddress.trim(),
+      shippingCity: formValues.shippingCity.trim(),
+      shippingZip: formValues.shippingZip.trim(),
       amountPaid: paymentMethod === 'spei' ? speiAmount : totalAmount,
       totalOrder: totalAmount,
       units: totalQuantity,
@@ -357,6 +414,7 @@ export default function CartDrawer({
       speiClabe: paymentMethod === 'spei' ? SPEI_CLABE : null,
       snapshotItems: [...items],
     });
+    setPaymentReceipt(receiptRecord);
     setIsSubmitting(false);
 
     try {
@@ -390,6 +448,10 @@ export default function CartDrawer({
     <dialog
       ref={dialogRef}
       closedby="any"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
       aria-labelledby="cart-title"
       className="p-0 m-0 ml-auto mr-0 h-full max-h-screen w-full sm:max-w-lg bg-white/92 backdrop-blur-xl text-slate-900 border-l border-white/75 backdrop:bg-slate-950/45 backdrop:backdrop-blur-xs shadow-2xl open:flex open:flex-col"
     >
@@ -487,26 +549,47 @@ export default function CartDrawer({
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onOpenQuoteModal}
-                  className="min-h-11 px-3 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                  <span>Cotización PDF</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentReceipt(null);
-                    onClearCart?.();
-                    onClose();
-                  }}
-                  className="min-h-11 px-4 rounded-xl arza-btn-glass-green text-xs font-black uppercase tracking-wider cursor-pointer"
-                >
-                  Nuevo Pedido
-                </button>
+              <div className="space-y-2 pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadFactoryOrderSheetHtml(paymentReceipt)}
+                    className="min-h-11 px-3 rounded-xl arza-btn-glass-green text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span>Ficha Fábrica</span>
+                  </button>
+                  <a
+                    href={buildWhatsAppUrl(buildFactoryOrderSummaryText(paymentReceipt))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-h-11 px-3 rounded-xl border border-slate-900 bg-white hover:bg-slate-50 text-xs font-bold text-slate-900 inline-flex items-center justify-center gap-1.5"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
+                    <span>Enviar WhatsApp</span>
+                  </a>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={onOpenQuoteModal}
+                    className="min-h-10 px-3 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                    <span>Cotización PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentReceipt(null);
+                      onClearCart?.();
+                      onClose();
+                    }}
+                    className="min-h-10 px-4 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                  >
+                    Nuevo Pedido
+                  </button>
+                </div>
               </div>
             </div>
           ) : items.length === 0 ? (
@@ -581,7 +664,7 @@ export default function CartDrawer({
                             className="w-2.5 h-2.5 rounded-full border border-slate-300"
                             style={{ backgroundColor: item.design.baseColor }}
                           />
-                          <span>Campo {item.design.baseColor}</span>
+                          <span>{item.design.pattern || 'Tackle'} · {formatCollarLabel(item.design.collarStyle)}</span>
                         </span>
                         {item.goalkeeperSpec && (
                           <span className="bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1.5 font-bold">
@@ -595,7 +678,7 @@ export default function CartDrawer({
                         {item.glovesSpec && (
                           <span className="bg-slate-900 text-white px-2 py-0.5 rounded flex items-center gap-1.5 font-bold">
                             <span>
-                              Guantes ({item.glovesSpec.glovePairs}×${Number(item.glovesSpec.unitPrice || 28).toFixed(0)} · {(item.glovesSpec.gloveCut || 'hybrid').replace('_', ' ')})
+                              Guantes ({item.glovesSpec.glovePairs}×${Number(item.glovesSpec.unitPrice || 28).toFixed(0)} · {formatGloveCutLabel(item.glovesSpec.gloveCut)})
                             </span>
                           </span>
                         )}
@@ -622,10 +705,17 @@ export default function CartDrawer({
                                     : 'bg-white border-slate-200 text-slate-700'
                                 }`}
                               >
-                                {isKeeper
-                                  ? `[PORT M.L.${item.glovePairs > 0 && r.gloveSize ? ` · G${r.gloveSize}` : ''}] `
-                                  : ''}
-                                #{r.number || '-'} {r.name || 'S/N'} · {r.size}
+                                {[
+                                  isKeeper
+                                    ? `[PORT M.L.${item.glovePairs > 0 && r.gloveSize ? ` · G${r.gloveSize}` : ''}]`
+                                    : '',
+                                  r.number ? `#${r.number}` : '',
+                                  r.name || 'Sin nombre',
+                                  formatCutLabel(r.cut),
+                                  r.size,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
                               </span>
                             );
                           })}
@@ -737,7 +827,7 @@ export default function CartDrawer({
                     autoCorrect="off"
                     autoCapitalize="none"
                     spellCheck={false}
-                    enterKeyHint={paymentMethod === 'card' ? 'next' : 'done'}
+                    enterKeyHint="next"
                     required
                     value={formValues.email}
                     onChange={(e) => handleFieldChange('email', e.target.value)}
@@ -755,6 +845,134 @@ export default function CartDrawer({
                   />
                   {renderFieldError('email', emailErrId)}
                 </div>
+
+                {/* DATOS DE CONTACTO Y DIRECCIÓN DE ENTREGA */}
+                <fieldset className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-700 px-1">
+                    Datos de Entrega y Contacto
+                  </legend>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor={shipNameId} className="text-[11px] font-bold text-slate-700 block mb-0.5">
+                        Nombre completo / Capitán *
+                      </label>
+                      <input
+                        ref={shippingNameRef}
+                        id={shipNameId}
+                        name="shipping-name"
+                        type="text"
+                        autoComplete="name"
+                        required
+                        value={formValues.shippingName}
+                        onChange={(e) => handleFieldChange('shippingName', e.target.value)}
+                        onBlur={() => handleFieldBlur('shippingName')}
+                        aria-invalid={fieldTouched.shippingName && fieldErrors.shippingName ? 'true' : 'false'}
+                        placeholder="Ej. Carlos Mendoza"
+                        className={`arza-pay-input w-full px-3 min-h-10 rounded-lg bg-white border border-slate-300 text-xs font-medium text-slate-900 ${
+                          fieldTouched.shippingName && fieldErrors.shippingName ? 'user-invalid-fallback' : ''
+                        }`}
+                      />
+                      {renderFieldError('shippingName', shipNameErrId)}
+                    </div>
+
+                    <div>
+                      <label htmlFor={phoneId} className="text-[11px] font-bold text-slate-700 block mb-0.5">
+                        WhatsApp / Teléfono *
+                      </label>
+                      <input
+                        ref={phoneRef}
+                        id={phoneId}
+                        name="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        required
+                        value={formValues.phone}
+                        onChange={(e) => handleFieldChange('phone', e.target.value)}
+                        onBlur={() => handleFieldBlur('phone')}
+                        aria-invalid={fieldTouched.phone && fieldErrors.phone ? 'true' : 'false'}
+                        placeholder="55 1234 5678"
+                        className={`arza-pay-input w-full px-3 min-h-10 rounded-lg bg-white border border-slate-300 text-xs font-medium text-slate-900 ${
+                          fieldTouched.phone && fieldErrors.phone ? 'user-invalid-fallback' : ''
+                        }`}
+                      />
+                      {renderFieldError('phone', phoneErrId)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor={shipAddrId} className="text-[11px] font-bold text-slate-700 block mb-0.5">
+                      Dirección de envío (calle, número, colonia) *
+                    </label>
+                    <input
+                      ref={shippingAddressRef}
+                      id={shipAddrId}
+                      name="shipping-address"
+                      type="text"
+                      autoComplete="shipping street-address"
+                      required
+                      value={formValues.shippingAddress}
+                      onChange={(e) => handleFieldChange('shippingAddress', e.target.value)}
+                      onBlur={() => handleFieldBlur('shippingAddress')}
+                      aria-invalid={fieldTouched.shippingAddress && fieldErrors.shippingAddress ? 'true' : 'false'}
+                      placeholder="Av. Reforma 240, Col. Juárez"
+                      className={`arza-pay-input w-full px-3 min-h-10 rounded-lg bg-white border border-slate-300 text-xs font-medium text-slate-900 ${
+                        fieldTouched.shippingAddress && fieldErrors.shippingAddress ? 'user-invalid-fallback' : ''
+                      }`}
+                    />
+                    {renderFieldError('shippingAddress', shipAddrErrId)}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor={shipCityId} className="text-[11px] font-bold text-slate-700 block mb-0.5">
+                        Ciudad y Estado *
+                      </label>
+                      <input
+                        ref={shippingCityRef}
+                        id={shipCityId}
+                        name="shipping-city"
+                        type="text"
+                        autoComplete="shipping address-level2"
+                        required
+                        value={formValues.shippingCity}
+                        onChange={(e) => handleFieldChange('shippingCity', e.target.value)}
+                        onBlur={() => handleFieldBlur('shippingCity')}
+                        aria-invalid={fieldTouched.shippingCity && fieldErrors.shippingCity ? 'true' : 'false'}
+                        placeholder="CDMX / Jalisco"
+                        className={`arza-pay-input w-full px-3 min-h-10 rounded-lg bg-white border border-slate-300 text-xs font-medium text-slate-900 ${
+                          fieldTouched.shippingCity && fieldErrors.shippingCity ? 'user-invalid-fallback' : ''
+                        }`}
+                      />
+                      {renderFieldError('shippingCity', shipCityErrId)}
+                    </div>
+
+                    <div>
+                      <label htmlFor={shipZipId} className="text-[11px] font-bold text-slate-700 block mb-0.5">
+                        Código Postal *
+                      </label>
+                      <input
+                        ref={shippingZipRef}
+                        id={shipZipId}
+                        name="shipping-zip"
+                        type="text"
+                        autoComplete="shipping postal-code"
+                        inputMode="numeric"
+                        required
+                        value={formValues.shippingZip}
+                        onChange={(e) => handleFieldChange('shippingZip', e.target.value)}
+                        onBlur={() => handleFieldBlur('shippingZip')}
+                        aria-invalid={fieldTouched.shippingZip && fieldErrors.shippingZip ? 'true' : 'false'}
+                        placeholder="06600"
+                        className={`arza-pay-input w-full px-3 min-h-10 rounded-lg bg-white border border-slate-300 text-xs font-mono font-medium text-slate-900 ${
+                          fieldTouched.shippingZip && fieldErrors.shippingZip ? 'user-invalid-fallback' : ''
+                        }`}
+                      />
+                      {renderFieldError('shippingZip', shipZipErrId)}
+                    </div>
+                  </div>
+                </fieldset>
 
                 {/* DETALLE TARJETA DE DÉBITO / CRÉDITO */}
                 {paymentMethod === 'card' && (
@@ -1180,7 +1398,7 @@ export default function CartDrawer({
                 </button>
 
                 <p className="text-[10px] text-center text-slate-500 leading-snug">
-                  Conexión cifrada TLS • Vista previa interactiva de pago (sin cargos reales en navegador).
+                  Registro cifrado • Tu folio y ficha de especificaciones se envían directo a taller ARZA SPORT ({ARZA_CONTACT.leadTime}).
                 </p>
               </form>
             </>
@@ -1199,35 +1417,38 @@ export default function CartDrawer({
               <span className="truncate">Cotización</span>
             </button>
 
-            {onOpenProductionModal && (
+            {onOpenOrderTracking && (
               <button
                 type="button"
-                onClick={onOpenProductionModal}
+                onClick={() => onOpenOrderTracking('')}
                 className="min-h-10 px-2 rounded-xl arza-glass-card hover:bg-white text-[11px] font-bold text-slate-800 inline-flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Scissors className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-                <span className="truncate">Pliego 1:1</span>
+                <Package className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+                <span className="truncate">Mis Pedidos</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleCopyShopifyPayload}
-              className="min-h-10 px-2 rounded-xl arza-glass-card hover:bg-white text-[11px] font-bold text-slate-800 inline-flex items-center justify-center gap-1 cursor-pointer"
-              title="Copiar datos estructurados para Shopify Line Items"
-            >
-              {copiedKey === 'shopify' ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-                  <span>Copiado</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Shopify</span>
-                </>
+            <a
+              href={buildWhatsAppUrl(
+                buildFactoryOrderSummaryText({
+                  folio: 'BORRADOR',
+                  createdAtLabel: 'Borrador activo',
+                  statusLabel: 'Solicitud previa por WhatsApp',
+                  customerName: formValues.shippingName || 'Cliente Web',
+                  phone: formValues.phone,
+                  email: formValues.email,
+                  totalOrder: totalAmount,
+                  units: totalQuantity,
+                  snapshotItems: items,
+                })
               )}
-            </button>
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-10 px-2 rounded-xl arza-glass-card hover:bg-white text-[11px] font-bold text-slate-800 inline-flex items-center justify-center gap-1"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+              <span className="truncate">WhatsApp</span>
+            </a>
           </div>
         )}
       </div>

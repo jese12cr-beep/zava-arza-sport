@@ -14,16 +14,10 @@ const ADMIN_STORAGE_KEY = 'arza_admin_active';
 const USER_STORAGE_KEY = 'arza_current_user';
 const USERS_DB_KEY = 'arza_registered_users_db';
 
-// Inicialización por defecto: El dueño de la tienda es Administrador Master automáticamente
+// Por defecto los visitantes navegan como cliente sin privilegios administrativos expuestos.
 export function getInitialAdminStatus() {
-  if (typeof window === 'undefined') return true;
-  const stored = localStorage.getItem(ADMIN_STORAGE_KEY);
-  if (stored === null) {
-    // Primera vez: activar privilegios de Administrador para el creador
-    localStorage.setItem(ADMIN_STORAGE_KEY, 'true');
-    return true;
-  }
-  return stored === 'true';
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
 }
 
 export function getCurrentUser() {
@@ -81,7 +75,7 @@ export function setAdminMode(active) {
   notifyListeners();
 }
 
-export function registerClubUser({ name, club, email, phone, password }) {
+export function registerClubUser({ name, club, email, phone }) {
   if (typeof window === 'undefined') return { success: false, error: 'Sin entorno' };
   
   if (!name?.trim() || !email?.trim()) {
@@ -113,30 +107,13 @@ export function registerClubUser({ name, club, email, phone, password }) {
   return { success: true, user: newUser };
 }
 
-export function loginClubUser(email, password) {
+export function loginClubUser(email) {
   if (!email?.trim()) {
     return { success: false, error: 'Por favor ingresa tu correo electrónico.' };
   }
   const cleanEmail = email.trim().toLowerCase();
 
-  // Si introduce credencial master directa
-  if (cleanEmail === 'admin' || cleanEmail.includes('admin@')) {
-    setAdminMode(true);
-    return { success: true, user: getCurrentUser() };
-  }
-
-  try {
-    const users = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '[]');
-    const found = users.find((u) => u.email === cleanEmail);
-    if (found) {
-      localStorage.setItem(ADMIN_STORAGE_KEY, 'false');
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(found));
-      notifyListeners();
-      return { success: true, user: found };
-    }
-  } catch {}
-
-  // Si no existe, crear sesión rápida con su correo para no bloquear
+  // Si no existe en la base local, crear sesión rápida de club con su correo
   const quickUser = {
     id: `client_${Date.now().toString(36)}`,
     name: cleanEmail.split('@')[0].toUpperCase(),

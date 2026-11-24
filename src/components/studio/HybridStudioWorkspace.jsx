@@ -45,13 +45,18 @@ import {
   Layers,
   RotateCw,
   Award,
+  FileText,
 } from 'lucide-react';
-import Interactive2DLab from '../../engine/compositor/Interactive2DLab';
 import LayerStack25DViewer from '../../engine/compositor/LayerStack25DViewer';
 import UserDesignGalleryModal from './UserDesignGalleryModal';
 import UserAuthModal from '../auth/UserAuthModal';
 import ArzaLogo, { buildArzaLogoSvgString } from '../brand/ArzaLogo';
 import FabricSwatchThumb from '../brand/FabricSwatchThumb';
+import FishPatternThumb from './FishPatternThumb';
+import {
+  captureCanvasSnapshot,
+  renderFallbackKitThumbnail,
+} from '../../utils/orderHistoryStore';
 import { useAuth } from '../../engine/auth/authManager';
 import {
   LIGA_MX_PRESETS,
@@ -72,6 +77,7 @@ import {
   FABRIC_WEAVES,
   SPORT_FONTS,
   VOLUME_TIERS,
+  calculateStudioGrandTotal,
   computeOwayoAutoContrastHex,
   createDefaultDesignForProduct,
   ROSTER_CUT_OPTIONS,
@@ -80,7 +86,6 @@ import {
   GLOVE_PAIR_UNIT_PRICE,
   isGoalkeeperRole,
   parseRosterQuickLines,
-  summarizeRosterComposition,
 } from '../../engine/core/designStore';
 import { MEXICO_PRO_KITS } from '../../data/mexicoKitsData';
 import { UCL_PRO_KITS } from '../../data/uclKitsData';
@@ -100,8 +105,6 @@ import JerseyThumbnailMiniature from './JerseyThumbnailMiniature';
 import { preloadLigaMxCrest } from '../../engine/compositor/ligaMxKitsEngine';
 import { preloadUclCrest } from '../../engine/compositor/uclKitsEngine';
 import { preloadSponsorLogo } from '../../engine/compositor/sponsorLogosEngine';
-import ProductionMoldModal from './ProductionMoldModal';
-import Interactive2DPliegoStage from './Interactive2DPliegoStage';
 import SocialMediaMockupModal from './SocialMediaMockupModal';
 import GuidedStepWizardPanel from './GuidedStepWizardPanel';
 import { resolveAssetUrl } from '../../utils/assetUrl';
@@ -273,7 +276,7 @@ export default function HybridStudioWorkspace({
   onUpdateRoster,
   artworkRegistry,
   onRegisterArtwork,
-  onOpenProductionModal,
+  onOpenQuoteModal,
   onFinishOrderToCheckout,
   onOpenCart,
   cartCount,
@@ -292,7 +295,6 @@ export default function HybridStudioWorkspace({
   }, [initialStep]);
 
   const [activeTab, setActiveTab] = useState('design'); // 'design' | 'colors' | 'text' | 'logo'
-  const [viewportMode, setViewportMode] = useState('3d'); // '3d' | '2d_pliego'
   const [isSocialMediaModalOpen, setIsSocialMediaModalOpen] = useState(false);
   const [patternCategoryFilter, setPatternCategoryFilter] = useState('Todos');
   const [cameraPreset, setCameraPreset] = useState('three_quarter');
@@ -305,8 +307,8 @@ export default function HybridStudioWorkspace({
     setCameraPulse((n) => n + 1);
   };
 
-  // Control de autenticación y privilegios
-  const { currentUser, isAdmin, isAuthenticated, setAdminMode } = useAuth();
+  // Control de autenticación opcional de Cuenta de Club (sin privilegios admin expuestos)
+  const { currentUser, isAuthenticated, logoutUser } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const pendingAuthActionRef = useRef(null);
 
@@ -363,7 +365,6 @@ export default function HybridStudioWorkspace({
   const [isGarmentMenuOpen, setIsGarmentMenuOpen] = useState(false);
   const [isMobilePanelCollapsed, setIsMobilePanelCollapsed] = useState(false);
   const [isMexicoKitsModalOpen, setIsMexicoKitsModalOpen] = useState(false);
-  const [isProductionMoldModalOpen, setIsProductionMoldModalOpen] = useState(false);
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
   const [activeLogoCategory, setActiveLogoCategory] = useState('ligamx'); // 'ligamx' | 'mundial' | 'vector'
@@ -506,22 +507,35 @@ export default function HybridStudioWorkspace({
   const uploadedLibrary = useMemo(() => Object.values(artworkRegistry || {}), [artworkRegistry]);
 
   const activePlayer = roster[activeRosterIndex] || roster[0] || {
-    name: 'RODRÍGUEZ',
-    number: '10',
+    name: '',
+    number: '',
     size: 'L',
   };
-  const rosterComposition = useMemo(
-    () => summarizeRosterComposition(roster, includeGloves),
-    [roster, includeGloves]
+  const totalRawUnits = useMemo(
+    () => roster.reduce((s, r) => s + Math.max(1, Number(r?.qty) || 1), 0),
+    [roster]
   );
-  const totalUnits = rosterComposition.totalUnits;
   const currentTier =
-    VOLUME_TIERS.find((t) => totalUnits >= t.min && totalUnits <= t.max) || VOLUME_TIERS[0];
+    VOLUME_TIERS.find((t) => totalRawUnits >= t.min && totalRawUnits <= t.max) || VOLUME_TIERS[0];
   const unitPrice = +(currentProduct.basePrice * (1 - currentTier.discountPct / 100)).toFixed(2);
-  const totalPrice = +(unitPrice * totalUnits).toFixed(2);
   const glovesUnitPrice = Number(glovesDesign?.unitPrice) || GLOVE_PAIR_UNIT_PRICE;
-  const glovesTotal = +(glovesUnitPrice * rosterComposition.glovePairs).toFixed(2);
-  const grandTotalPrice = +(totalPrice + glovesTotal).toFixed(2);
+  const unifiedTotals = useMemo(
+    () =>
+      calculateStudioGrandTotal({
+        roster,
+        product: currentProduct,
+        unitPrice,
+        includeGloves,
+        glovesUnitPrice,
+      }),
+    [roster, currentProduct, unitPrice, includeGloves, glovesUnitPrice]
+  );
+  const isSoccerProduct = unifiedTotals.isSoccer;
+  const rosterComposition = unifiedTotals;
+  const totalUnits = rosterComposition.totalUnits;
+  const totalPrice = unifiedTotals.garmentsTotal;
+  const glovesTotal = unifiedTotals.glovesTotal;
+  const grandTotalPrice = unifiedTotals.grandTotal;
 
   const handleRoleSwitch = (nextRole) => {
     onSwitchKitRole?.(nextRole);
@@ -903,23 +917,39 @@ export default function HybridStudioWorkspace({
 
   // --- Guardado de Bocetos Locales & Galería Interna ---
   const executeSaveDraft = () => {
-    let thumb = null;
-    try {
-      if (canvasSnapshotRef?.current) {
-        thumb = canvasSnapshotRef.current();
-      }
-    } catch {}
+    let thumb = captureCanvasSnapshot(canvasSnapshotRef);
+    if (!thumb) {
+      thumb = renderFallbackKitThumbnail({
+        title: `Equipación ${currentProduct.shortName || currentProduct.name}`,
+        productName: currentProduct.name,
+        patternName: design.patternId,
+        colors: [
+          design.colorZones.primary?.hex,
+          design.colorZones.secondary?.hex,
+          design.colorZones.accents?.hex,
+        ],
+      });
+    }
+
+    const sportRaw = (currentProduct?.sport || '').toLowerCase();
+    const mappedCategory = sportRaw.includes('basket')
+      ? 'basket'
+      : sportRaw.includes('e-sport')
+      ? 'esports'
+      : sportRaw.includes('chaqueta')
+      ? 'chaquetas'
+      : 'futbol';
 
     saveDesignToGallery({
       name: `Equipación ${currentProduct.shortName || currentProduct.name} - ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`,
       design,
       productModelId: design.productModelId,
       productName: currentProduct.name,
-      category: currentProduct.category || 'futbol',
+      category: currentProduct.category || mappedCategory,
       roster,
       unitPrice,
       totalUnits,
-      totalPrice,
+      totalPrice: grandTotalPrice,
       thumbnail: thumb,
     });
 
@@ -946,15 +976,10 @@ export default function HybridStudioWorkspace({
     try {
       localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(next));
     } catch {}
-    showToast(`¡Diseño guardado en tu Galería Personal!`);
+    showToast('¡Diseño guardado en tu Galería Personal!');
   };
 
   const handleSaveDraft = () => {
-    if (!isAuthenticated) {
-      pendingAuthActionRef.current = 'save_draft';
-      setIsAuthModalOpen(true);
-      return;
-    }
     executeSaveDraft();
   };
 
@@ -1203,8 +1228,8 @@ export default function HybridStudioWorkspace({
     if (checks.length === 0) {
       checks.push({
         ok: true,
-        title: 'Todos los escudos, archivos PNG/SVG y textos cumplen con márgenes de costura y nitidez RIP.',
-        detail: `${allDecals.length} capas gráficas auditadas a escala física 1:1.`,
+        title: 'Todos los escudos, archivos PNG/SVG y textos cumplen con márgenes de costura y nitidez.',
+        detail: `${allDecals.length} ${allDecals.length === 1 ? 'capa gráfica auditada' : 'capas gráficas auditadas'} a escala física.`,
       });
     }
 
@@ -1603,10 +1628,7 @@ export default function HybridStudioWorkspace({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setViewportMode('3d');
-                  setStudioExperienceMode('guided');
-                }}
+                onClick={() => setStudioExperienceMode('guided')}
                 className="px-3 py-1.5 rounded-xl arza-pill-glass-green font-black text-xs inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
@@ -1710,24 +1732,18 @@ export default function HybridStudioWorkspace({
           )}
         </div>
 
-        {/* Estado de Privilegios e Identidad: Administrador Master / Cuenta de Club */}
+        {/* Identidad opcional Cuenta de Club (sin privilegios admin expuestos) */}
         <div className="flex items-center gap-2">
-          {isAdmin ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl arza-glass-dark text-emerald-300 text-xs font-black uppercase tracking-wider">
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Admin Master</span>
+          {isAuthenticated && currentUser ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl arza-pill-glass-green text-xs font-bold">
+              <span>{currentUser.club || currentUser.name}</span>
               <button
                 type="button"
-                onClick={() => setAdminMode(false)}
-                title="Probar vista de cliente (requiere crear cuenta para descargar plantillas)"
-                className="ml-1 text-[9px] text-slate-300 hover:text-white underline cursor-pointer"
+                onClick={() => logoutUser?.()}
+                className="ml-1 text-[10px] underline text-slate-600 hover:text-slate-900 cursor-pointer"
               >
-                (Modo Cliente)
+                Salir
               </button>
-            </div>
-          ) : isAuthenticated ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl arza-pill-glass-green text-xs font-bold">
-              <span>👤 {currentUser?.name}</span>
             </div>
           ) : (
             <button
@@ -1736,45 +1752,15 @@ export default function HybridStudioWorkspace({
                 pendingAuthActionRef.current = null;
                 setIsAuthModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-2xl bg-amber-50/85 backdrop-blur-md hover:bg-amber-100/90 text-amber-800 border border-amber-300/70 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+              className="px-3 py-1.5 rounded-2xl arza-glass-card hover:bg-white text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
             >
-              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <User className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
               <span>Cuenta de Club</span>
             </button>
           )}
         </div>
 
-        {/* Conmutador Dual Escenario: [ 🌐 3D CAD ] vs [ 📐 Plantilla 2D ] */}
-        <div className="flex items-center gap-1 arza-glass-card p-1 rounded-xl">
-          <button
-            type="button"
-            id="toggle-stage-3d"
-            onClick={() => setViewportMode('3d')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewportMode === '3d'
-                ? 'arza-btn-glass-green'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>3D CAD</span>
-          </button>
-          <button
-            type="button"
-            id="toggle-stage-2d"
-            onClick={() => setViewportMode('2d_pliego')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewportMode === '2d_pliego'
-                ? 'arza-btn-glass-green'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Scissors className="w-3.5 h-3.5" />
-            <span>Plantilla 2D</span>
-          </button>
-        </div>
-
-        {/* Acciones Rápidas: Mockup Redes, Plantilla 2D y Galería Desktop */}
+        {/* Acciones Rápidas: Mockup Redes, Cotizar, Mis Diseños y Finalizar */}
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1786,16 +1772,17 @@ export default function HybridStudioWorkspace({
             <span>Mockup / Redes</span>
           </button>
 
-          <button
-            type="button"
-            id="btn-header-production-mold"
-            onClick={() => setIsProductionMoldModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl arza-btn-glass-green text-xs font-black flex items-center gap-1.5 cursor-pointer"
-            title="Abrir plantilla técnica de confección y corte a escala real 1:1"
-          >
-            <Scissors className="w-4 h-4 text-emerald-100" />
-            <span>Descarga RIP</span>
-          </button>
+          {onOpenQuoteModal && (
+            <button
+              type="button"
+              onClick={onOpenQuoteModal}
+              className="px-3.5 py-1.5 rounded-xl arza-glass-card hover:bg-white text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              title="Generar cotización formal"
+            >
+              <FileText className="w-4 h-4 text-emerald-700" />
+              <span>Cotizar</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -1806,10 +1793,21 @@ export default function HybridStudioWorkspace({
             <FolderHeart className="w-4 h-4 text-rose-500" />
             <span>Mis Diseños ({galleryCount})</span>
           </button>
+
+          <button
+            type="button"
+            id="btn-header-finish-order-pro"
+            onClick={() => onFinishOrderToCheckout?.()}
+            className="px-3.5 py-1.5 rounded-xl arza-btn-glass-green text-xs font-black flex items-center gap-1.5 cursor-pointer"
+            title="Enviar equipación a pedido y checkout"
+          >
+            <ShoppingBag className="w-4 h-4 text-emerald-100" />
+            <span>Finalizar Pedido</span>
+          </button>
         </div>
       </header>
 
-      {/* 1. CABECERA MOBILE COMPACTA (1 SOLA FILA LIMPIA DE 48PX CON TOGGLE 3D/2D) */}
+      {/* 1. CABECERA MOBILE COMPACTA */}
       <header className="flex sm:hidden shrink-0 h-12 px-2.5 bg-white border-b border-slate-200 items-center justify-between z-30 shadow-2xs">
         <div className="flex items-center gap-1.5 min-w-0">
           <button
@@ -1835,16 +1833,6 @@ export default function HybridStudioWorkspace({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            id="btn-mobile-header-production-mold"
-            onClick={() => setIsProductionMoldModalOpen(true)}
-            title="Ver Plantilla 2D"
-            className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-black flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-          >
-            <Scissors className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Plantilla</span>
-          </button>
-          <button
-            type="button"
             onClick={onUndo}
             disabled={!canUndo}
             title="Deshacer"
@@ -1863,10 +1851,7 @@ export default function HybridStudioWorkspace({
           </button>
           <button
             type="button"
-            onClick={() => {
-              setViewportMode('3d');
-              setStudioExperienceMode('guided');
-            }}
+            onClick={() => setStudioExperienceMode('guided')}
             className="px-2 py-1 rounded-lg arza-pill-glass-green text-[11px] font-bold cursor-pointer"
           >
             Pasos
@@ -1896,21 +1881,16 @@ export default function HybridStudioWorkspace({
           }`}
         >
           {!isFaux3DAccessory ? (
-            <div
-              className={`absolute inset-0 transition-opacity duration-150 ${
-                viewportMode === '2d_pliego' ? 'opacity-0 pointer-events-none invisible' : 'opacity-100 z-10'
-              }`}
-              aria-hidden={viewportMode === '2d_pliego'}
-            >
+            <div className="absolute inset-0 z-10">
               <GarmentCanvas3D
                 design={design}
-                activeKitRole={activeKitRole}
+                activeKitRole={isSoccerProduct ? activeKitRole : 'field'}
                 glovesDesign={glovesDesign}
                 activePlayer={activePlayer}
                 artworkRegistry={artworkRegistry}
                 cameraPreset={cameraPreset}
                 cameraPulse={cameraPulse}
-                isVisible={viewportMode !== '2d_pliego'}
+                isVisible
                 onChangeCameraPreset={handleChangeCameraPreset}
                 autoRotate={autoRotate}
                 selectedDecalId={selectedDecalId}
@@ -1936,38 +1916,25 @@ export default function HybridStudioWorkspace({
             />
           )}
 
-          {viewportMode === '2d_pliego' && (
-            <div className="absolute inset-0 z-20 bg-white">
-              <Interactive2DPliegoStage
-                design={design}
-                activePlayer={activePlayer}
-                artworkRegistry={artworkRegistry}
-                onOpenProductionModal={() => setIsProductionMoldModalOpen(true)}
-              />
-            </div>
-          )}
-
           {/* Marca de agua oficial ARZA SPORT en esquina superior derecha del lienzo */}
-          {viewportMode !== '2d_pliego' && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none select-none absolute z-[15] top-12 right-3 sm:top-16 sm:right-5 xl:top-4 xl:right-5 opacity-35 sm:opacity-40 transition-opacity duration-200"
-            >
-              <ArzaLogo
-                theme="light"
-                variant="stacked"
-                decorative
-                className="h-9 sm:h-11 xl:h-12 w-auto saturate-75 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
-              />
-            </div>
-          )}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute z-[15] top-14 right-3 sm:top-16 sm:right-5 xl:top-4 xl:right-5 opacity-35 sm:opacity-40 transition-opacity duration-200"
+          >
+            <ArzaLogo
+              theme="light"
+              variant="stacked"
+              decorative
+              className="h-9 sm:h-11 xl:h-12 w-auto saturate-75 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+            />
+          </div>
 
-          {/* Selector flotante rápido: Uniforme Campo | Portero Manga Larga | Guantes 3D */}
-          {viewportMode !== '2d_pliego' && (
+          {/* Selector flotante rápido: Uniforme Campo | Portero Manga Larga | Guantes 3D (exclusivo Fútbol) */}
+          {isSoccerProduct && (
             <div
               role="group"
               aria-label="Cambiar pieza del kit del equipo"
-              className="pointer-events-auto absolute bottom-2.5 left-2.5 sm:bottom-3.5 sm:left-4 z-20 flex items-center gap-1 p-1 rounded-full arza-glass-card shadow-sm"
+              className="pointer-events-auto absolute bottom-2.5 left-2.5 sm:bottom-3.5 sm:left-4 max-w-[calc(100%-20px)] z-20 flex flex-wrap items-center gap-1 p-1 rounded-2xl sm:rounded-full arza-glass-card shadow-sm"
             >
               {[
                 { id: 'field', label: 'Equipo Campo', count: rosterComposition.playerUnits },
@@ -2004,13 +1971,7 @@ export default function HybridStudioWorkspace({
           )}
 
           {/* Selector rápido inferior de jugador de muestra + Auto-giro */}
-          <div
-            className={`pointer-events-auto absolute hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 border border-slate-300 text-[11px] backdrop-blur-sm shadow-xs text-slate-800 ${
-              viewportMode === '2d_pliego'
-                ? 'bottom-4 left-1/2 -translate-x-1/2'
-                : 'bottom-3 right-3'
-            }`}
-          >
+          <div className="pointer-events-auto absolute hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 border border-slate-300 text-[11px] backdrop-blur-sm shadow-xs text-slate-800 bottom-3 right-3">
             <span className="text-slate-500 font-bold">Muestra:</span>
             <select
               value={activeRosterIndex}
@@ -2020,12 +1981,19 @@ export default function HybridStudioWorkspace({
             >
               {roster.map((r, idx) => (
                 <option key={r.id || idx} value={idx}>
-                  #{r.number} {r.name} ({r.size})
+                  {[
+                    isGoalkeeperRole(r.role) ? 'Portero' : `Prenda ${String(idx + 1).padStart(2, '0')}`,
+                    r.number ? `#${r.number}` : '',
+                    r.name || '',
+                    `(${r.size || 'L'})`,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                 </option>
               ))}
             </select>
 
-            {!isFaux3DAccessory && viewportMode !== '2d_pliego' && (
+            {!isFaux3DAccessory && (
               <label className="flex items-center gap-1.5 pl-2 border-l border-slate-200 text-slate-700 cursor-pointer">
                 <span>Giro 360°</span>
                 <input
@@ -2125,7 +2093,7 @@ export default function HybridStudioWorkspace({
                   onAddQuickText={(txt) => handleAddStaticText(txt)}
                   onOpenRosterModal={() => setIsRosterModalOpen(true)}
                   onSaveDraft={handleSaveDraft}
-                  onFinishOrder={() => (onFinishOrderToCheckout || onOpenProductionModal)?.()}
+                  onFinishOrder={() => onFinishOrderToCheckout?.()}
                   activeCameraPreset={cameraPreset}
                   onCameraFocus={handleChangeCameraPreset}
                   onToast={showToast}
@@ -2421,8 +2389,8 @@ export default function HybridStudioWorkspace({
                     </div>
 
                     {/* Filtro por Categoría de Estilo */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                      {['Todos', 'Moderno', 'Rayas', 'Geométrico', 'Degradado', 'Minimalista'].map((cat) => (
+                    <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                      {['Todos', 'Clásico', 'Moderno', 'Rayas', 'Geométrico', 'Degradado', 'Minimalista'].map((cat) => (
                         <button
                           key={cat}
                           type="button"
@@ -2438,12 +2406,12 @@ export default function HybridStudioWorkspace({
                       ))}
                     </div>
 
-                    {/* Cuadrícula de Recuadros Deportivos de Personalización (Sin miniaturas de camiseta) */}
-                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {/* Cuadrícula de Recuadros Deportivos con vista previa viva .fish */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {availableFishDesigns
                         .filter((d) => {
                           if (patternCategoryFilter === 'Todos') return true;
-                          return (d.category || 'Moderno') === patternCategoryFilter;
+                          return (d.category || 'Clásico') === patternCategoryFilter;
                         })
                         .map((dMeta) => {
                           const isSelected = design.patternId === dMeta.id && !activeMexicoKitId;
@@ -2457,35 +2425,32 @@ export default function HybridStudioWorkspace({
                                 setToastMessage(`Estilo ${dMeta.name} aplicado`);
                                 setTimeout(() => setToastMessage(''), 2000);
                               }}
-                              className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer relative group ${
+                              className={`p-2 rounded-2xl border text-left transition-all flex items-center gap-2 cursor-pointer relative group ${
                                 isSelected
                                   ? 'border-2 border-emerald-500 bg-emerald-50/40 shadow-xs ring-2 ring-emerald-500/20'
                                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-1 w-full">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                                  {catLabel}
+                              <FishPatternThumb
+                                fileUrl={dMeta.fileUrl}
+                                colorZones={design.colorZones}
+                                className="w-9 h-11 rounded-lg"
+                              />
+                              <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                <div className="flex items-center justify-between gap-1 w-full">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                                    {catLabel}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-3 h-3 text-emerald-700 shrink-0" />
+                                  )}
+                                </div>
+                                <div className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate w-full">
+                                  {dMeta.name}
+                                </div>
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  {dMeta.baseColors?.length || 3} zonas
                                 </span>
-                                {isSelected ? (
-                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                    <Check className="w-3 h-3 stroke-[3]" />
-                                    <span>Activo</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-mono text-slate-400 font-medium">
-                                    {dMeta.baseColors?.length || 3} zonas
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate w-full">
-                                {dMeta.name}
-                              </div>
-
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium w-full pt-1 border-t border-slate-100">
-                                <span className="text-[9px] font-mono text-slate-400">corte CAD</span>
-                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-mono">3D</span>
                               </div>
                             </button>
                           );
@@ -3385,7 +3350,7 @@ export default function HybridStudioWorkspace({
                               updateVariableSlot('playerNameBack', { ...design.variableSlots?.playerNameBack, enabled: true }, false);
                             }
                           }}
-                          placeholder="Ej: RODRÍGUEZ, VALVERDE, etc."
+                          placeholder="Texto o nombre (opcional)"
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white/85 border border-slate-300 font-extrabold text-sm text-slate-900 uppercase focus:outline-none focus:border-emerald-600 shadow-xs"
                         />
                       </div>
@@ -4353,17 +4318,18 @@ export default function HybridStudioWorkspace({
                 <span className="text-[9px] sm:text-[10px] font-semibold tracking-tight text-slate-700 leading-none">Revisión</span>
               </button>
 
-              {/* Botón Plantilla 2D: Acceso directo al pliego 1:1 */}
-              <button
-                type="button"
-                id="btn-open-production-mold"
-                onClick={() => setIsProductionMoldModalOpen(true)}
-                className="flex flex-col items-center justify-center gap-1 p-1.5 rounded-xl text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/80 transition-colors cursor-pointer group border border-emerald-300 bg-emerald-50/60 shadow-xs"
-                title="Previsualizar plantilla técnica de confección y corte a escala real 1:1"
-              >
-                <Scissors className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black tracking-tight text-emerald-800 leading-none">Plantilla 2D</span>
-              </button>
+              {/* Botón Cotizar Club: Acceso directo a cotización */}
+              {onOpenQuoteModal && (
+                <button
+                  type="button"
+                  onClick={onOpenQuoteModal}
+                  className="flex flex-col items-center justify-center gap-1 p-1.5 rounded-xl text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/80 transition-colors cursor-pointer group border border-emerald-300 bg-emerald-50/60 shadow-xs"
+                  title="Abrir cotización formal del equipo"
+                >
+                  <FileText className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-black tracking-tight text-emerald-800 leading-none">Cotizar</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -4381,25 +4347,25 @@ export default function HybridStudioWorkspace({
               </button>
             </div>
 
-            {/* Resumen de Precio y Botón Prominente: Ver Plantilla 2D de Confección */}
+            {/* Resumen de Precio Unificado (+Guantes Fútbol) y Finalizar Pedido */}
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-tight">
-                  {totalUnits} uds • ${unitPrice.toFixed(2)} c/u
+                  {totalUnits} uds{rosterComposition.glovePairs > 0 ? ` + ${rosterComposition.glovePairs} guantes` : ''} • ${unitPrice.toFixed(2)} c/u
                 </div>
                 <div className="text-sm sm:text-base font-black text-slate-900 leading-tight">
-                  ${totalPrice.toFixed(2)} USD
+                  ${grandTotalPrice.toFixed(2)} USD
                 </div>
               </div>
               <button
                 type="button"
                 id="btn-finalize-production-mold"
-                onClick={() => setIsProductionMoldModalOpen(true)}
+                onClick={() => onFinishOrderToCheckout?.()}
                 className="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                title="Abrir plantilla completa 1:1 de corte y confección para presentar o fabricar"
+                title="Enviar equipación y especificaciones al pedido final"
               >
-                <Scissors className="w-4 h-4 text-emerald-100" />
-                <span>Ver Plantilla 2D (Confección)</span>
+                <ShoppingBag className="w-4 h-4 text-emerald-100" />
+                <span>Finalizar Pedido</span>
               </button>
             </div>
           </div>
@@ -4407,17 +4373,19 @@ export default function HybridStudioWorkspace({
           {/* BARRA INFERIOR EXCLUSIVA PARA MÓVIL */}
           <div className="sm:hidden shrink-0 border-t arza-glass-bar p-2.5 flex items-center justify-between gap-3 z-20 shadow-lg">
             <div className="leading-tight">
-              <div className="text-[10px] text-slate-500 font-bold">{totalUnits} prendas</div>
-              <div className="text-sm font-black text-slate-900">${totalPrice.toFixed(2)} USD</div>
+              <div className="text-[10px] text-slate-500 font-bold">
+                {totalUnits} prendas{rosterComposition.glovePairs > 0 ? ` + ${rosterComposition.glovePairs} g.` : ''}
+              </div>
+              <div className="text-sm font-black text-slate-900">${grandTotalPrice.toFixed(2)} USD</div>
             </div>
             <button
               type="button"
               id="btn-mobile-open-mold"
-              onClick={() => setIsProductionMoldModalOpen(true)}
+              onClick={() => onFinishOrderToCheckout?.()}
               className="flex-1 py-2.5 px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
             >
-              <Scissors className="w-4 h-4 text-emerald-100" />
-              <span>Ver Plantilla 2D</span>
+              <ShoppingBag className="w-4 h-4 text-emerald-100" />
+              <span>Finalizar Pedido</span>
             </button>
           </div>
             </>
@@ -4431,13 +4399,24 @@ export default function HybridStudioWorkspace({
         onClose={() => setIsRosterModalOpen(false)}
         titleId="roster-modal-title"
         subtitle="Lista de Nombres, Porteros y Tallas ARZA SPORT"
-        title={`Ejemplares (${totalUnits} prendas · ${rosterComposition.playerUnits} Jug. + ${rosterComposition.keeperUnits} Port. · $${totalPrice.toFixed(2)} USD)`}
+        title={
+          isSoccerProduct
+            ? `Ejemplares (${totalUnits} prendas · ${rosterComposition.playerUnits} Jug. + ${rosterComposition.keeperUnits} Port. · $${grandTotalPrice.toFixed(2)} USD)`
+            : `Ejemplares (${totalUnits} prendas · $${grandTotalPrice.toFixed(2)} USD)`
+        }
         maxWidthClass="max-w-5xl"
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-slate-600 font-medium">
-              Marca quién es <strong className="text-[#C24100]">Portero</strong> o <strong className="text-slate-900">Jugador</strong> en tu lista vinculada a{' '}
+              {isSoccerProduct ? (
+                <>
+                  Marca quién es <strong className="text-[#C24100]">Portero</strong> o{' '}
+                  <strong className="text-slate-900">Jugador</strong> en tu lista vinculada a{' '}
+                </>
+              ) : (
+                <>Edita tallas, cantidades y nombres opcionales en tu lista vinculada a </>
+              )}
               <code className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">{design.designId}</code>.
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -4448,8 +4427,8 @@ export default function HybridStudioWorkspace({
                     ...roster,
                     {
                       id: `p_${Date.now()}`,
-                      name: 'NUEVO JUGADOR',
-                      number: String(roster.length + 1),
+                      name: '',
+                      number: '',
                       size: 'L',
                       cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
                       qty: 1,
@@ -4460,30 +4439,35 @@ export default function HybridStudioWorkspace({
                 className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Añadir Jugador / Talla
+                {isSoccerProduct ? 'Añadir Jugador / Talla' : 'Añadir Prenda / Talla'}
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onUpdateRoster([
-                    ...roster,
-                    {
-                      id: `pk_${Date.now()}`,
-                      name: 'PORTERO',
-                      number: '1',
-                      size: 'L',
-                      cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
-                      qty: 1,
-                      role: 'Portero',
-                      gloveSize: '9',
-                    },
-                  ])
-                }
-                className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-black flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 text-[#C24100]" />
-                Añadir Portero
-              </button>
+              {isSoccerProduct && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextIdx = roster.length;
+                    onUpdateRoster([
+                      ...roster,
+                      {
+                        id: `pk_${Date.now()}`,
+                        name: '',
+                        number: '',
+                        size: 'L',
+                        cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
+                        qty: 1,
+                        role: 'Portero',
+                        gloveSize: '9',
+                      },
+                    ]);
+                    onSwitchKitRole?.('goalkeeper');
+                    setActiveRosterIndex(nextIdx);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-black flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-[#C24100]" />
+                  Añadir Portero
+                </button>
+              )}
             </div>
           </div>
 
@@ -4492,7 +4476,7 @@ export default function HybridStudioWorkspace({
               <thead className="bg-slate-50 text-slate-700 text-[11px] uppercase border-b border-slate-200">
                 <tr>
                   <th className="p-2.5">#</th>
-                  <th className="p-2.5">Rol / Guante</th>
+                  {isSoccerProduct && <th className="p-2.5">Rol / Guante</th>}
                   <th className="p-2.5">Corte</th>
                   <th className="p-2.5">Talla</th>
                   <th className="p-2.5">Cant.</th>
@@ -4504,7 +4488,7 @@ export default function HybridStudioWorkspace({
               <tbody className="divide-y divide-slate-100">
                 {roster.map((row, idx) => {
                   const isPreviewed = idx === activeRosterIndex;
-                  const keeper = isGoalkeeperRole(row.role);
+                  const keeper = isSoccerProduct && isGoalkeeperRole(row.role);
                   return (
                     <tr
                       key={row.id || idx}
@@ -4519,54 +4503,61 @@ export default function HybridStudioWorkspace({
                       <th scope="row" className="p-2.5 font-mono text-slate-700">
                         {String(idx + 1).padStart(2, '0')}
                       </th>
-                      <td className="p-2 space-y-1">
-                        <select
-                          aria-label={`Rol fila ${idx + 1}`}
-                          value={keeper ? 'Portero' : 'Jugador'}
-                          onChange={(e) =>
-                            onUpdateRoster(
-                              roster.map((r, i) =>
-                                i === idx
-                                  ? {
-                                      ...r,
-                                      role: e.target.value,
-                                      gloveSize: e.target.value === 'Portero' ? r.gloveSize || '9' : r.gloveSize,
-                                    }
-                                  : r
-                              )
-                            )
-                          }
-                          className={`border rounded-lg px-2 py-1 text-xs font-bold ${
-                            keeper
-                              ? 'bg-amber-100 border-amber-400 text-amber-950'
-                              : 'bg-white border-slate-300 text-slate-800'
-                          }`}
-                        >
-                          <option value="Jugador">Jugador</option>
-                          <option value="Portero">Portero</option>
-                        </select>
-                        {keeper && includeGloves && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold text-amber-900">Guante:</span>
-                            <select
-                              aria-label={`Talla guante fila ${idx + 1}`}
-                              value={row.gloveSize || '9'}
-                              onChange={(e) =>
-                                onUpdateRoster(
-                                  roster.map((r, i) => (i === idx ? { ...r, gloveSize: e.target.value } : r))
+                      {isSoccerProduct && (
+                        <td className="p-2 space-y-1">
+                          <select
+                            aria-label={`Rol fila ${idx + 1}`}
+                            value={keeper ? 'Portero' : 'Jugador'}
+                            onChange={(e) => {
+                              const nextRole = e.target.value;
+                              onUpdateRoster(
+                                roster.map((r, i) =>
+                                  i === idx
+                                    ? {
+                                        ...r,
+                                        role: nextRole,
+                                        gloveSize: nextRole === 'Portero' ? r.gloveSize || '9' : r.gloveSize,
+                                      }
+                                    : r
                                 )
+                              );
+                              if (nextRole === 'Portero') {
+                                onSwitchKitRole?.('goalkeeper');
+                                setActiveRosterIndex(idx);
                               }
-                              className="bg-white border border-amber-300 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800"
-                            >
-                              {GLOVE_SIZE_OPTIONS.map((gs) => (
-                                <option key={gs} value={gs}>
-                                  T{gs}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </td>
+                            }}
+                            className={`border rounded-lg px-2 py-1 text-xs font-bold ${
+                              keeper
+                                ? 'bg-amber-100 border-amber-400 text-amber-950'
+                                : 'bg-white border-slate-300 text-slate-800'
+                            }`}
+                          >
+                            <option value="Jugador">Jugador</option>
+                            <option value="Portero">Portero</option>
+                          </select>
+                          {keeper && includeGloves && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-amber-900">Guante:</span>
+                              <select
+                                aria-label={`Talla guante fila ${idx + 1}`}
+                                value={row.gloveSize || '9'}
+                                onChange={(e) =>
+                                  onUpdateRoster(
+                                    roster.map((r, i) => (i === idx ? { ...r, gloveSize: e.target.value } : r))
+                                  )
+                                }
+                                className="bg-white border border-amber-300 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800"
+                              >
+                                {GLOVE_SIZE_OPTIONS.map((gs) => (
+                                  <option key={gs} value={gs}>
+                                    T{gs}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </td>
+                      )}
                       <td className="p-2">
                         <select
                           value={row.cut}
@@ -4628,6 +4619,7 @@ export default function HybridStudioWorkspace({
                               )
                             )
                           }
+                          placeholder="Nombre (en blanco)"
                           className="w-full min-w-[140px] bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-bold"
                         />
                       </td>
@@ -4686,7 +4678,7 @@ export default function HybridStudioWorkspace({
                 rows={2}
                 value={csvQuickInput}
                 onChange={(e) => setCsvQuickInput(e.target.value)}
-                placeholder={'RODRÍGUEZ, 10, L, Jugador, 1\nSANTOS, 1, XL, Portero, 1'}
+                placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
                 className="flex-1 rounded-xl bg-white/85 border border-slate-300 p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
               />
               <button
@@ -5536,26 +5528,6 @@ export default function HybridStudioWorkspace({
         </div>
       </LightDismissModal>
 
-      {/* ==================== MODAL 6: PLANTILLA 2D DE CONFECCIÓN Y CORTE A ESCALA REAL 1:1 ==================== */}
-      <ProductionMoldModal
-        isOpen={isProductionMoldModalOpen}
-        onClose={() => setIsProductionMoldModalOpen(false)}
-        design={{
-          ...design,
-          primaryColor: proColorZoneMap.c1 || proColorZoneMap.c2 || design.primaryColor,
-          secondaryColor: proColorZoneMap.c6 || proColorZoneMap.c3 || design.secondaryColor,
-          accentColor: proColorZoneMap.c7 || proColorZoneMap.c5 || design.accentColor,
-          proPatternId,
-          proColorZoneMap,
-        }}
-        roster={roster}
-        artworkRegistry={artworkRegistry}
-        onProceedToOrder={() => {
-          setIsProductionMoldModalOpen(false);
-          onOpenProductionModal?.();
-        }}
-      />
-
       {/* ==================== MODAL DE MOCKUPS REDES SOCIALES & COMPARTIR ==================== */}
       <SocialMediaMockupModal
         isOpen={isSocialMediaModalOpen}
@@ -5652,28 +5624,30 @@ export default function HybridStudioWorkspace({
 
             {/* Opciones en rejilla táctil */}
             <div className="grid grid-cols-2 gap-2 my-3">
-              {/* 1. Plantilla 2D Completa */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProductionMoldModalOpen(true);
-                  setIsMobileFabOpen(false);
-                }}
-                className="p-3 rounded-2xl arza-pill-glass-green text-left flex flex-col justify-between gap-1 cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-xl arza-btn-glass-green flex items-center justify-center">
-                    <Scissors className="w-4 h-4" />
+              {/* 1. Cotizar Equipo */}
+              {onOpenQuoteModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenQuoteModal();
+                    setIsMobileFabOpen(false);
+                  }}
+                  className="p-3 rounded-2xl arza-pill-glass-green text-left flex flex-col justify-between gap-1 cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-8 h-8 rounded-xl arza-btn-glass-green flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full">
+                      Taller
+                    </span>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full">
-                    Patrón 1:1
-                  </span>
-                </div>
-                <div>
-                  <div className="text-xs font-black text-slate-900">Plantilla 2D</div>
-                  <div className="text-[10px] text-slate-500">Moldes de confección</div>
-                </div>
-              </button>
+                  <div>
+                    <div className="text-xs font-black text-slate-900">Cotizar</div>
+                    <div className="text-[10px] text-slate-500">Ficha por volumen</div>
+                  </div>
+                </button>
+              )}
 
               {/* 2. Auto-Rotación 3D 360° */}
               <button
@@ -5777,7 +5751,7 @@ export default function HybridStudioWorkspace({
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600 px-1">
                 <span>{totalUnits} prendas ({currentProduct.name})</span>
-                <span className="text-slate-900 font-black text-sm">${totalPrice.toFixed(2)} USD</span>
+                <span className="text-slate-900 font-black text-sm">${grandTotalPrice.toFixed(2)} USD</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -5800,13 +5774,13 @@ export default function HybridStudioWorkspace({
                   type="button"
                   id="btn-fab-open-mold"
                   onClick={() => {
-                    setIsProductionMoldModalOpen(true);
+                    onFinishOrderToCheckout?.();
                     setIsMobileFabOpen(false);
                   }}
                   className="flex-1 py-2.5 px-4 rounded-xl arza-btn-glass-green font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >
-                  <Scissors className="w-4 h-4 text-emerald-100" />
-                  <span>Ver Plantilla 2D (Confección)</span>
+                  <ShoppingBag className="w-4 h-4 text-emerald-100" />
+                  <span>Finalizar Pedido</span>
                 </button>
               </div>
             </div>

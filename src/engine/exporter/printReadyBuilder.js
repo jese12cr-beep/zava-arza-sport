@@ -31,8 +31,8 @@ export function generateSublimationCutSheetSVG(design, product, roster = []) {
     product?.garmentShape === 'football_shorts' || product?.garmentShape === 'basketball_shorts';
 
   const samplePlayer = roster[0] || {
-    name: 'RODRÍGUEZ',
-    number: '10',
+    name: '',
+    number: '',
     size: 'L',
     cut: 'MEN_PRO_SLIM',
   };
@@ -260,13 +260,14 @@ export function buildShopifyAndManufacturingBundle(
   previewWebpUrl = '',
   kitExtras = null
 ) {
+  const isSoccer = !product || product.sport === 'Fútbol';
   let totalUnits = 0;
   let playerUnits = 0;
   let keeperUnits = 0;
   for (const r of roster) {
     const q = Math.max(1, Number(r.qty) || 1);
     totalUnits += q;
-    if (isGoalkeeperRole(r.role)) keeperUnits += q;
+    if (isSoccer && isGoalkeeperRole(r.role)) keeperUnits += q;
     else playerUnits += q;
   }
 
@@ -275,7 +276,7 @@ export function buildShopifyAndManufacturingBundle(
   const unitPrice = +(product.basePrice * (1 - tier.discountPct / 100)).toFixed(2);
   const garmentsSubtotal = +(unitPrice * totalUnits).toFixed(2);
 
-  const includeGloves = kitExtras?.includeGloves !== false && keeperUnits > 0;
+  const includeGloves = isSoccer && kitExtras?.includeGloves !== false && keeperUnits > 0;
   const glovePairs = includeGloves ? keeperUnits : 0;
   const glovesUnitPrice = Number(kitExtras?.glovesDesign?.unitPrice) || GLOVE_PAIR_UNIT_PRICE;
   const glovesTotalPrice = +(glovesUnitPrice * glovePairs).toFixed(2);

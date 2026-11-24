@@ -23,6 +23,10 @@ import {
   deleteDesignFromGallery,
   duplicateDesignInGallery,
 } from '../../utils/userGalleryStore';
+import {
+  captureCanvasSnapshot,
+  renderFallbackKitThumbnail,
+} from '../../utils/orderHistoryStore';
 
 export default function UserDesignGalleryModal({
   isOpen,
@@ -78,21 +82,35 @@ export default function UserDesignGalleryModal({
   }, [gallery, activeCategory, searchQuery]);
 
   const handleSaveLiveKit = () => {
-    let thumb = null;
-    try {
-      if (canvasSnapshotRef?.current) {
-        thumb = canvasSnapshotRef.current();
-      }
-    } catch {
-      // Ignorar fallback de captura
+    let thumb = captureCanvasSnapshot(canvasSnapshotRef);
+    if (!thumb) {
+      thumb = renderFallbackKitThumbnail({
+        title: customNameInput || currentProduct?.name || 'Equipación ARZA',
+        productName: currentProduct?.name || 'Jersey Técnico',
+        patternName: currentDesign?.patternId || 'Personalizado',
+        colors: [
+          currentDesign?.colorZones?.primary?.hex,
+          currentDesign?.colorZones?.secondary?.hex,
+          currentDesign?.colorZones?.accents?.hex,
+        ],
+      });
     }
+
+    const sportRaw = (currentProduct?.sport || '').toLowerCase();
+    const mappedCategory = sportRaw.includes('basket')
+      ? 'basket'
+      : sportRaw.includes('e-sport')
+      ? 'esports'
+      : sportRaw.includes('chaqueta')
+      ? 'chaquetas'
+      : 'futbol';
 
     const saved = saveDesignToGallery({
       name: customNameInput,
       design: currentDesign,
       productModelId: currentProduct?.id,
       productName: currentProduct?.name,
-      category: currentProduct?.category || 'futbol',
+      category: currentProduct?.category || mappedCategory,
       roster: currentRoster,
       unitPrice,
       totalUnits,
@@ -114,20 +132,25 @@ export default function UserDesignGalleryModal({
   };
 
   const handleDelete = (id, name) => {
-    if (window.confirm(`¿Deseas eliminar el diseño "${name}" de tu galería?`)) {
-      deleteDesignFromGallery(id);
-      refreshGallery();
-    }
+    deleteDesignFromGallery(id);
+    refreshGallery();
+    setSavedSuccessMessage(`Diseño "${name}" eliminado.`);
+    setTimeout(() => setSavedSuccessMessage(null), 2500);
   };
 
   const handleDownloadPoster = (item) => {
-    if (!item.thumbnail) {
-      alert('Este diseño no cuenta con captura visual disponible para descarga.');
-      return;
-    }
+    const url =
+      item.thumbnail ||
+      renderFallbackKitThumbnail({
+        title: item.name,
+        productName: item.productName,
+        patternName: item.design?.patternId || 'Personalizado',
+        colors: item.colorPalette || ['#111111', '#fa5400', '#ffffff'],
+      });
+    if (!url) return;
     const a = document.createElement('a');
     a.download = `ARZA_SPORT_${item.name.replace(/\s+/g, '_')}.png`;
-    a.href = item.thumbnail;
+    a.href = url;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -136,7 +159,12 @@ export default function UserDesignGalleryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gallery-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+    >
       <div className="relative w-full max-w-5xl h-[92vh] arza-glass-dark text-white rounded-3xl shadow-2xl border border-white/15 flex flex-col overflow-hidden">
         
         {/* ==================== CABECERA ATLETIC DE LA GALERÍA ==================== */}
@@ -147,7 +175,7 @@ export default function UserDesignGalleryModal({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base sm:text-lg font-black tracking-tight text-white uppercase truncate">
+                <h3 id="gallery-modal-title" className="text-base sm:text-lg font-black tracking-tight text-white uppercase truncate">
                   Mi Galería de Diseños
                 </h3>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/35">
@@ -173,7 +201,8 @@ export default function UserDesignGalleryModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-lg"
+              aria-label="Cerrar galería de diseños"
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-lg"
               title="Cerrar galería"
             >
               <X className="w-5 h-5" />
@@ -229,9 +258,10 @@ export default function UserDesignGalleryModal({
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             {[
               { id: 'all', label: 'Todos' },
-              { id: 'futbol', label: '⚽ Fútbol' },
-              { id: 'basket', label: '🏀 Baloncesto' },
-              { id: 'chaquetas', label: '🧥 Chaquetas' },
+              { id: 'futbol', label: 'Fútbol' },
+              { id: 'basket', label: 'Baloncesto' },
+              { id: 'esports', label: 'E-Sports' },
+              { id: 'chaquetas', label: 'Chaquetas' },
             ].map((cat) => (
               <button
                 key={cat.id}
@@ -273,7 +303,7 @@ export default function UserDesignGalleryModal({
                   Tu vestidor está vacío
                 </h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Crea tu primera equipación personalizada en el configurador 3D/2D y pulsa «Guardar en Galería» para tenerla siempre a mano.
+                  Crea tu primera equipación personalizada en el configurador 3D y pulsa «Guardar diseño actual» para tenerla siempre a mano.
                 </p>
               </div>
               <button
@@ -360,7 +390,7 @@ export default function UserDesignGalleryModal({
                         className="w-full py-2.5 px-3 rounded-xl arza-btn-glass-green font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Cargar en 3D / 2D</span>
+                        <span>Cargar en Visor 3D</span>
                       </button>
 
                       <div className="grid grid-cols-3 gap-1">

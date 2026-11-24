@@ -74,12 +74,20 @@ export const PRODUCT_MEDIA_REGISTRY = {
     desc: 'Chamarra técnica ZAVA Femme JW1 térmica y transpirable adaptada a silueta femenina.',
   },
   esports_pro_jersey: {
-    image: resolveAssetUrl('assets/stitch/ghost_mannequin.png'),
+    image: resolveAssetUrl('assets/showcase/esports_e1_jersey.jpg'),
     tag: 'Torneos Gaming',
     kind: 'jersey',
     fitLabel: 'Unisex / Arena',
     fabricSummary: 'TS-Tex Ultra 140g',
     desc: 'Jersey ZAVA Arena E1 ultraligero con gamertag individual y sponsors sin límite.',
+  },
+  portero_gk_set: {
+    image: resolveAssetUrl('assets/showcase/portero_gk_set.jpg'),
+    tag: 'Portero Manga Larga + Guantes',
+    kind: 'jersey',
+    fitLabel: 'Portero Profesional',
+    fabricSummary: 'TS-Tex™ + Látex 4mm',
+    desc: 'Jersey de portero manga larga obligatoria con puños elásticos y par de guantes profesionales personalizables.',
   },
   cap_snapback_6panel: {
     image: resolveAssetUrl('assets/showcase/sample_fabric_box.jpg'),

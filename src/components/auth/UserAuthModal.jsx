@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
-import { Shield, UserPlus, LogIn, Lock, CheckCircle2, Building, Mail, Phone, KeyRound, Sparkles } from 'lucide-react';
-import { registerClubUser, loginClubUser, setAdminMode, useAuth } from '../../engine/auth/authManager';
+import { UserPlus, LogIn, Lock, CheckCircle2, Building, Mail, Phone, KeyRound, X } from 'lucide-react';
+import { registerClubUser, loginClubUser } from '../../engine/auth/authManager';
 
 /**
- * ATLETIQ — UserAuthModal
- * Modal de registro / inicio de sesión para clientes externos antes de descargar
- * plantillas de patronaje 2D o registrar equipaciones en el sistema.
- * 
- * Incluye acceso rápido de Administrador para que el dueño nunca quede bloqueado.
+ * UserAuthModal — Registro / inicio de sesión opcional para cuentas de club ARZA SPORT.
  */
-export default function UserAuthModal({ isOpen, onClose, onSuccess, actionLabel = 'descargar la plantilla' }) {
-  const { isAdmin } = useAuth();
+export default function UserAuthModal({ isOpen, onClose, onSuccess, actionLabel = 'guardar tus equipaciones' }) {
   const [tab, setTab] = useState('register'); // 'register' | 'login'
   const [formData, setFormData] = useState({
     name: '',
@@ -66,31 +61,26 @@ export default function UserAuthModal({ isOpen, onClose, onSuccess, actionLabel 
     }, 600);
   };
 
-  const handleAdminBypass = () => {
-    setAdminMode(true);
-    setSuccessMsg('🛡️ Modo Administrador activado. Acceso total concedido.');
-    setTimeout(() => {
-      onSuccess?.({ role: 'admin' });
-      onClose();
-    }, 400);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+    >
       <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        {/* Header con identidad ATLETIQ */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 text-white relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Lock className="w-5 h-5" />
+                <Lock className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="text-base font-black tracking-tight text-white uppercase">
-                  Acceso Exclusivo de Club
+                <h3 id="auth-modal-title" className="text-base font-black tracking-tight text-white uppercase">
+                  Cuenta de Club ARZA SPORT
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Registra tu club para {actionLabel}
+                <p className="text-xs text-slate-300">
+                  Registra o vincula tu club para {actionLabel}
                 </p>
               </div>
             </div>
@@ -98,9 +88,10 @@ export default function UserAuthModal({ isOpen, onClose, onSuccess, actionLabel 
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+              aria-label="Cerrar ventana de cuenta de club"
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
             >
-              ✕
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -297,34 +288,6 @@ export default function UserAuthModal({ isOpen, onClose, onSuccess, actionLabel 
               </button>
             </form>
           )}
-
-          {/* Separador y Acceso Rápido del Administrador */}
-          <div className="mt-6 pt-5 border-t border-slate-200">
-            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-slate-900 text-emerald-400 flex items-center justify-center text-xs">
-                  <Shield className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-black text-slate-900">
-                    ¿Eres Administrador de Zava / ARZA SPORT?
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    Acceso con credencial maestra sin registro
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAdminBypass}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer shadow-2xs flex items-center gap-1"
-              >
-                <Sparkles className="w-3 h-3 text-emerald-400" />
-                <span>Acceso Admin</span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

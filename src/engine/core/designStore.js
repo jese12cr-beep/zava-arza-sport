@@ -324,7 +324,7 @@ export const FABRIC_WEAVES = [
     normalScale: 0.34,
     bumpScale: -0.004,
     roughness: 0.52,
-    desc: 'Tejido técnico transpirable ZAVA Apex V1 de secado rápido (scaleStoff 0.50×0.60)',
+    desc: 'Tejido técnico transpirable ZAVA Apex V1 de secado rápido y microventilación ergonómica',
   },
   {
     id: 'cooldry_hex',
@@ -967,6 +967,40 @@ export function summarizeRosterComposition(roster = [], includeGloves = true) {
   };
 }
 
+/**
+ * Unified order subtotal calculator ensuring goalkeeper long-sleeve & 3D gloves
+ * only apply on Football apparel and never diverge between Paso 4 and Editor Pro.
+ */
+export function calculateStudioGrandTotal({
+  roster = [],
+  product = null,
+  unitPrice = 34,
+  includeGloves = true,
+  glovesUnitPrice = GLOVE_PAIR_UNIT_PRICE,
+} = {}) {
+  const isSoccer = !product || product.sport === 'Fútbol';
+  const effectiveGloves = isSoccer && includeGloves;
+  const rawComp = summarizeRosterComposition(roster, effectiveGloves);
+  const comp = isSoccer
+    ? rawComp
+    : {
+        ...rawComp,
+        keeperUnits: 0,
+        playerUnits: rawComp.totalUnits,
+        glovePairs: 0,
+        byGloveSizeLabel: '',
+      };
+  const garmentsTotal = +(comp.totalUnits * (Number(unitPrice) || 0)).toFixed(2);
+  const glovesTotal = +(comp.glovePairs * (Number(glovesUnitPrice) || 0)).toFixed(2);
+  return {
+    isSoccer,
+    ...comp,
+    garmentsTotal,
+    glovesTotal,
+    grandTotal: +(garmentsTotal + glovesTotal).toFixed(2),
+  };
+}
+
 export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM') {
   const lines = String(rawText || '')
     .split(/\r?\n/)
@@ -1023,10 +1057,5 @@ export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM')
 }
 
 export const INITIAL_TEAM_ROSTER = [
-  { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'RODRÍGUEZ', number: '10', role: 'Jugador' },
-  { id: 'r2', cut: 'MEN_PRO_SLIM', size: 'M', qty: 1, name: 'FERNÁNDEZ-GARCÍA', number: '7', role: 'Jugador' },
-  { id: 'r3', cut: 'WOMEN_FIT', size: 'S', qty: 1, name: 'VALERIA M.', number: '9', role: 'Jugador' },
-  { id: 'r4', cut: 'MEN_CLASSIC', size: 'XL', qty: 1, name: 'SANTOS', number: '1', role: 'Portero', gloveSize: '9' },
-  { id: 'r5', cut: 'YOUTH_KIDS', size: '152', qty: 2, name: 'MATEO', number: '14', role: 'Jugador' },
-  { id: 'r6', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: 'JORDAN', number: '23', role: 'Jugador' },
+  { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: '', number: '', role: 'Jugador' },
 ];

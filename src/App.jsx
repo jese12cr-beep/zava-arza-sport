@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import confetti from 'canvas-confetti';
 import HybridStudioWorkspace from './components/studio/HybridStudioWorkspace';
-import ProductionPayloadModal from './components/studio/ProductionPayloadModal';
 import Navbar, { UtilityBar } from './components/Navbar';
 import Hero from './components/Hero';
 import CampaignSections from './components/CampaignSections';
@@ -9,19 +7,22 @@ import ProductCatalog from './components/ProductCatalog';
 import QualityShowcase from './components/QualityShowcase';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
-import ShopifyIntegrationGuide from './components/ShopifyIntegrationGuide';
 import OrderQuoteModal from './components/OrderQuoteModal';
+import SizeGuideModal from './components/SizeGuideModal';
+import StorefrontInfoModal from './components/StorefrontInfoModal';
+import OrderTrackingModal from './components/OrderTrackingModal';
 import UserDesignGalleryModal from './components/studio/UserDesignGalleryModal';
 import { loadUserGallery } from './utils/userGalleryStore';
+import { loadOrderHistory } from './utils/orderHistoryStore';
 import { buildShopifyAndManufacturingBundle } from './engine/exporter/printReadyBuilder';
 import {
   ENGINE_PRODUCTS,
+  FABRIC_WEAVES,
   INITIAL_TEAM_ROSTER,
   createInitialMasterDesign,
   createDefaultDesignForProduct,
   createDefaultGoalkeeperDesign,
   createDefaultGlovesDesign,
-  generateDesignId,
   summarizeRosterComposition,
 } from './engine/core/designStore';
 
@@ -99,15 +100,23 @@ export default function App() {
   const [artworkRegistry, setArtworkRegistry] = useState({});
 
   const [cartItems, setCartItems] = useState([]);
-  const [isProductionModalOpen, setIsProductionModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isShopifyGuideOpen, setIsShopifyGuideOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [sizeGuideState, setSizeGuideState] = useState({ open: false, tab: 'sizes' });
+  const [infoModalState, setInfoModalState] = useState({ open: false, topic: 'faq' });
+  const [trackingState, setTrackingState] = useState({ open: false, folio: '' });
   const [isStorefrontGalleryOpen, setIsStorefrontGalleryOpen] = useState(false);
   const [studioInitialStep, setStudioInitialStep] = useState(1);
   const [catalogSport, setCatalogSport] = useState('all');
   const [catalogGender, setCatalogGender] = useState('all');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [orderCount, setOrderCount] = useState(() => {
+    try {
+      return loadOrderHistory().length;
+    } catch {
+      return 0;
+    }
+  });
   const [galleryCount, setGalleryCount] = useState(() => {
     try {
       return loadUserGallery().length;
@@ -122,8 +131,17 @@ export default function App() {
         setGalleryCount(loadUserGallery().length);
       } catch {}
     };
+    const handleOrdersUpdate = () => {
+      try {
+        setOrderCount(loadOrderHistory().length);
+      } catch {}
+    };
     window.addEventListener('arza_gallery_updated', handleUpdate);
-    return () => window.removeEventListener('arza_gallery_updated', handleUpdate);
+    window.addEventListener('arza_orders_updated', handleOrdersUpdate);
+    return () => {
+      window.removeEventListener('arza_gallery_updated', handleUpdate);
+      window.removeEventListener('arza_orders_updated', handleOrdersUpdate);
+    };
   }, []);
 
   const handleLoadDesignFromStorefrontGallery = (item) => {
@@ -301,22 +319,32 @@ export default function App() {
 
   const createCartEntryFromBundle = useCallback(
     (bundle, existingCartId = null) => {
-      const comp = summarizeRosterComposition(roster, includeGloves);
+      const targetProd =
+        ENGINE_PRODUCTS.find((p) => p.id === fieldDesign.productModelId) || currentProduct;
+      const isSoccer = !targetProd || targetProd.sport === 'Fútbol';
+      const rawComp = summarizeRosterComposition(roster, isSoccer && includeGloves);
+      const comp = isSoccer
+        ? rawComp
+        : { ...rawComp, keeperUnits: 0, playerUnits: rawComp.totalUnits, glovePairs: 0 };
       const keeperNote = comp.keeperUnits > 0 ? ` (${comp.playerUnits} Jug. + ${comp.keeperUnits} Port. Manga Larga)` : '';
-      const glovesNote = comp.glovePairs > 0 ? ` + ${comp.glovePairs} par guantes 3D` : '';
+      const glovesNote = comp.glovePairs > 0 ? ` + ${comp.glovePairs} par guantes` : '';
+      const weaveMeta = FABRIC_WEAVES.find((w) => w.id === fieldDesign.fabricWeaveId);
       return {
         cartId: existingCartId || `item_${Date.now()}`,
         designId: fieldDesign.designId,
         product: {
-          id: currentProduct.id,
-          name: currentProduct.name,
-          type: currentProduct.renderMode,
+          id: targetProd.id,
+          name: targetProd.name,
+          type: targetProd.renderMode,
           description: `${bundle.pricing.totalUnits} prendas${keeperNote}${glovesNote} vinculadas a ${fieldDesign.designId}`,
         },
         design: {
           baseColor: fieldDesign.colorZones.primary?.hex,
           sleeveColor: fieldDesign.colorZones.sleeves?.hex,
+          accentColor: fieldDesign.colorZones.accents?.hex,
           pattern: fieldDesign.patternId,
+          collarStyle: fieldDesign.proCollar || fieldDesign.collarStyle || 'v_neck',
+          fabricName: weaveMeta?.name || 'Tejido Técnico ARZA',
           playerName: roster[0]?.name || 'EQUIPO',
           playerNumber: roster[0]?.number || '10',
           sponsorText: (fieldDesign.decals || []).find((d) => d.type === 'STATIC_TEXT')?.text || '',
@@ -344,10 +372,11 @@ export default function App() {
           id: r.id || i,
           name: r.name,
           number: r.number,
-          role: r.role || 'Jugador',
-          gloveSize: r.gloveSize || '9',
+          cut: r.cut,
+          role: isSoccer ? r.role || 'Jugador' : 'Jugador',
+          gloveSize: isSoccer ? r.gloveSize || '9' : undefined,
           qty: Number(r.qty) || 1,
-          size: `${r.size} (${r.cut}) x${Number(r.qty) || 1}`,
+          size: `${r.size} x${Number(r.qty) || 1}`,
         })),
         keeperUnits: comp.keeperUnits,
         playerUnits: comp.playerUnits,
@@ -360,14 +389,16 @@ export default function App() {
     [currentProduct, fieldDesign, goalkeeperDesign, glovesDesign, includeGloves, roster]
   );
 
-  const handleConfirmAddToCart = (bundle) => {
-    const newItem = createCartEntryFromBundle(bundle);
-    setCartItems((prev) => [...prev, newItem]);
-    confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
-
-    handleCommitDesign({ ...design, designId: generateDesignId() }, true);
-    setIsCartOpen(true);
-  };
+  const handleSelectGoalkeeperKit = useCallback(() => {
+    handleSwitchProduct('futbol_jersey_pro_vneck');
+    handleSwitchKitRole('goalkeeper');
+    setStudioInitialStep(1);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      window.location.hash = '#studio';
+    }
+    setAppMode('studio');
+  }, [handleSwitchProduct, handleSwitchKitRole]);
 
   const handleFinishOrderToCheckout = () => {
     const fieldProduct =
@@ -447,7 +478,7 @@ export default function App() {
           onUpdateRoster={setRoster}
           artworkRegistry={artworkRegistry}
           onRegisterArtwork={handleRegisterArtwork}
-          onOpenProductionModal={() => setIsProductionModalOpen(true)}
+          onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
           onFinishOrderToCheckout={handleFinishOrderToCheckout}
           onOpenCart={() => setIsCartOpen(true)}
           cartCount={cartItems.length}
@@ -460,15 +491,20 @@ export default function App() {
             onOpenStudio={() => handleOpenGuidedWizard(1)}
             onSelectCategory={handleSelectCatalogCategory}
             onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+            onOpenSizeGuide={(tab = 'sizes') => setSizeGuideState({ open: true, tab })}
+            onOpenOrderTracking={() => setTrackingState({ open: true, folio: '' })}
+            orderCount={orderCount}
           />
           <Navbar
             cartCount={cartItems.length}
             onOpenCart={() => setIsCartOpen(true)}
             onOpenStudio={() => handleOpenGuidedWizard(1)}
             galleryCount={galleryCount}
+            orderCount={orderCount}
             onOpenGallery={() => setIsStorefrontGalleryOpen(true)}
-            onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)}
             onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+            onOpenSizeGuide={(tab = 'sizes') => setSizeGuideState({ open: true, tab })}
+            onOpenOrderTracking={() => setTrackingState({ open: true, folio: '' })}
             onSelectCategory={handleSelectCatalogCategory}
             searchQuery={catalogSearch}
             onSearchChange={(q) => setCatalogSearch(q)}
@@ -486,6 +522,7 @@ export default function App() {
             <CampaignSections
               onSelectCategory={handleSelectCatalogCategory}
               onSelectProduct={handleSelectCatalogProduct}
+              onSelectGoalkeeper={handleSelectGoalkeeperKit}
             />
             <ProductCatalog
               sportFilter={catalogSport}
@@ -495,29 +532,23 @@ export default function App() {
               onChangeGenderFilter={setCatalogGender}
               onClearSearch={() => setCatalogSearch('')}
               onSelectProduct={handleSelectCatalogProduct}
+              onSelectGoalkeeper={handleSelectGoalkeeperKit}
               onOpenQuote={() => setIsQuoteModalOpen(true)}
             />
             <QualityShowcase onOpenTexturesInStudio={() => handleOpenGuidedWizard(2)} />
           </main>
           <Footer
-            onOpenShopifyGuide={() => setIsShopifyGuideOpen(true)}
             onSelectCategory={handleSelectCatalogCategory}
             onSelectProduct={handleSelectCatalogProduct}
+            onSelectGoalkeeper={handleSelectGoalkeeperKit}
             onOpenStudio={() => handleOpenGuidedWizard(1)}
             onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+            onOpenSizeGuide={(tab = 'sizes') => setSizeGuideState({ open: true, tab })}
+            onOpenInfoModal={(topic = 'faq') => setInfoModalState({ open: true, topic })}
+            onOpenOrderTracking={() => setTrackingState({ open: true, folio: '' })}
           />
         </div>
       )}
-
-      <ProductionPayloadModal
-        isOpen={isProductionModalOpen}
-        onClose={() => setIsProductionModalOpen(false)}
-        design={design}
-        product={currentProduct}
-        roster={roster}
-        artworkRegistry={artworkRegistry}
-        onConfirmAddToCart={handleConfirmAddToCart}
-      />
 
       <CartDrawer
         isOpen={isCartOpen}
@@ -529,21 +560,46 @@ export default function App() {
           setIsCartOpen(false);
           setIsQuoteModalOpen(true);
         }}
-        onOpenProductionModal={() => {
+        onOpenOrderTracking={(folio = '') => {
           setIsCartOpen(false);
-          setIsProductionModalOpen(true);
+          setTrackingState({ open: true, folio });
         }}
-      />
-
-      <ShopifyIntegrationGuide
-        isOpen={isShopifyGuideOpen}
-        onClose={() => setIsShopifyGuideOpen(false)}
       />
 
       <OrderQuoteModal
         isOpen={isQuoteModalOpen}
         onClose={() => setIsQuoteModalOpen(false)}
         items={cartItems}
+        onOpenStudioForProduct={(prodId, isKeeper = false) => {
+          if (isKeeper) {
+            handleSelectGoalkeeperKit();
+          } else {
+            handleSelectCatalogProduct(prodId);
+          }
+        }}
+      />
+
+      <SizeGuideModal
+        key={`sg-${sizeGuideState.tab}-${sizeGuideState.open}`}
+        isOpen={sizeGuideState.open}
+        initialTab={sizeGuideState.tab}
+        onClose={() => setSizeGuideState((s) => ({ ...s, open: false }))}
+      />
+
+      <StorefrontInfoModal
+        key={`info-${infoModalState.topic}-${infoModalState.open}`}
+        isOpen={infoModalState.open}
+        initialTopic={infoModalState.topic}
+        onClose={() => setInfoModalState((s) => ({ ...s, open: false }))}
+        onOpenSizeGuide={() => setSizeGuideState({ open: true, tab: 'sizes' })}
+        onOpenStudio={() => handleOpenGuidedWizard(1)}
+      />
+
+      <OrderTrackingModal
+        key={`track-${trackingState.folio}-${trackingState.open}`}
+        isOpen={trackingState.open}
+        initialFolio={trackingState.folio}
+        onClose={() => setTrackingState((s) => ({ ...s, open: false }))}
       />
 
       <UserDesignGalleryModal

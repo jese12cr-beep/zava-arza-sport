@@ -3,14 +3,27 @@ import { ChevronLeft, ChevronRight, Shirt, X } from 'lucide-react';
 import { ENGINE_PRODUCTS } from '../engine/core/designStore';
 import { getProductMedia } from '../data/productMediaRegistry';
 
-const APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter(
-  (item) => !['accessory', 'jacket'].includes(item.garmentCategory)
-);
+const APPAREL_PRODUCTS = [
+  ...ENGINE_PRODUCTS.filter((item) => item.garmentCategory !== 'accessory'),
+  {
+    id: 'portero_gk_set',
+    name: 'Kit Portero ZAVA Manga Larga + Guantes',
+    shortName: 'Kit Portero',
+    sport: 'Fútbol',
+    gender: 'men',
+    garmentCategory: 'jersey',
+    owayoCutCode: 'ARZA-GK01',
+    basePrice: 34.0,
+    isGoalkeeperShortcut: true,
+    badge: 'Manga Larga Obligatoria • +Guantes $28 USD',
+  },
+];
 
 const SPORT_FILTERS = [
   { id: 'all', label: `Todos (${APPAREL_PRODUCTS.length})` },
   { id: 'Fútbol', label: 'Fútbol' },
   { id: 'Baloncesto', label: 'Baloncesto' },
+  { id: 'Chaquetas', label: 'Chaquetas' },
   { id: 'E-Sports', label: 'E-Sports' },
 ];
 
@@ -28,6 +41,7 @@ export default function ProductCatalog({
   onChangeGenderFilter,
   onClearSearch,
   onSelectProduct,
+  onSelectGoalkeeper,
   onOpenQuote,
 }) {
   const [viewMode, setViewMode] = useState('shelf');
@@ -53,6 +67,8 @@ export default function ProductCatalog({
       if (q) {
         const haystack = `${item.name} ${item.sport} ${item.badge} ${item.owayoCutCode || ''} ${
           item.gender === 'women' ? 'dama mujer' : 'caballero hombre'
+        } ${item.isGoalkeeperShortcut ? 'portero arquero guantes manga larga' : ''} ${
+          item.garmentCategory === 'jacket' ? 'chamarra chaqueta softshell' : ''
         }`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
@@ -159,7 +175,7 @@ export default function ProductCatalog({
             Elige tu Prenda ({filteredProducts.length})
           </h2>
           <p className="text-sm text-[#707072] mt-0.5">
-            Modelos técnicos para fútbol, baloncesto y e-sports · Corte Caballero y Dama
+            Modelos técnicos para fútbol, portero, baloncesto, chamarras y e-sports · Caballero y Dama
           </p>
         </div>
 
@@ -313,7 +329,9 @@ export default function ProductCatalog({
               >
                 <button
                   type="button"
-                  onClick={() => onSelectProduct(item.id)}
+                  onClick={() =>
+                    item.isGoalkeeperShortcut ? onSelectGoalkeeper?.() : onSelectProduct(item.id)
+                  }
                   aria-label={`Personalizar ${item.name}`}
                   className="w-full aspect-[4/3] bg-[#F5F5F5] rounded-none overflow-hidden mb-3 block cursor-pointer"
                 >
@@ -353,7 +371,9 @@ export default function ProductCatalog({
 
                     <button
                       type="button"
-                      onClick={() => onSelectProduct(item.id)}
+                      onClick={() =>
+                        item.isGoalkeeperShortcut ? onSelectGoalkeeper?.() : onSelectProduct(item.id)
+                      }
                       className="arza-btn-dark px-5 py-1.5 text-xs font-medium inline-flex items-center justify-center cursor-pointer"
                     >
                       Personalizar

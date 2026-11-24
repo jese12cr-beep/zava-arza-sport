@@ -6,6 +6,7 @@ import {
   Search,
   FileText,
   X,
+  Package,
 } from 'lucide-react';
 import ArzaLogo from './brand/ArzaLogo';
 
@@ -13,6 +14,9 @@ export function UtilityBar({
   onOpenStudio,
   onSelectCategory,
   onOpenQuoteModal,
+  onOpenSizeGuide,
+  onOpenOrderTracking,
+  orderCount = 0,
 }) {
   return (
     <div className="hidden lg:flex w-full bg-[#F5F5F5] text-[#111111] h-9 px-6 lg:px-12 items-center justify-between text-xs font-medium border-b border-transparent">
@@ -37,15 +41,24 @@ export function UtilityBar({
           onClick={() => onSelectCategory?.('all', 'all')}
           className="hover:text-[#707072] transition-colors"
         >
-          Catálogo (8)
+          Catálogo (11)
         </a>
         <span aria-hidden="true" className="text-[#CACACB]">|</span>
-        <a
-          href="#fabric-quality"
-          className="hover:text-[#707072] transition-colors"
+        <button
+          type="button"
+          onClick={() => onOpenSizeGuide?.('sizes')}
+          className="hover:text-[#707072] transition-colors cursor-pointer"
         >
-          Telas Técnicas
-        </a>
+          Tallas XS–3XL
+        </button>
+        <span aria-hidden="true" className="text-[#CACACB]">|</span>
+        <button
+          type="button"
+          onClick={() => onOpenOrderTracking?.()}
+          className="hover:text-[#707072] transition-colors cursor-pointer inline-flex items-center gap-1"
+        >
+          <span>Mis Pedidos{orderCount > 0 ? ` (${orderCount})` : ''}</span>
+        </button>
         <span aria-hidden="true" className="text-[#CACACB]">|</span>
         <button
           type="button"
@@ -64,8 +77,11 @@ export default function Navbar({
   onOpenCart,
   onOpenStudio,
   galleryCount = 0,
+  orderCount = 0,
   onOpenGallery,
   onOpenQuoteModal,
+  onOpenSizeGuide,
+  onOpenOrderTracking,
   onSelectCategory,
   searchQuery = '',
   onSearchChange,
@@ -213,6 +229,7 @@ export default function Navbar({
     { label: 'Dama', sport: 'all', gender: 'women' },
     { label: 'Fútbol', sport: 'Fútbol', gender: 'all' },
     { label: 'Baloncesto', sport: 'Baloncesto', gender: 'all' },
+    { label: 'Chaquetas', sport: 'Chaquetas', gender: 'all' },
     { label: 'E-Sports', sport: 'E-Sports', gender: 'all' },
     { label: 'Personalizar', isStudio: true },
   ];
@@ -279,7 +296,28 @@ export default function Navbar({
                 ))}
 
                 {onOpenQuoteModal && (
-                  <li className="arza-collapsed-only pt-2 mt-2 border-t border-[#E5E5E5]">
+                  <li className="arza-collapsed-only pt-2 mt-2 border-t border-[#E5E5E5] space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCloseCollapsedMenu();
+                        onOpenSizeGuide?.('sizes');
+                      }}
+                      className="w-full px-3 min-h-10 bg-[#F5F5F5] text-[#111111] text-sm font-medium rounded-full flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Guía de Tallas XS–3XL</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCloseCollapsedMenu();
+                        onOpenOrderTracking?.();
+                      }}
+                      className="w-full px-3 min-h-10 bg-[#F5F5F5] text-[#111111] text-sm font-medium rounded-full flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Package className="w-4 h-4" aria-hidden="true" />
+                      <span>Mis Pedidos{orderCount > 0 ? ` (${orderCount})` : ''}</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {

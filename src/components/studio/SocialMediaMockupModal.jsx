@@ -193,6 +193,7 @@ export default function SocialMediaMockupModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Cerrar generador de mockup"
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />

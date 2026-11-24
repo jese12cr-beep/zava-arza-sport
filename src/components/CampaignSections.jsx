@@ -5,6 +5,7 @@ import { resolveAssetUrl } from '../utils/assetUrl';
 export default function CampaignSections({
   onSelectCategory,
   onSelectProduct,
+  onSelectGoalkeeper,
 }) {
   const trioRef = useRef(null);
 
@@ -22,6 +23,13 @@ export default function CampaignSections({
       caption: 'Silueta entallada en cintura, sisa y hombros',
       image: resolveAssetUrl('assets/showcase/futbol_f3w_women.jpg'),
       action: () => onSelectCategory?.('all', 'women'),
+    },
+    {
+      id: 'portero',
+      title: 'Kit Portero & Guantes',
+      caption: 'Manga larga obligatoria con puños y guantes pro',
+      image: resolveAssetUrl('assets/showcase/portero_gk_set.jpg'),
+      action: () => onSelectGoalkeeper?.(),
     },
     {
       id: 'shorts',

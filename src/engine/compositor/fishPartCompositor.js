@@ -918,7 +918,7 @@ export function composeGarmentPartCanvas(
 
   // 2. Renderizar Slots Variables del Jugador Activo (`einzelexemplare`)
   const slots = design.variableSlots || {};
-  const player = activePlayer || { name: 'RODRÍGUEZ', number: '10' };
+  const player = activePlayer || { name: '', number: '' };
 
   const drawSlotHighlightIfSelected = (slotKey, centerMm, wMm, hMm) => {
     if (overlayOptions?.selectedSlotKey === slotKey && overlayOptions?.showSelectionBox) {
@@ -1069,4 +1069,94 @@ export function composeGarmentPartCanvas(
     }
     ctx.restore();
   }
+}
+
+const fishThumbDataCache = new Map();
+const MAX_CONCURRENT_THUMB_JOBS = 6;
+let activeThumbJobs = 0;
+const thumbQueue = [];
+
+function runWithThumbSlot(task) {
+  return new Promise((resolve, reject) => {
+    const start = () => {
+      activeThumbJobs++;
+      Promise.resolve()
+        .then(task)
+        .then(resolve, reject)
+        .finally(() => {
+          activeThumbJobs = Math.max(0, activeThumbJobs - 1);
+          const next = thumbQueue.shift();
+          if (next) next();
+        });
+    };
+    if (activeThumbJobs < MAX_CONCURRENT_THUMB_JOBS) start();
+    else thumbQueue.push(start);
+  });
+}
+
+/**
+ * Renders a compact PNG thumbnail of the garment Front pattern directly from its `.fish` zones
+ * so Step 2 & pattern selector cards display real colored cut previews with zero extra downloads.
+ */
+export async function renderFishFrontThumbDataUrl(fileUrl, colorZones = {}) {
+  if (!fileUrl || typeof document === 'undefined') return null;
+  const cA = colorZones?.primary?.hex || '#111111';
+  const cB = colorZones?.secondary?.hex || '#fa5400';
+  const cC = colorZones?.accents?.hex || '#ffffff';
+  const cD = colorZones?.quaternary?.hex || '#757575';
+  const cK = colorZones?.collar?.hex || cC;
+  const key = `${fileUrl}|${cA}|${cB}|${cC}|${cD}|${cK}`;
+  if (fishThumbDataCache.has(key)) return fishThumbDataCache.get(key);
+
+  const dataUrl = await runWithThumbSlot(async () => {
+    const partMap = await loadFishDesignMasks(fileUrl);
+    const entry =
+      partMap.get('Front') ||
+      partMap.get('FrontLeftPart') ||
+      partMap.get('RightLeg') ||
+      partMap.values().next().value;
+    if (!entry?.zones || !entry.width || !entry.height) return null;
+
+    const thumbW = 84;
+    const thumbH = 96;
+    const canvas = document.createElement('canvas');
+    canvas.width = thumbW;
+    canvas.height = thumbH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const lut = new Uint32Array(256);
+    lut[0] = 0;
+    lut[1] = hexToAbgr32(cA);
+    lut[2] = hexToAbgr32(cB);
+    lut[3] = hexToAbgr32(cC);
+    lut[4] = hexToAbgr32(cD);
+    lut[5] = hexToAbgr32(cC);
+    lut[6] = hexToAbgr32(cK);
+    lut[44] = lut[1];
+    lut[45] = lut[2];
+    lut[50] = lut[1];
+    lut[51] = lut[3];
+    lut[52] = lut[4];
+    lut[53] = lut[2];
+
+    const img = ctx.createImageData(thumbW, thumbH);
+    const out32 = new Uint32Array(img.data.buffer);
+    const { width: srcW, height: srcH, zones } = entry;
+    for (let y = 0; y < thumbH; y++) {
+      const sy = Math.min(srcH - 1, Math.floor((y * srcH) / thumbH));
+      const rowOut = y * thumbW;
+      const rowSrc = sy * srcW;
+      for (let x = 0; x < thumbW; x++) {
+        const sx = Math.min(srcW - 1, Math.floor((x * srcW) / thumbW));
+        const code = zones[rowSrc + sx];
+        out32[rowOut + x] = lut[code] || lut[1];
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL('image/png');
+  });
+
+  if (dataUrl) fishThumbDataCache.set(key, dataUrl);
+  return dataUrl;
 }

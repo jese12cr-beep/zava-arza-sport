@@ -3,7 +3,6 @@ import {
   X,
   Check,
   Shirt,
-  Scissors,
   ChevronRight,
   Award,
 } from 'lucide-react';
@@ -214,15 +213,14 @@ export default function ProductSelectorModal({
                       Corte oficial <strong className="text-slate-700">{prod.owayoCutCode}</strong> • {prod.badge}
                     </p>
 
-                    {/* Capacidades duales 3D y 2D */}
+                    {/* Capacidades de personalización 3D y envío a taller */}
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 text-[11px] font-bold text-slate-600">
                       <span className="inline-flex items-center gap-1 arza-pill-glass-green px-2 py-0.5 rounded-md">
                         <Shirt className="w-3 h-3" />
                         <span>3D Interactivo PBR</span>
                       </span>
                       <span className="inline-flex items-center gap-1 arza-pill-glass-green px-2 py-0.5 rounded-md">
-                        <Scissors className="w-3 h-3" />
-                        <span>Plantilla 2D</span>
+                        <span>Sublimación Pro</span>
                       </span>
                     </div>
                   </div>
@@ -240,7 +238,7 @@ export default function ProductSelectorModal({
                         : 'arza-btn-glass-green'
                     }`}
                   >
-                    <span>{isCurrent ? 'Continuar Editando' : 'Personalizar en 3D & 2D'}</span>
+                    <span>{isCurrent ? 'Continuar Editando' : 'Personalizar Modelo'}</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>

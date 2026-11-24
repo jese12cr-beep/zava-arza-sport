@@ -244,13 +244,13 @@ function paintGlovesCanvases(
   sCtx.fillRect(0, 0, sW, sH * 0.08);
   sCtx.fillRect(0, sH * 0.92, sW, sH * 0.08);
 
-  const keeperName = String(activePlayer?.name || 'SANTOS').toUpperCase().slice(0, 14);
-  const keeperNum = String(activePlayer?.number || '1').slice(0, 3);
+  const keeperName = String(activePlayer?.name || '').toUpperCase().slice(0, 14);
+  const keeperNum = String(activePlayer?.number || '').slice(0, 3);
   const showName = glovesDesign?.strapNameEnabled !== false;
   const showNum = glovesDesign?.strapNumberEnabled !== false;
-  const strapLabel = [showNum ? `#${keeperNum}` : '', showName ? keeperName : 'ARZA GK']
+  const strapLabel = [showNum && keeperNum ? `#${keeperNum}` : '', showName && keeperName ? keeperName : '']
     .filter(Boolean)
-    .join(' ');
+    .join(' ') || 'ARZA GK';
 
   sCtx.save();
   sCtx.fillStyle = strapTextHex;
@@ -1552,8 +1552,8 @@ export default function GarmentCanvas3D({
         </span>
       </div>
 
-      {/* Selector rápido de vistas 3D: Centrado en móvil y desktop XL para despejar esquina superior derecha */}
-      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 xl:left-1/2 xl:right-auto xl:-translate-x-1/2 flex items-center justify-center sm:justify-end xl:justify-center gap-1.5 z-10 overflow-x-auto no-scrollbar py-0.5">
+      {/* Selector rápido de vistas 3D: Envuelve limpio sin recortar puntas en móvil ni escritorio */}
+      <div className="absolute top-2.5 sm:top-4 left-2 right-2 sm:left-auto sm:right-4 xl:left-1/2 xl:right-auto xl:-translate-x-1/2 flex flex-wrap items-center justify-center sm:justify-end xl:justify-center gap-1 sm:gap-1.5 z-10 py-0.5 max-w-full">
         {quickCameraButtons.map((btn) => (
           <button
             key={btn.id}

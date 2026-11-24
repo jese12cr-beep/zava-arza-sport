@@ -17,6 +17,7 @@ import {
 import ArzaLogo from '../brand/ArzaLogo';
 import FabricSwatchThumb from '../brand/FabricSwatchThumb';
 import ProductThumb from '../brand/ProductThumb';
+import FishPatternThumb from './FishPatternThumb';
 import { getProductMedia } from '../../data/productMediaRegistry';
 import {
   COLOR_HARMONY_SUGGESTIONS,
@@ -31,10 +32,10 @@ import {
   VECTOR_CREST_PRESETS,
   VOLUME_TIERS,
   ZONE_SURFACE_PATTERNS,
+  calculateStudioGrandTotal,
   computeOwayoAutoContrastHex,
   isGoalkeeperRole,
   parseRosterQuickLines,
-  summarizeRosterComposition,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
 
@@ -77,14 +78,15 @@ const SPORT_FILTER_PILLS = [
   { id: 'all', label: 'Todos' },
   { id: 'Fútbol', label: 'Fútbol' },
   { id: 'Baloncesto', label: 'Baloncesto' },
+  { id: 'Chaquetas', label: 'Chaquetas' },
   { id: 'E-Sports', label: 'E-Sports' },
 ];
 
 const ACTIVE_APPAREL_PRODUCTS = ENGINE_PRODUCTS.filter(
-  (prod) => !['accessory', 'jacket'].includes(prod.garmentCategory)
+  (prod) => prod.garmentCategory !== 'accessory'
 );
 
-const ACTIVE_FABRIC_WEAVES = FABRIC_WEAVES.filter((w) => w.id !== 'k_tex_wind');
+const ACTIVE_FABRIC_WEAVES = FABRIC_WEAVES;
 
 const GENDER_EQUIVALENT_MAP = {
   men: {
@@ -191,9 +193,25 @@ export default function GuidedStepWizardPanel({
   const glovesToggleId = useId();
   const gloveCrestToggleId = useId();
   const gloveStrapNameToggleId = useId();
-  const isEditingGloves = activeKitRole === 'gloves';
-  const isEditingKeeper = activeKitRole === 'goalkeeper';
-  const displayGrandTotal = Number.isFinite(grandTotalPrice) ? grandTotalPrice : totalPrice;
+  const isSoccerProduct = !currentProduct || currentProduct.sport === 'Fútbol';
+  const isEditingGloves = isSoccerProduct && activeKitRole === 'gloves';
+  const isEditingKeeper = isSoccerProduct && activeKitRole === 'goalkeeper';
+  const unifiedTotals = useMemo(
+    () =>
+      calculateStudioGrandTotal({
+        roster,
+        product: currentProduct,
+        unitPrice,
+        includeGloves,
+        glovesUnitPrice: glovesDesign?.unitPrice || GLOVE_PAIR_UNIT_PRICE,
+      }),
+    [roster, currentProduct, unitPrice, includeGloves, glovesDesign?.unitPrice]
+  );
+  const displayGrandTotal = isSoccerProduct
+    ? Number.isFinite(grandTotalPrice)
+      ? grandTotalPrice
+      : unifiedTotals.grandTotal
+    : unifiedTotals.grandTotal;
 
   const isShorts = ['football_shorts', 'basketball_shorts'].includes(currentProduct?.garmentShape);
   const isJacket = currentProduct?.garmentCategory === 'jacket';
@@ -592,8 +610,8 @@ export default function GuidedStepWizardPanel({
   };
 
   const rosterComposition = useMemo(
-    () => propRosterComp || summarizeRosterComposition(roster, includeGloves),
-    [propRosterComp, roster, includeGloves]
+    () => (isSoccerProduct && propRosterComp ? propRosterComp : unifiedTotals),
+    [isSoccerProduct, propRosterComp, unifiedTotals]
   );
   const rosterSizeSummary = rosterComposition.bySizeLabel;
 
@@ -608,16 +626,25 @@ export default function GuidedStepWizardPanel({
         return merged;
       })
     );
+    if (isSoccerProduct && 'role' in patch) {
+      if (isGoalkeeperRole(patch.role)) {
+        onSwitchKitRole?.('goalkeeper');
+        onSelectRosterIndex?.(idx);
+        onToast?.('Vista 3D cambiada a Portero Manga Larga');
+      } else if (activeRosterIndex === idx) {
+        onSwitchKitRole?.('field');
+      }
+    }
   };
 
   const handleAddRosterRow = (role = 'Jugador') => {
-    const keeper = isGoalkeeperRole(role);
+    const keeper = isSoccerProduct && isGoalkeeperRole(role);
     const nextIdx = roster.length;
     const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
     const nextRow = {
       id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      name: keeper ? 'PORTERO' : `JUGADOR ${roster.length + 1}`,
-      number: keeper ? '1' : String(roster.length + 1),
+      name: '',
+      number: '',
       size: 'L',
       cut: defaultCut,
       qty: 1,
@@ -625,8 +652,15 @@ export default function GuidedStepWizardPanel({
       gloveSize: keeper ? '9' : undefined,
     };
     onUpdateRoster([...roster, nextRow]);
-    onSelectRosterIndex?.(nextIdx);
-    onToast?.(keeper ? 'Portero (Manga Larga) añadido a la lista' : 'Jugador añadido a la lista');
+    if (keeper) {
+      onSwitchKitRole?.('goalkeeper');
+      onSelectRosterIndex?.(nextIdx);
+      onToast?.('Portero (Manga Larga 3D) añadido a la lista');
+    } else {
+      if (isSoccerProduct) onSwitchKitRole?.('field');
+      onSelectRosterIndex?.(nextIdx);
+      onToast?.(isSoccerProduct ? 'Jugador añadido a la lista' : 'Prenda añadida a la lista');
+    }
   };
 
   const handleRemoveRosterRow = (idx) => {
@@ -661,53 +695,54 @@ export default function GuidedStepWizardPanel({
     setCustomTextDraft('');
   };
 
-  const renderKitRoleBanner = () => (
-    <div className="p-2.5 rounded-2xl bg-slate-900/5 border border-slate-200 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
-          Pieza del Equipo Activa
-        </span>
-        {isEditingKeeper && (
-          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300">
-            Manga Larga Fija
+  const renderKitRoleBanner = () =>
+    isSoccerProduct ? (
+      <div className="p-2.5 rounded-2xl bg-slate-900/5 border border-slate-200 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+            Pieza del Equipo Activa
           </span>
-        )}
-        {isEditingGloves && (
-          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
-            Guantes 3D · ${GLOVE_PAIR_UNIT_PRICE} c/par
-          </span>
-        )}
+          {isEditingKeeper && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300">
+              Manga Larga Fija
+            </span>
+          )}
+          {isEditingGloves && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
+              Guantes 3D · ${GLOVE_PAIR_UNIT_PRICE} c/par
+            </span>
+          )}
+        </div>
+        <div
+          role="group"
+          aria-label="Cambiar prenda activa entre Campo, Portero Manga Larga y Guantes 3D"
+          className="grid grid-cols-3 gap-1"
+        >
+          {[
+            { id: 'field', label: 'Campo' },
+            { id: 'goalkeeper', label: 'Portero M.L.' },
+            { id: 'gloves', label: 'Guantes 3D' },
+          ].map((item) => {
+            const active = activeKitRole === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onSwitchKitRole?.(item.id)}
+                className={`min-h-9 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer border ${
+                  active
+                    ? 'arza-btn-glass-green shadow-2xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div
-        role="group"
-        aria-label="Cambiar prenda activa entre Campo, Portero Manga Larga y Guantes 3D"
-        className="grid grid-cols-3 gap-1"
-      >
-        {[
-          { id: 'field', label: 'Campo' },
-          { id: 'goalkeeper', label: 'Portero M.L.' },
-          { id: 'gloves', label: 'Guantes 3D' },
-        ].map((item) => {
-          const active = activeKitRole === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onSwitchKitRole?.(item.id)}
-              className={`min-h-9 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer border ${
-                active
-                  ? 'arza-btn-glass-green shadow-2xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+    ) : null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -975,10 +1010,12 @@ export default function GuidedStepWizardPanel({
               </div>
             </div>
 
-            {/* 1E: Uniforme, Portero y Lista de Nombres para la Cantidad del Pedido */}
+            {/* 1E: Lista Compacta de Camisas (1 hilera limpia: Nombre y Talla + Jugador / Portero Manga Larga) */}
             <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2.5 border border-emerald-200/80">
               <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-800 px-1">
-                4. Lista de nombres, portero y guantes ({totalUnits} prendas)
+                {isSoccerProduct
+                  ? `4. Lista de camisas, portero y tallas (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`
+                  : `4. Lista de nombres y tallas (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`}
               </legend>
 
               {/* Resumen Jugadores vs Portero Manga Larga vs Guantes 3D + Tarifa */}
@@ -986,12 +1023,14 @@ export default function GuidedStepWizardPanel({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro">
-                      {rosterComposition.playerUnits} Campo
+                      {isSoccerProduct ? `${rosterComposition.playerUnits} Campo` : `${totalUnits} Piezas`}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
-                      {rosterComposition.keeperUnits} Portero Manga Larga
-                    </span>
-                    {rosterComposition.glovePairs > 0 && (
+                    {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
+                        {rosterComposition.keeperUnits} Portero Manga Larga
+                      </span>
+                    )}
+                    {isSoccerProduct && rosterComposition.glovePairs > 0 && (
                       <span className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black tabular-nums-pro">
                         +{rosterComposition.glovePairs} Par Guantes
                       </span>
@@ -1002,7 +1041,7 @@ export default function GuidedStepWizardPanel({
                   </span>
                 </div>
 
-                {rosterComposition.keeperUnits > 0 && (
+                {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
                   <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-amber-50/75 border border-amber-200">
                     <label
                       htmlFor={glovesToggleId}
@@ -1021,251 +1060,151 @@ export default function GuidedStepWizardPanel({
                 )}
               </div>
 
-              {/* Botones rápidos + Jugador / + Portero / Tabla Completa */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              {/* Encabezado limpio de 1 sola hilera */}
+              <div className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <span className="w-4 shrink-0">#</span>
+                <span className="flex-1 min-w-0">Nombre en camisa</span>
+                <span className="w-[66px] shrink-0">Talla</span>
+                {isSoccerProduct && <span className="w-[84px] shrink-0 text-center">Rol</span>}
+                {roster.length > 1 && <span className="w-6 shrink-0" />}
+              </div>
+
+              {/* Hileras compactas: una sola fila horizontal con Nombre, Talla y Rol */}
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-0.5">
+                {roster.map((row, idx) => {
+                  const isKeeper = isSoccerProduct && isGoalkeeperRole(row.role);
+                  const isPreviewed = idx === activeRosterIndex;
+                  const rowIdPrefix = `${rosterFieldsetBaseId}-row-${idx}`;
+                  return (
+                    <div
+                      key={row.id || idx}
+                      className={`flex items-center gap-1.5 p-1.5 rounded-xl border transition-colors ${
+                        isKeeper
+                          ? 'bg-amber-50/75 border-amber-300'
+                          : isPreviewed
+                          ? 'bg-emerald-50/45 border-emerald-400'
+                          : 'bg-white/95 border-slate-200'
+                      }`}
+                    >
+                      <span className="w-4 text-[10px] font-mono font-black text-slate-500 text-center shrink-0">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`${rowIdPrefix}-name`} className="sr-only">
+                          Nombre camisa {idx + 1}
+                        </label>
+                        <input
+                          id={`${rowIdPrefix}-name`}
+                          type="text"
+                          value={row.name || ''}
+                          onFocus={() => onSelectRosterIndex?.(idx)}
+                          onChange={(e) =>
+                            updateRowAt(idx, { name: e.target.value.toUpperCase() })
+                          }
+                          placeholder="Nombre (en blanco)"
+                          className="w-full px-2 h-8 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div className="w-[66px] shrink-0">
+                        <label htmlFor={`${rowIdPrefix}-size`} className="sr-only">
+                          Talla fila {idx + 1}
+                        </label>
+                        <select
+                          id={`${rowIdPrefix}-size`}
+                          value={row.size || 'L'}
+                          onFocus={() => onSelectRosterIndex?.(idx)}
+                          onChange={(e) => updateRowAt(idx, { size: e.target.value })}
+                          className="w-full px-1.5 h-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900"
+                        >
+                          {ROSTER_SIZE_OPTIONS.map((sz) => (
+                            <option key={sz} value={sz}>
+                              {sz}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {isSoccerProduct && (
+                        <div
+                          className="w-[84px] shrink-0 inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200"
+                          role="group"
+                          aria-label={`Rol en lista fila ${idx + 1}`}
+                        >
+                          <button
+                            type="button"
+                            aria-pressed={!isKeeper}
+                            title="Jugador de campo"
+                            onClick={() => updateRowAt(idx, { role: 'Jugador' })}
+                            className={`flex-1 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                              !isKeeper
+                                ? 'bg-[#111111] text-white'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Jug.
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={isKeeper}
+                            title="Portero Manga Larga 3D"
+                            onClick={() => updateRowAt(idx, { role: 'Portero' })}
+                            className={`flex-1 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                              isKeeper
+                                ? 'bg-[#C24100] text-white'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Port.
+                          </button>
+                        </div>
+                      )}
+
+                      {roster.length > 1 && (
+                        <button
+                          type="button"
+                          aria-label={`Eliminar fila ${idx + 1} (${row.name || 'sin nombre'})`}
+                          onClick={() => handleRemoveRosterRow(idx)}
+                          className="p-1 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Botones rápidos + Jugador / + Portero Manga Larga / Tabla Completa */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <button
                   type="button"
                   onClick={() => handleAddRosterRow('Jugador')}
                   className="px-2.5 min-h-9 rounded-xl arza-pill-glass-green text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Añadir Jugador</span>
+                  <span>{isSoccerProduct ? 'Añadir Jugador' : 'Añadir Integrante'}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddRosterRow('Portero')}
-                  className="px-2.5 min-h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
-                  <span>Añadir Portero</span>
-                </button>
+                {isSoccerProduct && (
+                  <button
+                    type="button"
+                    onClick={() => handleAddRosterRow('Portero')}
+                    className="px-2.5 min-h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
+                    <span>Añadir Portero</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onOpenRosterModal}
                   className="ml-auto px-2.5 min-h-9 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                  title="Abrir tabla avanzada con número dorsal, corte y cantidad"
                 >
                   <Users className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
-                  <span>Tabla</span>
+                  <span>Tabla / Nº</span>
                 </button>
-              </div>
-
-              {/* Filas editables directamente en Paso 1 */}
-              <div className="space-y-2 max-h-[340px] overflow-y-auto pr-0.5">
-                {roster.map((row, idx) => {
-                  const isKeeper = isGoalkeeperRole(row.role);
-                  const isPreviewed = idx === activeRosterIndex;
-                  const rowIdPrefix = `${rosterFieldsetBaseId}-row-${idx}`;
-                  return (
-                    <div
-                      key={row.id || idx}
-                      className={`p-2.5 rounded-xl border space-y-2 transition-colors ${
-                        isKeeper
-                          ? 'bg-amber-50/70 border-amber-300'
-                          : isPreviewed
-                          ? 'bg-emerald-50/50 border-emerald-400'
-                          : 'bg-white/95 border-slate-200'
-                      }`}
-                    >
-                      {/* Cabecera de fila: Índice, Selector Rol (Jugador / Portero), Vista Previa y Borrar */}
-                      <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono font-black text-slate-500">
-                            {String(idx + 1).padStart(2, '0')}
-                          </span>
-                          <div
-                            className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200"
-                            role="group"
-                            aria-label={`Rol en lista fila ${idx + 1}`}
-                          >
-                            <button
-                              type="button"
-                              aria-pressed={!isKeeper}
-                              onClick={() => updateRowAt(idx, { role: 'Jugador' })}
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
-                                !isKeeper
-                                  ? 'bg-[#111111] text-white'
-                                  : 'text-slate-600 hover:text-slate-900'
-                              }`}
-                            >
-                              Jugador
-                            </button>
-                            <button
-                              type="button"
-                              aria-pressed={isKeeper}
-                              onClick={() => updateRowAt(idx, { role: 'Portero' })}
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
-                                isKeeper
-                                  ? 'bg-[#C24100] text-white'
-                                  : 'text-slate-600 hover:text-slate-900'
-                              }`}
-                            >
-                              Portero
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            aria-pressed={isPreviewed}
-                            onClick={() => {
-                              onSelectRosterIndex?.(idx);
-                              onToast?.(`Mostrando #${row.number || '-'} ${row.name || 'S/N'}`);
-                            }}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer border ${
-                              isPreviewed
-                                ? 'bg-emerald-700 text-white border-emerald-700'
-                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            <Eye className="w-3 h-3" aria-hidden="true" />
-                            <span>Ver</span>
-                          </button>
-
-                          {roster.length > 1 && (
-                            <button
-                              type="button"
-                              aria-label={`Eliminar fila ${idx + 1} (${row.name || 'sin nombre'})`}
-                              onClick={() => handleRemoveRosterRow(idx)}
-                              className="p-1 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Campos de datos con etiquetas explícitas (<label>) */}
-                      <div className="grid grid-cols-12 gap-1.5">
-                        <div className="col-span-6">
-                          <label
-                            htmlFor={`${rowIdPrefix}-name`}
-                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
-                          >
-                            Nombre
-                          </label>
-                          <input
-                            id={`${rowIdPrefix}-name`}
-                            type="text"
-                            value={row.name || ''}
-                            onChange={(e) =>
-                              updateRowAt(idx, { name: e.target.value.toUpperCase() })
-                            }
-                            placeholder="Ej: PÉREZ"
-                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900"
-                          />
-                        </div>
-
-                        <div className="col-span-3">
-                          <label
-                            htmlFor={`${rowIdPrefix}-num`}
-                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
-                          >
-                            Número
-                          </label>
-                          <input
-                            id={`${rowIdPrefix}-num`}
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={3}
-                            value={row.number || ''}
-                            onChange={(e) => updateRowAt(idx, { number: e.target.value })}
-                            placeholder="10"
-                            className="w-full px-1.5 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-black text-center text-slate-900"
-                          />
-                        </div>
-
-                        <div className="col-span-3">
-                          <label
-                            htmlFor={`${rowIdPrefix}-qty`}
-                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
-                          >
-                            Cant.
-                          </label>
-                          <input
-                            id={`${rowIdPrefix}-qty`}
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            max={999}
-                            value={row.qty || 1}
-                            onChange={(e) =>
-                              updateRowAt(idx, {
-                                qty: Math.max(1, parseInt(e.target.value, 10) || 1),
-                              })
-                            }
-                            className="w-full px-1.5 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-mono font-bold text-center text-slate-900"
-                          />
-                        </div>
-
-                        <div className={isKeeper && includeGloves ? 'col-span-4' : 'col-span-5'}>
-                          <label
-                            htmlFor={`${rowIdPrefix}-size`}
-                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
-                          >
-                            Talla {isKeeper ? 'M.L.' : ''}
-                          </label>
-                          <select
-                            id={`${rowIdPrefix}-size`}
-                            value={row.size || 'L'}
-                            onChange={(e) => updateRowAt(idx, { size: e.target.value })}
-                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900"
-                          >
-                            {ROSTER_SIZE_OPTIONS.map((sz) => (
-                              <option key={sz} value={sz}>
-                                {sz}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {isKeeper && includeGloves && (
-                          <div className="col-span-3">
-                            <label
-                              htmlFor={`${rowIdPrefix}-glove`}
-                              className="block text-[10px] font-bold text-amber-900 mb-0.5"
-                            >
-                              Guante
-                            </label>
-                            <select
-                              id={`${rowIdPrefix}-glove`}
-                              value={row.gloveSize || '9'}
-                              onChange={(e) => updateRowAt(idx, { gloveSize: e.target.value })}
-                              className="w-full px-1.5 min-h-9 rounded-lg bg-amber-50 border border-amber-300 text-xs font-bold text-amber-950"
-                            >
-                              {GLOVE_SIZE_OPTIONS.map((gs) => (
-                                <option key={gs} value={gs}>
-                                  T{gs}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        <div className={isKeeper && includeGloves ? 'col-span-5' : 'col-span-7'}>
-                          <label
-                            htmlFor={`${rowIdPrefix}-cut`}
-                            className="block text-[10px] font-bold text-slate-600 mb-0.5"
-                          >
-                            {isKeeper && includeGloves ? 'Corte' : 'Corte (Caballero / Dama / Niño)'}
-                          </label>
-                          <select
-                            id={`${rowIdPrefix}-cut`}
-                            value={row.cut || 'MEN_PRO_SLIM'}
-                            onChange={(e) => updateRowAt(idx, { cut: e.target.value })}
-                            className="w-full px-2 min-h-9 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-800"
-                          >
-                            {ROSTER_CUT_OPTIONS.map((c) => (
-                              <option key={c.value} value={c.value}>
-                                {c.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
 
               {/* Pegado Rápido desde Excel / WhatsApp */}
@@ -1286,7 +1225,7 @@ export default function GuidedStepWizardPanel({
                     rows={2}
                     value={inlineCsvDraft}
                     onChange={(e) => setInlineCsvDraft(e.target.value)}
-                    placeholder={'RODRÍGUEZ, 10, L, Jugador, 1\nSANTOS, 1, XL, Portero, 1'}
+                    placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
                     className="w-full rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
                   />
                   <button
@@ -1466,36 +1405,43 @@ export default function GuidedStepWizardPanel({
                             onSelectDesignCut(dMeta.id);
                             onToast?.(`Diseño ${dMeta.name} aplicado`);
                           }}
-                          className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
+                          className={`p-2 rounded-2xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
                             isSel
                               ? 'border-2 border-emerald-600 bg-emerald-50/55 shadow-xs'
                               : 'border-slate-200 bg-white/90 hover:border-emerald-400'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-1 w-full">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
-                              {dMeta.category || 'Clásico'}
-                            </span>
-                            {isSel && (
-                              <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-                            )}
-                          </div>
-                          <div className="text-xs font-black text-slate-900 truncate w-full">
-                            {dMeta.name}
-                          </div>
-                          <div className="flex items-center justify-between gap-1 pt-0.5">
-                            <div className="flex items-center gap-1" aria-hidden="true">
-                              {zones.map((letter) => (
-                                <span
-                                  key={letter}
-                                  className="w-3 h-3 rounded-full border border-black/15"
-                                  style={{ backgroundColor: zoneLetterToHex(letter) }}
-                                />
-                              ))}
+                          <FishPatternThumb
+                            fileUrl={dMeta.fileUrl}
+                            colorZones={design.colorZones}
+                            className="w-10 h-12 rounded-lg"
+                          />
+                          <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                            <div className="flex items-center justify-between gap-1 w-full">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                                {dMeta.category || 'Clásico'}
+                              </span>
+                              {isSel && (
+                                <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+                              )}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              {zones.length}z
-                            </span>
+                            <div className="text-xs font-black text-slate-900 truncate w-full">
+                              {dMeta.name}
+                            </div>
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1" aria-hidden="true">
+                                {zones.map((letter) => (
+                                  <span
+                                    key={letter}
+                                    className="w-2.5 h-2.5 rounded-full border border-black/15"
+                                    style={{ backgroundColor: zoneLetterToHex(letter) }}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                {zones.length}z
+                              </span>
+                            </div>
                           </div>
                         </button>
                       );
@@ -1511,7 +1457,7 @@ export default function GuidedStepWizardPanel({
                         2. Forma de cuello
                       </span>
                       <span className="text-[10px] font-semibold text-slate-500">
-                        Ficha taller (visor en V)
+                        Especificación de taller (visor de referencia)
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -2237,8 +2183,13 @@ export default function GuidedStepWizardPanel({
                                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              #{r.number || '-'} {r.name || 'S/N'}
-                              {keeper ? ' · Port.' : ''}
+                              {[
+                                r.number ? `#${r.number}` : '',
+                                r.name || `Prenda ${rIdx + 1}`,
+                                keeper ? '· Port.' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
                             </button>
                           );
                         })}
@@ -2259,7 +2210,7 @@ export default function GuidedStepWizardPanel({
                         onChange={(e) =>
                           updateRosterPlayerField('name', e.target.value.toUpperCase(), 'playerNameBack')
                         }
-                        placeholder="Ej: RODRÍGUEZ"
+                        placeholder="Escribe nombre (opcional)"
                         className="w-full px-3 min-h-9 rounded-xl bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900"
                       />
                     </div>
