@@ -80,13 +80,9 @@ import {
   calculateStudioGrandTotal,
   computeOwayoAutoContrastHex,
   createDefaultDesignForProduct,
-  ROSTER_CUT_OPTIONS,
-  ROSTER_SIZE_OPTIONS,
-  GLOVE_SIZE_OPTIONS,
   GLOVE_PAIR_UNIT_PRICE,
   isGoalkeeperRole,
   sortRosterForDisplay,
-  parseRosterQuickLines,
 } from '../../engine/core/designStore';
 import { MEXICO_PRO_KITS } from '../../data/mexicoKitsData';
 import { UCL_PRO_KITS } from '../../data/uclKitsData';
@@ -108,6 +104,7 @@ import { preloadUclCrest } from '../../engine/compositor/uclKitsEngine';
 import { preloadSponsorLogo } from '../../engine/compositor/sponsorLogosEngine';
 import SocialMediaMockupModal from './SocialMediaMockupModal';
 import GuidedStepWizardPanel from './GuidedStepWizardPanel';
+import RosterWindowModal from './RosterWindowModal';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 
 const GUIDED_STEP_SHORT_LABELS = {
@@ -153,10 +150,6 @@ const ESSENTIAL_SPORT_COLORS = [
   { hex: '#7C3AED', name: 'Morado' },
   { hex: '#4C1D95', name: 'Púrpura Oscuro' },
 ];
-
-const CUT_OPTIONS = ROSTER_CUT_OPTIONS;
-
-const SIZE_OPTIONS = ROSTER_SIZE_OPTIONS;
 
 const PANEL_TO_CAMERA = {
   front: 'front',
@@ -356,7 +349,6 @@ export default function HybridStudioWorkspace({
   const [paletteFilterMode, setPaletteFilterMode] = useState('all');
   const [colorSearch, setColorSearch] = useState('');
   const [isDragOverUpload, setIsDragOverUpload] = useState(false);
-  const [csvQuickInput, setCsvQuickInput] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
   // Diálogos de la barra inferior Owayo (`Mis bocetos`, `Ejemplares`, `Revisión del diseño`)
@@ -1192,16 +1184,6 @@ export default function HybridStudioWorkspace({
       },
       true
     );
-  };
-
-  // --- Importador Rápido CSV para `Ejemplares` ---
-  const handleImportCsvRoster = () => {
-    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
-    const parsed = parseRosterQuickLines(csvQuickInput, defaultCut);
-    if (parsed.length === 0) return;
-    onUpdateRoster([...roster, ...parsed]);
-    setCsvQuickInput('');
-    showToast(`${parsed.length} filas importadas a Ejemplares`);
   };
 
   // --- Auditoría de Pre-Vuelo (`Revisión del diseño`) ---
@@ -4416,405 +4398,22 @@ export default function HybridStudioWorkspace({
       </div>
 
       {/* ==================== MODAL 1: VENTANA DEDICADA DE JUGADORES, PORTERO Y TALLAS ==================== */}
-      <LightDismissModal
+      <RosterWindowModal
+        mode="studio"
         isOpen={isRosterModalOpen}
         onClose={() => setIsRosterModalOpen(false)}
-        titleId="roster-modal-title"
-        subtitle={
-          isSoccerProduct
-            ? 'Ventana de Jugadores y Portero (Manga Larga 3D)'
-            : 'Ventana de Lista y Tallas'
-        }
-        title={
-          isSoccerProduct
-            ? `Lista de Jugadores y Portero (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`
-            : `Lista de Prendas (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`
-        }
-        maxWidthClass="max-w-2xl"
-      >
-        <div className="space-y-3.5">
-          {/* Resumen limpio + opción de guantes si hay portero en Fútbol */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 font-black tabular-nums-pro">
-                {isSoccerProduct ? `${rosterComposition.playerUnits} Jugadores` : `${totalUnits} Prendas`}
-              </span>
-              {isSoccerProduct && (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 font-black tabular-nums-pro">
-                  {rosterComposition.keeperUnits} Portero M.L.
-                </span>
-              )}
-              {isSoccerProduct && rosterComposition.glovePairs > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white font-black tabular-nums-pro">
-                  +{rosterComposition.glovePairs} Guantes
-                </span>
-              )}
-            </div>
-            <span className="text-xs font-black text-slate-900 tabular-nums-pro">
-              ${grandTotalPrice.toFixed(2)} USD
-            </span>
-          </div>
-
-          {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
-            <label className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-bold text-amber-950 cursor-pointer">
-              <span>Incluir Guantes 3D de Portero (+${GLOVE_PAIR_UNIT_PRICE} USD / par)</span>
-              <input
-                type="checkbox"
-                checked={includeGloves}
-                onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
-                className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
-              />
-            </label>
-          )}
-
-          {/* Lista minimalista en 1 sola hilera (Jugadores primero -> Portero al final) */}
-          <div className="space-y-1.5 max-h-[42dvh] overflow-y-auto pr-0.5">
-            <div className="flex items-center gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              <span className="w-20 shrink-0">Participante</span>
-              <span className="flex-1">Nombre en camisa</span>
-              <span className="w-[74px] shrink-0">Talla</span>
-              {isSoccerProduct && <span className="w-[92px] shrink-0 text-center">Rol</span>}
-              <span className="w-12 shrink-0 text-right">Vista</span>
-            </div>
-
-            {orderedRoster.map(({ row, origIdx, isKeeper, displayLabel }) => {
-              const isPreviewed = origIdx === activeRosterIndex;
-              return (
-                <div
-                  key={row.id || origIdx}
-                  className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${
-                    isKeeper
-                      ? 'bg-amber-50/75 border-amber-300'
-                      : isPreviewed
-                      ? 'bg-emerald-50/50 border-emerald-400'
-                      : 'bg-white border-slate-200'
-                  }`}
-                >
-                  <span
-                    className={`w-20 shrink-0 text-[11px] font-black truncate ${
-                      isKeeper ? 'text-[#C24100]' : 'text-slate-700'
-                    }`}
-                  >
-                    {displayLabel}
-                  </span>
-
-                  <input
-                    type="text"
-                    aria-label={`Nombre ${displayLabel}`}
-                    value={row.name || ''}
-                    onFocus={() => setActiveRosterIndex(origIdx)}
-                    onChange={(e) =>
-                      onUpdateRoster(
-                        roster.map((r, i) =>
-                          i === origIdx ? { ...r, name: e.target.value.toUpperCase() } : r
-                        )
-                      )
-                    }
-                    placeholder="En blanco"
-                    className="flex-1 min-w-0 px-2.5 h-9 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
-                  />
-
-                  <select
-                    aria-label={`Talla ${displayLabel}`}
-                    value={row.size || 'L'}
-                    onChange={(e) =>
-                      onUpdateRoster(
-                        roster.map((r, i) => (i === origIdx ? { ...r, size: e.target.value } : r))
-                      )
-                    }
-                    className="w-[74px] shrink-0 px-2 h-9 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900"
-                  >
-                    {SIZE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-
-                  {isSoccerProduct && (
-                    <div
-                      className="w-[92px] shrink-0 inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200"
-                      role="group"
-                      aria-label={`Rol ${displayLabel}`}
-                    >
-                      <button
-                        type="button"
-                        aria-pressed={!isKeeper}
-                        onClick={() => {
-                          onUpdateRoster(
-                            roster.map((r, i) => (i === origIdx ? { ...r, role: 'Jugador' } : r))
-                          );
-                          onSwitchKitRole?.('field');
-                          setActiveRosterIndex(origIdx);
-                        }}
-                        className={`flex-1 py-1.5 rounded-md text-[10px] font-bold cursor-pointer ${
-                          !isKeeper ? 'bg-[#111111] text-white' : 'text-slate-600'
-                        }`}
-                      >
-                        Jug.
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={isKeeper}
-                        onClick={() => {
-                          onUpdateRoster(
-                            roster.map((r, i) =>
-                              i === origIdx
-                                ? { ...r, role: 'Portero', gloveSize: r.gloveSize || '9' }
-                                : r
-                            )
-                          );
-                          onSwitchKitRole?.('goalkeeper');
-                          setActiveRosterIndex(origIdx);
-                        }}
-                        className={`flex-1 py-1.5 rounded-md text-[10px] font-bold cursor-pointer ${
-                          isKeeper ? 'bg-[#C24100] text-white' : 'text-slate-600'
-                        }`}
-                      >
-                        Port.
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="w-12 shrink-0 flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      title="Ver en visor 3D"
-                      aria-label={`Ver ${displayLabel} en 3D`}
-                      onClick={() => {
-                        setActiveRosterIndex(origIdx);
-                        if (isSoccerProduct) {
-                          onSwitchKitRole?.(isKeeper ? 'goalkeeper' : 'field');
-                        }
-                      }}
-                      className={`p-1.5 rounded-lg cursor-pointer ${
-                        isPreviewed
-                          ? 'bg-emerald-700 text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-                    </button>
-                    {roster.length > 1 && (
-                      <button
-                        type="button"
-                        aria-label={`Eliminar ${displayLabel}`}
-                        onClick={() => {
-                          const next = roster.filter((_, i) => i !== origIdx);
-                          onUpdateRoster(next);
-                          if (activeRosterIndex >= next.length) {
-                            setActiveRosterIndex(Math.max(0, next.length - 1));
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Botones directos para sumar Jugador o Portero Manga Larga */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const nextIdx = roster.length;
-                onUpdateRoster([
-                  ...roster,
-                  {
-                    id: `p_${Date.now()}`,
-                    name: '',
-                    number: '',
-                    size: 'L',
-                    cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
-                    qty: 1,
-                    role: 'Jugador',
-                  },
-                ]);
-                if (isSoccerProduct) onSwitchKitRole?.('field');
-                setActiveRosterIndex(nextIdx);
-              }}
-              className="px-3.5 min-h-10 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-              <span>{isSoccerProduct ? 'Añadir Jugador' : 'Añadir Integrante'}</span>
-            </button>
-
-            {isSoccerProduct && (
-              <button
-                type="button"
-                onClick={() => {
-                  const nextIdx = roster.length;
-                  onUpdateRoster([
-                    ...roster,
-                    {
-                      id: `pk_${Date.now()}`,
-                      name: '',
-                      number: '',
-                      size: 'L',
-                      cut: genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM',
-                      qty: 1,
-                      role: 'Portero',
-                      gloveSize: '9',
-                    },
-                  ]);
-                  onSwitchKitRole?.('goalkeeper');
-                  setActiveRosterIndex(nextIdx);
-                }}
-                className="px-3.5 min-h-10 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 text-[#C24100]" aria-hidden="true" />
-                <span>Añadir Portero (Manga Larga)</span>
-              </button>
-            )}
-          </div>
-
-          {/* Opciones avanzadas colapsadas (Nº dorsal, corte anatómico, cantidad o pegado Excel) */}
-          <details className="rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 group">
-            <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Opciones avanzadas (Nº dorsal, corte, cantidad o Excel)</span>
-              <ChevronDown
-                className="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180"
-                aria-hidden="true"
-              />
-            </summary>
-            <div className="mt-3 space-y-3">
-              <div className="roster-table-wrapper rounded-xl border border-slate-200 bg-white">
-                <table className="roster-data-table text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 text-[10px] uppercase border-b border-slate-200">
-                    <tr>
-                      <th className="p-2">Participante</th>
-                      <th className="p-2">Corte</th>
-                      <th className="p-2">Cant.</th>
-                      <th className="p-2">Nº Dorsal</th>
-                      {isSoccerProduct && includeGloves && <th className="p-2">Guante</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {orderedRoster.map(({ row, origIdx, isKeeper, displayLabel }) => (
-                      <tr key={row.id || origIdx}>
-                        <td className="p-2 font-bold text-slate-800">{displayLabel}</td>
-                        <td className="p-2">
-                          <select
-                            aria-label={`Corte ${displayLabel}`}
-                            value={row.cut}
-                            onChange={(e) =>
-                              onUpdateRoster(
-                                roster.map((r, i) => (i === origIdx ? { ...r, cut: e.target.value } : r))
-                              )
-                            }
-                            className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
-                          >
-                            {CUT_OPTIONS.map((c) => (
-                              <option key={c.value} value={c.value}>
-                                {c.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            aria-label={`Cantidad ${displayLabel}`}
-                            min="1"
-                            max="999"
-                            value={row.qty}
-                            onChange={(e) =>
-                              onUpdateRoster(
-                                roster.map((r, i) =>
-                                  i === origIdx ? { ...r, qty: Math.max(1, Number(e.target.value) || 1) } : r
-                                )
-                              )
-                            }
-                            className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-mono"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="text"
-                            aria-label={`Número dorsal ${displayLabel}`}
-                            maxLength={3}
-                            value={row.number || ''}
-                            onChange={(e) =>
-                              onUpdateRoster(
-                                roster.map((r, i) => (i === origIdx ? { ...r, number: e.target.value } : r))
-                              )
-                            }
-                            placeholder="10"
-                            className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900 font-black text-center"
-                          />
-                        </td>
-                        {isSoccerProduct && includeGloves && (
-                          <td className="p-2">
-                            {isKeeper ? (
-                              <select
-                                aria-label={`Talla guante ${displayLabel}`}
-                                value={row.gloveSize || '9'}
-                                onChange={(e) =>
-                                  onUpdateRoster(
-                                    roster.map((r, i) =>
-                                      i === origIdx ? { ...r, gloveSize: e.target.value } : r
-                                    )
-                                  )
-                                }
-                                className="bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 text-amber-950 font-bold"
-                              >
-                                {GLOVE_SIZE_OPTIONS.map((gs) => (
-                                  <option key={gs} value={gs}>
-                                    T{gs}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-700 block">
-                  Pegado rápido desde Excel / WhatsApp
-                </span>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <textarea
-                    rows={2}
-                    value={csvQuickInput}
-                    onChange={(e) => setCsvQuickInput(e.target.value)}
-                    placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
-                    className="flex-1 rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleImportCsvRoster}
-                    className="px-4 py-2 rounded-xl arza-btn-glass-green font-black text-xs shrink-0 cursor-pointer"
-                  >
-                    Importar Filas
-                  </button>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <button
-            type="button"
-            id="btn-confirm-roster-modal"
-            onClick={() => setIsRosterModalOpen(false)}
-            className="w-full min-h-11 rounded-xl arza-btn-glass-green text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-            <span>Confirmar Lista ({totalUnits} {totalUnits === 1 ? 'prenda' : 'prendas'})</span>
-          </button>
-        </div>
-      </LightDismissModal>
+        product={currentProduct}
+        genderModule={genderModule}
+        roster={roster}
+        onUpdateRoster={onUpdateRoster}
+        activeRosterIndex={activeRosterIndex}
+        onSelectRosterIndex={setActiveRosterIndex}
+        onSwitchKitRole={onSwitchKitRole}
+        includeGloves={includeGloves}
+        glovesUnitPrice={glovesUnitPrice}
+        onToggleIncludeGloves={onToggleIncludeGloves}
+        onToast={showToast}
+      />
 
       {/* ==================== MODAL 2: MIS BOCETOS GUARDADOS ==================== */}
       <LightDismissModal

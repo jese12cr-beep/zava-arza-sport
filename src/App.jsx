@@ -12,6 +12,7 @@ import SizeGuideModal from './components/SizeGuideModal';
 import StorefrontInfoModal from './components/StorefrontInfoModal';
 import OrderTrackingModal from './components/OrderTrackingModal';
 import UserDesignGalleryModal from './components/studio/UserDesignGalleryModal';
+import RosterWindowModal from './components/studio/RosterWindowModal';
 import { loadUserGallery } from './utils/userGalleryStore';
 import {
   extractDesignColorSpecs,
@@ -48,6 +49,7 @@ function createInitialKitSnapshot() {
 }
 
 export default function App() {
+  const [studioInitialStep, setStudioInitialStep] = useState(1);
   const [appMode, setAppMode] = useState(() => {
     if (typeof window !== 'undefined' && window.location.hash.startsWith('#studio')) {
       return 'studio';
@@ -71,6 +73,9 @@ export default function App() {
 
   const switchMode = useCallback((mode) => {
     setAppMode(mode);
+    if (mode === 'storefront') {
+      setStudioInitialStep(1);
+    }
     if (typeof window !== 'undefined') {
       window.location.hash = mode === 'studio' ? '#studio' : '';
       if (mode === 'studio') {
@@ -111,7 +116,7 @@ export default function App() {
   const [infoModalState, setInfoModalState] = useState({ open: false, topic: 'faq' });
   const [trackingState, setTrackingState] = useState({ open: false, folio: '' });
   const [isStorefrontGalleryOpen, setIsStorefrontGalleryOpen] = useState(false);
-  const [studioInitialStep, setStudioInitialStep] = useState(1);
+  const [isPreStudioRosterOpen, setIsPreStudioRosterOpen] = useState(false);
   const [catalogSport, setCatalogSport] = useState('all');
   const [catalogGender, setCatalogGender] = useState('all');
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -473,11 +478,7 @@ export default function App() {
     handleSwitchProduct('futbol_jersey_pro_vneck');
     handleSwitchKitRole('goalkeeper');
     setStudioInitialStep(1);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      window.location.hash = '#studio';
-    }
-    setAppMode('studio');
+    setIsPreStudioRosterOpen(true);
   }, [handleSwitchProduct, handleSwitchKitRole]);
 
   const handleFinishOrderToCheckout = () => {
@@ -525,14 +526,18 @@ export default function App() {
   const handleSelectCatalogProduct = (engineId) => {
     handleSwitchProduct(engineId);
     setStudioInitialStep(1);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
+    setIsPreStudioRosterOpen(true);
+  };
+
+  const handleConfirmPreStudioToDesign = useCallback(() => {
+    setIsPreStudioRosterOpen(false);
+    setStudioInitialStep(2);
     setAppMode('studio');
     if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
       window.location.hash = '#studio';
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
@@ -693,6 +698,21 @@ export default function App() {
         totalUnits={roster.length}
         totalPrice={34 * roster.length}
         onLoadDesignFromGallery={handleLoadDesignFromStorefrontGallery}
+      />
+
+      <RosterWindowModal
+        mode="pre_studio"
+        isOpen={isPreStudioRosterOpen}
+        onClose={() => setIsPreStudioRosterOpen(false)}
+        product={currentProduct}
+        genderModule={currentProduct?.gender === 'women' ? 'women' : 'men'}
+        roster={roster}
+        onUpdateRoster={setRoster}
+        onSwitchKitRole={handleSwitchKitRole}
+        includeGloves={includeGloves}
+        glovesUnitPrice={glovesDesign?.unitPrice}
+        onToggleIncludeGloves={handleToggleIncludeGloves}
+        onConfirmGoToDesign={handleConfirmPreStudioToDesign}
       />
     </div>
   );
