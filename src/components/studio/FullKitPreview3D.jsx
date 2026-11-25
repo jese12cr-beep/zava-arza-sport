@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Pause, Play } from 'lucide-react';
@@ -48,9 +48,17 @@ function computeTorsoWidthFromGroup(topGroup) {
   return fullBox.getSize(new THREE.Vector3()).x * 0.62;
 }
 
-export default function FullKitPreview3D({ item, artworkRegistry = {} }) {
+export default function FullKitPreview3D({
+  item,
+  artworkRegistry = {},
+  onRegisterCapture = null,
+}) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
+  const registerCaptureRef = useRef(onRegisterCapture);
+  useEffect(() => {
+    registerCaptureRef.current = onRegisterCapture;
+  }, [onRegisterCapture]);
 
   const playerUnits = Number(item?.playerUnits ?? 0);
   const keeperUnits = Number(item?.keeperUnits ?? 0);
@@ -105,15 +113,21 @@ export default function FullKitPreview3D({ item, artworkRegistry = {} }) {
     ? ENGINE_PRODUCTS.find((p) => p.id === activeBottomProductId) || null
     : null;
 
-  const activePlayer =
-    (item?.roster || []).find((r) =>
-      effectiveViewMode === 'goalkeeper' ? /portero|arquero/i.test(r.role || '') : !/portero|arquero/i.test(r.role || '')
-    ) ||
-    item?.roster?.[0] || {
-      name: item?.design?.playerName || '',
-      number: item?.design?.playerNumber || '',
-      size: 'L',
-    };
+  const activePlayer = useMemo(() => {
+    const matched = (item?.roster || []).find((r) =>
+      effectiveViewMode === 'goalkeeper'
+        ? /portero|arquero/i.test(r.role || '')
+        : !/portero|arquero/i.test(r.role || '')
+    );
+    return (
+      matched ||
+      item?.roster?.[0] || {
+        name: item?.design?.playerName || '',
+        number: item?.design?.playerNumber || '',
+        size: 'L',
+      }
+    );
+  }, [item?.roster, item?.design?.playerName, item?.design?.playerNumber, effectiveViewMode]);
 
   const handleSelectCameraPreset = (nextPreset) => {
     setCameraPreset(nextPreset);
@@ -194,6 +208,31 @@ export default function FullKitPreview3D({ item, artworkRegistry = {} }) {
     let isTransitioning = false;
     let disposed = false;
 
+    const captureKitSnapshot = () => {
+      if (!sceneRef.current?.renderer || !sceneRef.current?.scene || !sceneRef.current?.camera) {
+        return null;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      const rawCanvas = renderer.domElement;
+      const maxDim = 840;
+      const scale = Math.min(1, maxDim / Math.max(rawCanvas.width || 1, rawCanvas.height || 1));
+      const outW = Math.max(320, Math.round((rawCanvas.width || 640) * scale));
+      const outH = Math.max(320, Math.round((rawCanvas.height || 640) * scale));
+      const tmp = document.createElement('canvas');
+      tmp.width = outW;
+      tmp.height = outH;
+      const ctx = tmp.getContext('2d');
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.drawImage(rawCanvas, 0, 0, outW, outH);
+      try {
+        return tmp.toDataURL('image/jpeg', 0.88);
+      } catch {
+        return null;
+      }
+    };
+
     const stateObj = {
       scene,
       camera,
@@ -218,9 +257,15 @@ export default function FullKitPreview3D({ item, artworkRegistry = {} }) {
         controls.update();
         renderer.render(scene, camera);
       },
-      meshSummary: { topMeshNames: [], bottomMeshNames: [], ready: false },
+      meshSummary: {
+        topMeshNames: [],
+        bottomMeshNames: [],
+        ready: false,
+        captureSnapshot: captureKitSnapshot,
+      },
     };
     sceneRef.current = stateObj;
+    registerCaptureRef.current?.(captureKitSnapshot);
     if (typeof window !== 'undefined') {
       window.__ARZA_CHECKOUT_KIT_STATE__ = stateObj.meshSummary;
     }

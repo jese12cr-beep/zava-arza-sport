@@ -15,6 +15,7 @@ import {
   Download,
   MessageCircle,
   Package,
+  Printer,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import FullKitPreview3D from './studio/FullKitPreview3D';
@@ -22,10 +23,13 @@ import {
   ARZA_CONTACT,
   buildFactoryOrderSummaryText,
   buildWhatsAppUrl,
+  captureCanvasSnapshot,
   downloadFactoryOrderSheetHtml,
   formatCollarLabel,
   formatCutLabel,
   formatGloveCutLabel,
+  openPrintableFactorySheet,
+  renderFallbackKitThumbnail,
   saveConfirmedOrder,
 } from '../utils/orderHistoryStore';
 
@@ -204,6 +208,7 @@ export default function CartDrawer({
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [copiedKey, setCopiedKey] = useState('');
   const [previewItemIndex, setPreviewItemIndex] = useState(0);
+  const kitSnapshotRef = useRef(null);
 
   const uid = useId();
   const emailId = `${uid}-email`;
@@ -392,6 +397,20 @@ export default function CartDrawer({
         ? 'Apple Pay / Google Pay'
         : 'Mercado Pago Link';
 
+    const firstItem = items[0];
+    const capturedRenderUrl =
+      captureCanvasSnapshot(kitSnapshotRef) ||
+      renderFallbackKitThumbnail({
+        title: `Folio ${folio}`,
+        productName: firstItem?.product?.name || 'Equipación ARZA SPORT',
+        patternName: firstItem?.design?.pattern || 'Personalizado',
+        colors: [
+          firstItem?.design?.baseColor || '#111111',
+          firstItem?.design?.sleeveColor || '#fa5400',
+          firstItem?.design?.accentColor || '#ffffff',
+        ],
+      });
+
     const receiptRecord = saveConfirmedOrder({
       folio,
       createdAtLabel: new Date().toLocaleDateString('es-MX', {
@@ -415,6 +434,7 @@ export default function CartDrawer({
           ? `${installments} MSI de $${monthlyMsiAmount} USD`
           : 'Pago en una exhibición',
       speiClabe: paymentMethod === 'spei' ? SPEI_CLABE : null,
+      renderImageUrl: capturedRenderUrl,
       snapshotItems: items.map(
         ({
           topDesign: _td,
@@ -427,6 +447,7 @@ export default function CartDrawer({
     });
     setPaymentReceipt(receiptRecord);
     setIsSubmitting(false);
+    downloadFactoryOrderSheetHtml(receiptRecord);
 
     try {
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
@@ -482,7 +503,13 @@ export default function CartDrawer({
       >
         {showLiveShowcase && (
           <div className="shrink-0 h-[310px] sm:h-[360px] lg:h-full lg:col-span-6 border-b lg:border-b-0 lg:border-r border-slate-200/80 min-h-0">
-            <FullKitPreview3D item={previewItem} artworkRegistry={artworkRegistry} />
+            <FullKitPreview3D
+              item={previewItem}
+              artworkRegistry={artworkRegistry}
+              onRegisterCapture={(fn) => {
+                kitSnapshotRef.current = fn;
+              }}
+            />
           </div>
         )}
 
@@ -567,25 +594,80 @@ export default function CartDrawer({
 
               <div className="space-y-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Equipaciones confirmadas ({paymentReceipt.units} prendas)
+                  Ficha Técnica Generada (Render · RGB / Pantone · Tallas)
                 </span>
-                {paymentReceipt.snapshotItems.map((it, idx) => (
-                  <div
-                    key={it.cartId || idx}
-                    className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="font-bold text-slate-900 truncate">{it.product.name}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {getItemUnits(it)} {getItemUnits(it) === 1 ? 'prenda' : 'prendas'}
-                        {it.design?.pattern ? ` · Corte ${it.design.pattern}` : ''}
-                        {it.design?.playerNumber ? ` · #${it.design.playerNumber}` : ''}
-                        {it.design?.playerName ? ` ${it.design.playerName}` : ''}
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  {paymentReceipt.renderImageUrl && (
+                    <div className="rounded-xl bg-white border border-slate-200 p-2 flex items-center gap-3">
+                      <img
+                        src={paymentReceipt.renderImageUrl}
+                        alt={`Render 3D finalizado del pedido ${paymentReceipt.folio}`}
+                        className="w-24 h-28 object-contain rounded-lg bg-[#f8fafc] border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
+                          Fotografía del Render Incluida
+                        </span>
+                        <p className="text-xs font-bold text-slate-900">
+                          {paymentReceipt.snapshotItems?.[0]?.product?.name || 'Kit ARZA SPORT'}
+                        </p>
+                        {paymentReceipt.snapshotItems?.[0]?.sizeSummary && (
+                          <p className="text-[11px] text-slate-600 font-mono">
+                            Tallas: {paymentReceipt.snapshotItems[0].sizeSummary}
+                            {paymentReceipt.snapshotItems[0].gloveSizeSummary
+                              ? ` · Guantes ${paymentReceipt.snapshotItems[0].gloveSizeSummary}`
+                              : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <span className="font-black text-slate-900 shrink-0">${it.totalPrice} USD</span>
-                  </div>
-                ))}
+                  )}
+
+                  {(paymentReceipt.snapshotItems || []).map((it, idx) => {
+                    const zones = [
+                      ...(it.colorPalettes?.topZones || []),
+                      ...(it.colorPalettes?.bottomZones?.slice(0, 2) || []).map((z) => ({
+                        ...z,
+                        zone: `Short: ${z.zone}`,
+                      })),
+                      ...(it.colorPalettes?.goalkeeperZones?.slice(0, 2) || []).map((z) => ({
+                        ...z,
+                        zone: `Portero: ${z.zone}`,
+                      })),
+                    ];
+                    return (
+                      <div key={it.cartId || idx} className="space-y-2">
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <span className="font-bold text-slate-900 truncate pr-2">{it.product.name}</span>
+                          <span className="font-black text-slate-900 shrink-0">${it.totalPrice} USD</span>
+                        </div>
+                        {zones.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {zones.map((c, cIdx) => (
+                              <div
+                                key={`${c.zone}-${cIdx}`}
+                                className="flex items-center gap-2 p-1.5 rounded-lg bg-white border border-slate-200 text-[10px]"
+                              >
+                                <span
+                                  className="w-5 h-5 rounded border border-slate-300 shrink-0"
+                                  style={{ backgroundColor: c.hex }}
+                                />
+                                <div className="min-w-0 leading-tight">
+                                  <div className="font-bold text-slate-900 truncate">
+                                    {c.zone} · {c.pantone}
+                                  </div>
+                                  <div className="font-mono text-slate-500 truncate">
+                                    {c.rgb} · {c.hex}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2 pt-2">
@@ -596,39 +678,47 @@ export default function CartDrawer({
                     className="min-h-11 px-3 rounded-xl arza-btn-glass-green text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Download className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    <span>Ficha Fábrica</span>
+                    <span>Descargar Ficha Técnica</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => openPrintableFactorySheet(paymentReceipt)}
+                    className="min-h-11 px-3 rounded-xl border border-slate-900 bg-white hover:bg-slate-50 text-xs font-bold text-slate-900 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-slate-700 shrink-0" aria-hidden="true" />
+                    <span>Imprimir / PDF</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <a
                     href={buildWhatsAppUrl(buildFactoryOrderSummaryText(paymentReceipt))}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-11 px-3 rounded-xl border border-slate-900 bg-white hover:bg-slate-50 text-xs font-bold text-slate-900 inline-flex items-center justify-center gap-1.5"
+                    className="min-h-10 px-3 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 inline-flex items-center justify-center gap-1.5"
                   >
                     <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
                     <span>Enviar WhatsApp</span>
                   </a>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={onOpenQuoteModal}
                     className="min-h-10 px-3 rounded-xl arza-glass-card hover:bg-white text-xs font-bold text-slate-800 inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <FileText className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                    <span>Cotización PDF</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentReceipt(null);
-                      onClearCart?.();
-                      onClose();
-                    }}
-                    className="min-h-10 px-4 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Nuevo Pedido
+                    <span>Cotización</span>
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentReceipt(null);
+                    onClearCart?.();
+                    onClose();
+                  }}
+                  className="w-full min-h-10 px-4 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                >
+                  Nuevo Pedido
+                </button>
               </div>
             </div>
           ) : items.length === 0 ? (

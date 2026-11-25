@@ -13,7 +13,11 @@ import StorefrontInfoModal from './components/StorefrontInfoModal';
 import OrderTrackingModal from './components/OrderTrackingModal';
 import UserDesignGalleryModal from './components/studio/UserDesignGalleryModal';
 import { loadUserGallery } from './utils/userGalleryStore';
-import { loadOrderHistory } from './utils/orderHistoryStore';
+import {
+  extractDesignColorSpecs,
+  formatGloveCutLabel,
+  loadOrderHistory,
+} from './utils/orderHistoryStore';
 import { buildShopifyAndManufacturingBundle } from './engine/exporter/printReadyBuilder';
 import {
   ENGINE_PRODUCTS,
@@ -380,12 +384,34 @@ export default function App() {
       };
       const kitVisuals = resolveCheckoutKitVisuals();
 
+      const topProdInfo =
+        ENGINE_PRODUCTS.find((p) => p.id === kitVisuals.topProductId) || targetProd;
+      const botProdInfo = kitVisuals.bottomProductId
+        ? ENGINE_PRODUCTS.find((p) => p.id === kitVisuals.bottomProductId) || null
+        : null;
+
       return {
         cartId: existingCartId || `item_${Date.now()}`,
         designId: fieldDesign.designId,
         ...kitVisuals,
         goalkeeperFullDesign: comp.keeperUnits > 0 ? goalkeeperDesign : null,
         glovesFullDesign: comp.glovePairs > 0 ? glovesDesign : null,
+        sizeSummary: comp.bySizeLabel,
+        gloveSizeSummary: comp.byGloveSizeLabel,
+        colorPalettes: {
+          topTitle: topProdInfo.name,
+          topZones: extractDesignColorSpecs(kitVisuals.topDesign),
+          bottomTitle: botProdInfo?.name || null,
+          bottomZones: kitVisuals.bottomDesign ? extractDesignColorSpecs(kitVisuals.bottomDesign) : [],
+          goalkeeperTitle: comp.keeperUnits > 0 ? 'Portero Manga Larga' : null,
+          goalkeeperZones: comp.keeperUnits > 0 ? extractDesignColorSpecs(goalkeeperDesign) : [],
+          glovesTitle:
+            comp.glovePairs > 0
+              ? `Guantes Pro 3D (${formatGloveCutLabel(glovesDesign.gloveCut)})`
+              : null,
+          glovesZones:
+            comp.glovePairs > 0 ? extractDesignColorSpecs(glovesDesign, true) : [],
+        },
         product: {
           id: targetProd.id,
           name: targetProd.name,

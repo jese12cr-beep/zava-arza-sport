@@ -187,14 +187,28 @@ export default function OrderTrackingModal({ isOpen, onClose, initialFolio = '' 
                   ))}
                 </ol>
 
-                {/* Prendas */}
+                {/* Prendas + Miniatura Render */}
                 <div className="space-y-2 text-xs">
+                  {order.renderImageUrl && (
+                    <div className="p-2.5 bg-[#F8FAFC] border border-[#E5E5E5] flex items-center gap-3">
+                      <img
+                        src={order.renderImageUrl}
+                        alt={`Render 3D ${order.folio}`}
+                        className="w-16 h-20 object-contain bg-white border border-[#E5E5E5] shrink-0"
+                      />
+                      <div className="text-[11px] text-[#52525B]">
+                        <strong className="text-[#111111] block">Render 3D + Paleta RGB / Pantone® adjuntos</strong>
+                        Listo para descargar o imprimir en la ficha técnica de fábrica.
+                      </div>
+                    </div>
+                  )}
                   {(order.snapshotItems || []).map((it, i) => (
                     <div key={i} className="p-3 bg-[#F5F5F5] flex flex-wrap justify-between gap-2">
                       <div>
                         <strong className="text-[#111111]">{it.product?.name}</strong>
                         <span className="text-[#707072] block">
                           Corte: {it.design?.pattern} · {it.totalUnits || 1} uds
+                          {it.sizeSummary ? ` · ${it.sizeSummary}` : ''}
                           {it.roster?.[0]?.cut ? ` · ${formatCutLabel(it.roster[0].cut)}` : ''}
                         </span>
                       </div>
@@ -210,7 +224,7 @@ export default function OrderTrackingModal({ isOpen, onClose, initialFolio = '' 
                     className="px-4 min-h-9 rounded-full bg-[#111111] hover:bg-[#3f3f46] text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>Descargar Ficha para Fábrica</span>
+                    <span>Descargar Ficha Técnica</span>
                   </button>
                   <button
                     type="button"
