@@ -926,6 +926,44 @@ export function isGoalkeeperRole(role = '') {
   return /portero|arquero|keeper|\bgk\b/i.test(String(role || ''));
 }
 
+/**
+ * Ordena la lista para visualización: siempre Jugadores primero (`Jugador 1, 2...` o nombre ingresado)
+ * y Portero(s) al final (`Portero` o `Portero · NOMBRE`).
+ */
+export function sortRosterForDisplay(roster = [], isSoccer = true) {
+  const fields = [];
+  const keepers = [];
+
+  (roster || []).forEach((row, origIdx) => {
+    const isKeeper = Boolean(isSoccer && isGoalkeeperRole(row?.role));
+    if (isKeeper) {
+      keepers.push({ row, origIdx, isKeeper: true });
+    } else {
+      fields.push({ row, origIdx, isKeeper: false });
+    }
+  });
+
+  const fieldEntries = fields.map((item, idx) => {
+    const customName = String(item.row?.name || '').trim();
+    const prefix = isSoccer ? 'Jugador' : 'Prenda';
+    return {
+      ...item,
+      displayLabel: customName ? `${idx + 1}. ${customName}` : `${prefix} ${idx + 1}`,
+    };
+  });
+
+  const keeperEntries = keepers.map((item, idx) => {
+    const customName = String(item.row?.name || '').trim();
+    const base = keepers.length > 1 ? `Portero ${idx + 1}` : 'Portero';
+    return {
+      ...item,
+      displayLabel: customName ? `${base} · ${customName}` : base,
+    };
+  });
+
+  return [...fieldEntries, ...keeperEntries];
+}
+
 export function summarizeRosterComposition(roster = [], includeGloves = true) {
   let totalUnits = 0;
   let keeperUnits = 0;

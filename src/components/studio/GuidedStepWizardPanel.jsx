@@ -3,16 +3,18 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Eye,
   FolderHeart,
   Layers,
+  Lock,
   Plus,
   RefreshCw,
   Shield,
+  ShieldCheck,
   Trash2,
   Type,
   Upload,
   Users,
+  X,
 } from 'lucide-react';
 import ArzaLogo from '../brand/ArzaLogo';
 import FabricSwatchThumb from '../brand/FabricSwatchThumb';
@@ -23,9 +25,6 @@ import {
   COLOR_HARMONY_SUGGESTIONS,
   ENGINE_PRODUCTS,
   FABRIC_WEAVES,
-  ROSTER_CUT_OPTIONS,
-  ROSTER_SIZE_OPTIONS,
-  GLOVE_SIZE_OPTIONS,
   GLOVE_CUT_STYLES,
   GLOVE_PAIR_UNIT_PRICE,
   SPORT_FONTS,
@@ -34,8 +33,7 @@ import {
   ZONE_SURFACE_PATTERNS,
   calculateStudioGrandTotal,
   computeOwayoAutoContrastHex,
-  isGoalkeeperRole,
-  parseRosterQuickLines,
+  sortRosterForDisplay,
 } from '../../engine/core/designStore';
 import { getPartSpec } from '../../engine/core/boundingBoxMath';
 
@@ -51,26 +49,26 @@ const WIZARD_STEPS = [
   {
     step: 1,
     shortLabel: 'Uniforme',
-    title: 'Paso 1 de 4 · Uniforme, Portero y Nombres',
-    subtitle: 'Elige tu prenda, marca quién es portero y arma la lista para definir la cantidad.',
+    title: 'Paso 1 · Prenda y Jugadores',
+    subtitle: 'Elige la prenda y abre la ventana para tu lista de jugadores y portero.',
   },
   {
     step: 2,
     shortLabel: 'Diseño',
-    title: 'Paso 2 de 4 · Diseño, Tela y Forma',
-    subtitle: 'Escoge el corte gráfico, textura de tela técnica y forma de cuello.',
+    title: 'Paso 2 · Elegir Diseño',
+    subtitle: 'Escoge el corte gráfico y el estilo de cuello de tu equipación.',
   },
   {
     step: 3,
     shortLabel: 'Colores',
-    title: 'Paso 3 de 4 · Colores del Uniforme',
-    subtitle: 'Aplica una paleta ARZA o ajusta cada zona.',
+    title: 'Paso 3 · Elegir Colores',
+    subtitle: 'Aplica una combinación o ajusta cada zona del uniforme.',
   },
   {
     step: 4,
     shortLabel: 'Pedido',
-    title: 'Paso 4 de 4 · Logos, Dorsales y Pedido',
-    subtitle: 'Agrega escudos, personaliza la tipografía dorsal y confirma tu pedido.',
+    title: 'Paso 4 · Logos y Confirmar',
+    subtitle: 'Sube escudos, ajusta nombre/número y finaliza tu compra.',
   },
 ];
 
@@ -154,7 +152,7 @@ export default function GuidedStepWizardPanel({
   rosterComposition: propRosterComp,
   totalUnits,
   unitPrice,
-  totalPrice,
+  totalPrice: _totalPrice,
   glovesTotal = 0,
   grandTotalPrice,
   currentTierLabel,
@@ -175,12 +173,13 @@ export default function GuidedStepWizardPanel({
   const [sportFilter, setSportFilter] = useState('all');
   const [showAllGenders, setShowAllGenders] = useState(false);
   const [customTextDraft, setCustomTextDraft] = useState('');
-  const [inlineCsvDraft, setInlineCsvDraft] = useState('');
   const [isDragOverUpload, setIsDragOverUpload] = useState(false);
+  const [pendingStepConfirm, setPendingStepConfirm] = useState(null);
 
   const stepHeadingRef = useRef(null);
   const didUserSwitchStepRef = useRef(false);
   const localFileInputRef = useRef(null);
+  const confirmDialogRef = useRef(null);
 
   const logoInputId = useId();
   const customColorId = useId();
@@ -188,11 +187,10 @@ export default function GuidedStepWizardPanel({
   const sampleNameId = useId();
   const sampleNumberId = useId();
   const customTextInputId = useId();
-  const rosterFieldsetBaseId = useId();
-  const quickCsvId = useId();
   const glovesToggleId = useId();
   const gloveCrestToggleId = useId();
   const gloveStrapNameToggleId = useId();
+  const confirmTitleId = useId();
   const isSoccerProduct = !currentProduct || currentProduct.sport === 'Fútbol';
   const isEditingGloves = isSoccerProduct && activeKitRole === 'gloves';
   const isEditingKeeper = isSoccerProduct && activeKitRole === 'goalkeeper';
@@ -233,15 +231,40 @@ export default function GuidedStepWizardPanel({
     }
   }, [wizardStep]);
 
-  const navigateToStep = (nextStep) => {
+  const requestStepTransition = (nextStep) => {
     const clamped = Math.max(1, Math.min(4, nextStep));
     if (clamped === wizardStep) return;
+    setPendingStepConfirm({
+      targetStep: clamped,
+      direction: clamped > wizardStep ? 'next' : 'back',
+    });
+  };
+
+  const executeConfirmedStepTransition = () => {
+    if (!pendingStepConfirm) return;
+    const clamped = pendingStepConfirm.targetStep;
+    setPendingStepConfirm(null);
     didUserSwitchStepRef.current = true;
     onStepChange(clamped);
     if (!isAccessory) {
       onCameraFocus?.(clamped === 4 ? 'front' : 'three_quarter');
     }
   };
+
+  useEffect(() => {
+    const dlg = confirmDialogRef.current;
+    if (!dlg) return;
+    if (pendingStepConfirm) {
+      if (!dlg.open) dlg.showModal();
+    } else if (dlg.open) {
+      dlg.close();
+    }
+    const handleNativeClose = () => {
+      setPendingStepConfirm(null);
+    };
+    dlg.addEventListener('close', handleNativeClose);
+    return () => dlg.removeEventListener('close', handleNativeClose);
+  }, [pendingStepConfirm]);
 
   const handleToggleGender = (targetGender) => {
     if (targetGender === 'all') {
@@ -613,73 +636,11 @@ export default function GuidedStepWizardPanel({
     () => (isSoccerProduct && propRosterComp ? propRosterComp : unifiedTotals),
     [isSoccerProduct, propRosterComp, unifiedTotals]
   );
+  const orderedRoster = useMemo(
+    () => sortRosterForDisplay(roster, isSoccerProduct),
+    [roster, isSoccerProduct]
+  );
   const rosterSizeSummary = rosterComposition.bySizeLabel;
-
-  const updateRowAt = (idx, patch) => {
-    onUpdateRoster(
-      roster.map((row, i) => {
-        if (i !== idx) return row;
-        const merged = { ...row, ...patch };
-        if (isGoalkeeperRole(merged.role) && !merged.gloveSize) {
-          merged.gloveSize = '9';
-        }
-        return merged;
-      })
-    );
-    if (isSoccerProduct && 'role' in patch) {
-      if (isGoalkeeperRole(patch.role)) {
-        onSwitchKitRole?.('goalkeeper');
-        onSelectRosterIndex?.(idx);
-        onToast?.('Vista 3D cambiada a Portero Manga Larga');
-      } else if (activeRosterIndex === idx) {
-        onSwitchKitRole?.('field');
-      }
-    }
-  };
-
-  const handleAddRosterRow = (role = 'Jugador') => {
-    const keeper = isSoccerProduct && isGoalkeeperRole(role);
-    const nextIdx = roster.length;
-    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
-    const nextRow = {
-      id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      name: '',
-      number: '',
-      size: 'L',
-      cut: defaultCut,
-      qty: 1,
-      role: keeper ? 'Portero' : 'Jugador',
-      gloveSize: keeper ? '9' : undefined,
-    };
-    onUpdateRoster([...roster, nextRow]);
-    if (keeper) {
-      onSwitchKitRole?.('goalkeeper');
-      onSelectRosterIndex?.(nextIdx);
-      onToast?.('Portero (Manga Larga 3D) añadido a la lista');
-    } else {
-      if (isSoccerProduct) onSwitchKitRole?.('field');
-      onSelectRosterIndex?.(nextIdx);
-      onToast?.(isSoccerProduct ? 'Jugador añadido a la lista' : 'Prenda añadida a la lista');
-    }
-  };
-
-  const handleRemoveRosterRow = (idx) => {
-    if (roster.length <= 1) return;
-    const next = roster.filter((_, i) => i !== idx);
-    onUpdateRoster(next);
-    if (activeRosterIndex >= next.length) {
-      onSelectRosterIndex?.(Math.max(0, next.length - 1));
-    }
-  };
-
-  const handleInlineCsvImport = () => {
-    const defaultCut = genderModule === 'women' ? 'WOMEN_FIT' : 'MEN_PRO_SLIM';
-    const parsed = parseRosterQuickLines(inlineCsvDraft, defaultCut);
-    if (parsed.length === 0) return;
-    onUpdateRoster([...roster, ...parsed]);
-    setInlineCsvDraft('');
-    onToast?.(`${parsed.length} filas agregadas a la lista del pedido`);
-  };
 
   const activeDorsalSlot = isShorts
     ? design.variableSlots?.playerNumberShorts
@@ -697,26 +658,11 @@ export default function GuidedStepWizardPanel({
 
   const renderKitRoleBanner = () =>
     isSoccerProduct ? (
-      <div className="p-2.5 rounded-2xl bg-slate-900/5 border border-slate-200 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
-            Pieza del Equipo Activa
-          </span>
-          {isEditingKeeper && (
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300">
-              Manga Larga Fija
-            </span>
-          )}
-          {isEditingGloves && (
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
-              Guantes 3D · ${GLOVE_PAIR_UNIT_PRICE} c/par
-            </span>
-          )}
-        </div>
+      <div className="flex items-center justify-between gap-2 p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80">
         <div
           role="group"
           aria-label="Cambiar prenda activa entre Campo, Portero Manga Larga y Guantes 3D"
-          className="grid grid-cols-3 gap-1"
+          className="grid grid-cols-3 gap-1 w-full"
         >
           {[
             { id: 'field', label: 'Campo' },
@@ -730,10 +676,10 @@ export default function GuidedStepWizardPanel({
                 type="button"
                 aria-pressed={active}
                 onClick={() => onSwitchKitRole?.(item.id)}
-                className={`min-h-9 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer border ${
+                className={`min-h-8 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
                   active
                     ? 'arza-btn-glass-green shadow-2xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    : 'text-slate-700 hover:bg-white/80'
                 }`}
               >
                 {item.label}
@@ -747,19 +693,20 @@ export default function GuidedStepWizardPanel({
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Navegación Progresiva en 4 Pasos */}
-      <div className="shrink-0 px-3.5 sm:px-4 pt-3 pb-2.5 border-b border-slate-200/75 bg-white/50 backdrop-blur-md space-y-2.5">
+      <div className="shrink-0 px-3.5 sm:px-4 pt-2.5 pb-2 border-b border-slate-200/75 bg-white/55 backdrop-blur-md space-y-2">
         <nav aria-label="Pasos de personalización">
           <ol className="grid grid-cols-4 gap-1.5" role="list">
             {WIZARD_STEPS.map((s) => {
               const isActive = s.step === wizardStep;
               const isCompleted = s.step < wizardStep;
+              const isAhead = s.step > wizardStep;
               return (
                 <li key={s.step}>
                   <button
                     type="button"
                     aria-current={isActive ? 'step' : undefined}
-                    onClick={() => navigateToStep(s.step)}
-                    className={`w-full min-h-10 px-1.5 py-1.5 rounded-xl text-[11px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer border ${
+                    onClick={() => requestStepTransition(s.step)}
+                    className={`w-full min-h-9 px-1.5 py-1 rounded-xl text-[11px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer border ${
                       isActive
                         ? 'arza-btn-glass-green font-black shadow-xs'
                         : isCompleted
@@ -770,6 +717,8 @@ export default function GuidedStepWizardPanel({
                     <span className="inline-flex items-center gap-1 leading-none">
                       {isCompleted ? (
                         <Check className="w-3 h-3 shrink-0" aria-hidden="true" />
+                      ) : isAhead ? (
+                        <Lock className="w-2.5 h-2.5 text-slate-400 shrink-0" aria-hidden="true" />
                       ) : (
                         <span className="font-mono text-[10px]">{s.step}</span>
                       )}
@@ -783,7 +732,7 @@ export default function GuidedStepWizardPanel({
           </ol>
         </nav>
 
-        <div className="pt-0.5">
+        <div>
           <h2
             ref={stepHeadingRef}
             tabIndex={-1}
@@ -798,21 +747,18 @@ export default function GuidedStepWizardPanel({
       </div>
 
       {/* Contenido Exclusivo del Paso Activo */}
-      <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-4">
-        {/* ==================== PASO 1: MODELO Y CORTE ==================== */}
+      <div className="flex-1 overflow-y-auto p-3 sm:p-3.5 space-y-3">
+        {/* ==================== PASO 1: PRENDA Y JUGADORES ==================== */}
         {wizardStep === 1 && (
-          <div className="space-y-4">
-            {/* 1A: Corte Anatómico (Caballero / Dama / Todos) */}
-            <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2">
-              <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-700 px-1">
-                1. Corte anatómico
-              </legend>
-              <div className="grid grid-cols-3 gap-1.5">
+          <div className="space-y-3">
+            {/* 1A: Filtros compactos (Corte + Deporte en 1 tarjeta limpia) */}
+            <div className="p-2.5 rounded-2xl arza-glass-card space-y-2">
+              <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Corte anatómico">
                 <button
                   type="button"
                   aria-pressed={!showAllGenders && genderModule === 'men'}
                   onClick={() => handleToggleGender('men')}
-                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                  className={`min-h-8 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center justify-center ${
                     !showAllGenders && genderModule === 'men'
                       ? 'arza-btn-glass-green'
                       : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -824,7 +770,7 @@ export default function GuidedStepWizardPanel({
                   type="button"
                   aria-pressed={!showAllGenders && genderModule === 'women'}
                   onClick={() => handleToggleGender('women')}
-                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                  className={`min-h-8 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center justify-center ${
                     !showAllGenders && genderModule === 'women'
                       ? 'arza-btn-glass-green'
                       : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -836,7 +782,7 @@ export default function GuidedStepWizardPanel({
                   type="button"
                   aria-pressed={showAllGenders}
                   onClick={() => handleToggleGender('all')}
-                  className={`min-h-10 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                  className={`min-h-8 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center justify-center ${
                     showAllGenders
                       ? 'arza-btn-glass-green'
                       : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -845,14 +791,8 @@ export default function GuidedStepWizardPanel({
                   <span>Todos ({ACTIVE_APPAREL_PRODUCTS.length})</span>
                 </button>
               </div>
-            </fieldset>
 
-            {/* 1B: Deporte o Categoría sin recortes */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
-                2. Deporte o categoría
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-200/70">
                 {SPORT_FILTER_PILLS.map((sp) => {
                   const active = sportFilter === sp.id;
                   const count = sportCounts[sp.id] || 0;
@@ -862,7 +802,7 @@ export default function GuidedStepWizardPanel({
                       type="button"
                       aria-pressed={active}
                       onClick={() => setSportFilter(sp.id)}
-                      className={`px-3 min-h-8 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
+                      className={`px-2.5 min-h-7 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
                         active
                           ? 'bg-[#111111] text-white border-[#111111]'
                           : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -882,392 +822,208 @@ export default function GuidedStepWizardPanel({
               </div>
             </div>
 
-            {/* 1C: Tarjeta Resumen del Modelo Activo + Kit Emparejado */}
-            {currentProduct && (
-              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
-                <div className="flex items-center gap-3">
-                  <ProductThumb product={currentProduct} className="w-14 h-14 rounded-xl" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-700 text-white">
-                        En visor
-                      </span>
-                      <span className="text-[10px] font-mono font-bold text-emerald-900">
-                        {currentProduct.owayoCutCode}
-                      </span>
-                      <span className="text-[10px] font-semibold text-emerald-800">
-                        · {activeProductMedia.fabricSummary}
-                      </span>
-                    </div>
-                    <div className="text-xs font-black text-slate-900 truncate mt-0.5">
-                      {currentProduct.name}
-                    </div>
-                    <div className="text-[10px] text-slate-600 flex items-center gap-2 mt-0.5">
-                      <strong className="text-slate-900 tabular-nums-pro">
-                        ${currentProduct.basePrice.toFixed(2)} USD
-                      </strong>
-                      <span>·</span>
-                      <span className="text-emerald-800 font-bold tabular-nums-pro">
-                        ${activeClubMinPrice.toFixed(2)} USD en 25+ uds (-{maxClubDiscountPct}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {pairedProduct && (
-                  <div className="pt-2 border-t border-emerald-200/80 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-emerald-950 truncate">
-                      Kit compatible: {pairedProduct.shortName}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSyncPairedColors?.();
-                        onSwitchProduct(pairedProduct.id);
-                        onToast?.(`Cambiado a ${pairedProduct.shortName} con colores sincronizados`);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-bold shrink-0 cursor-pointer transition-colors"
-                    >
-                      Cambiar a {pairedProduct.shortName}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 1D: Lista Visual de Prendas */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
+            {/* 1B: Selector compacto de prenda */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-0.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  3. Selecciona tu prenda ({step1Products.length})
+                  Prenda ({step1Products.length})
                 </span>
-                <span className="text-[10px] font-mono text-emerald-700 font-bold">
-                  Vista en vivo
+                <span className="text-[10px] font-mono text-emerald-700 font-bold truncate max-w-[190px]">
+                  {currentProduct?.shortName} · ${activeClubMinPrice.toFixed(2)}+
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5 max-h-[195px] overflow-y-auto pr-0.5">
                 {step1Products.map((prod) => {
                   const isSel = prod.id === design.productModelId;
                   const media = getProductMedia(prod.id);
                   const clubPrice = +(prod.basePrice * (1 - maxClubDiscountPct / 100)).toFixed(2);
                   return (
-                    <button
+                    <div
                       key={prod.id}
-                      type="button"
-                      aria-pressed={isSel}
-                      onClick={() => {
-                        onSwitchProduct(prod.id);
-                        onToast?.(`${prod.shortName || prod.name} cargado`);
-                      }}
-                      className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
+                      className={`rounded-2xl transition-all border ${
                         isSel
-                          ? 'border-2 border-emerald-600 bg-emerald-50/55 shadow-xs'
+                          ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs'
                           : 'bg-white/90 border-slate-200 hover:border-emerald-400'
                       }`}
                     >
-                      <ProductThumb product={prod} className="w-14 h-14 rounded-xl" />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            {prod.sport}
-                          </span>
-                          <span className="text-[10px] text-slate-300" aria-hidden="true">
-                            ·
-                          </span>
-                          <span className="text-[10px] font-semibold text-slate-600">
-                            {media.fitLabel}
-                          </span>
-                          {isSel && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                              <Check className="w-3 h-3" aria-hidden="true" />
-                              <span>Activo</span>
+                      <button
+                        type="button"
+                        aria-pressed={isSel}
+                        onClick={() => {
+                          onSwitchProduct(prod.id);
+                          onToast?.(`${prod.shortName || prod.name} cargado`);
+                        }}
+                        className="w-full p-2 text-left cursor-pointer flex items-center gap-2.5"
+                      >
+                        <ProductThumb product={prod} className="w-11 h-11 rounded-xl shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              {prod.sport} · {media.fitLabel}
                             </span>
-                          )}
+                            {isSel && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                                <Check className="w-2.5 h-2.5" aria-hidden="true" />
+                                <span>Activo</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs font-black text-slate-900 leading-snug truncate">
+                            {prod.name}
+                          </div>
                         </div>
-
-                        <div className="text-xs font-black text-slate-900 leading-snug truncate mt-0.5">
-                          {prod.name}
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-black text-slate-900 tabular-nums-pro">
+                            ${prod.basePrice.toFixed(2)}
+                          </div>
+                          <div className="text-[9px] font-bold text-emerald-700 tabular-nums-pro">
+                            -${maxClubDiscountPct}%: ${clubPrice.toFixed(2)}
+                          </div>
                         </div>
+                      </button>
 
-                        <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                          <span className="font-mono">{prod.owayoCutCode}</span> · {prod.badge}
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="text-xs font-black text-slate-900 tabular-nums-pro">
-                          ${prod.basePrice.toFixed(2)}
-                        </div>
-                        <div className="text-[9px] font-bold text-emerald-700 tabular-nums-pro">
-                          -${maxClubDiscountPct}%: ${clubPrice.toFixed(2)}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 1E: Lista Compacta de Camisas (1 hilera limpia: Nombre y Talla + Jugador / Portero Manga Larga) */}
-            <fieldset className="p-3 rounded-2xl arza-glass-card space-y-2.5 border border-emerald-200/80">
-              <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-800 px-1">
-                {isSoccerProduct
-                  ? `4. Lista de camisas, portero y tallas (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`
-                  : `4. Lista de nombres y tallas (${totalUnits} ${totalUnits === 1 ? 'prenda' : 'prendas'})`}
-              </legend>
-
-              {/* Resumen Jugadores vs Portero Manga Larga vs Guantes 3D + Tarifa */}
-              <div className="space-y-2 pb-2 border-b border-slate-200/70">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro">
-                      {isSoccerProduct ? `${rosterComposition.playerUnits} Campo` : `${totalUnits} Piezas`}
-                    </span>
-                    {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-black tabular-nums-pro">
-                        {rosterComposition.keeperUnits} Portero Manga Larga
-                      </span>
-                    )}
-                    {isSoccerProduct && rosterComposition.glovePairs > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black tabular-nums-pro">
-                        +{rosterComposition.glovePairs} Par Guantes
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-600 tabular-nums-pro">
-                    {currentTierLabel} · ${unitPrice.toFixed(2)} c/u
-                  </span>
-                </div>
-
-                {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
-                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-amber-50/75 border border-amber-200">
-                    <label
-                      htmlFor={glovesToggleId}
-                      className="text-[11px] font-bold text-amber-950 cursor-pointer select-none flex-1"
-                    >
-                      Incluir Guantes 3D de Portero (${GLOVE_PAIR_UNIT_PRICE} USD / par)
-                    </label>
-                    <input
-                      id={glovesToggleId}
-                      type="checkbox"
-                      checked={includeGloves}
-                      onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
-                      className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Encabezado limpio de 1 sola hilera */}
-              <div className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <span className="w-4 shrink-0">#</span>
-                <span className="flex-1 min-w-0">Nombre en camisa</span>
-                <span className="w-[66px] shrink-0">Talla</span>
-                {isSoccerProduct && <span className="w-[84px] shrink-0 text-center">Rol</span>}
-                {roster.length > 1 && <span className="w-6 shrink-0" />}
-              </div>
-
-              {/* Hileras compactas: una sola fila horizontal con Nombre, Talla y Rol */}
-              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-0.5">
-                {roster.map((row, idx) => {
-                  const isKeeper = isSoccerProduct && isGoalkeeperRole(row.role);
-                  const isPreviewed = idx === activeRosterIndex;
-                  const rowIdPrefix = `${rosterFieldsetBaseId}-row-${idx}`;
-                  return (
-                    <div
-                      key={row.id || idx}
-                      className={`flex items-center gap-1.5 p-1.5 rounded-xl border transition-colors ${
-                        isKeeper
-                          ? 'bg-amber-50/75 border-amber-300'
-                          : isPreviewed
-                          ? 'bg-emerald-50/45 border-emerald-400'
-                          : 'bg-white/95 border-slate-200'
-                      }`}
-                    >
-                      <span className="w-4 text-[10px] font-mono font-black text-slate-500 text-center shrink-0">
-                        {String(idx + 1).padStart(2, '0')}
-                      </span>
-
-                      <div className="flex-1 min-w-0">
-                        <label htmlFor={`${rowIdPrefix}-name`} className="sr-only">
-                          Nombre camisa {idx + 1}
-                        </label>
-                        <input
-                          id={`${rowIdPrefix}-name`}
-                          type="text"
-                          value={row.name || ''}
-                          onFocus={() => onSelectRosterIndex?.(idx)}
-                          onChange={(e) =>
-                            updateRowAt(idx, { name: e.target.value.toUpperCase() })
-                          }
-                          placeholder="Nombre (en blanco)"
-                          className="w-full px-2 h-8 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
-                        />
-                      </div>
-
-                      <div className="w-[66px] shrink-0">
-                        <label htmlFor={`${rowIdPrefix}-size`} className="sr-only">
-                          Talla fila {idx + 1}
-                        </label>
-                        <select
-                          id={`${rowIdPrefix}-size`}
-                          value={row.size || 'L'}
-                          onFocus={() => onSelectRosterIndex?.(idx)}
-                          onChange={(e) => updateRowAt(idx, { size: e.target.value })}
-                          className="w-full px-1.5 h-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900"
-                        >
-                          {ROSTER_SIZE_OPTIONS.map((sz) => (
-                            <option key={sz} value={sz}>
-                              {sz}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {isSoccerProduct && (
-                        <div
-                          className="w-[84px] shrink-0 inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200"
-                          role="group"
-                          aria-label={`Rol en lista fila ${idx + 1}`}
-                        >
+                      {isSel && pairedProduct && (
+                        <div className="px-2.5 pb-2 pt-1 border-t border-emerald-200/70 flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-emerald-950 truncate">
+                            Kit compatible: {pairedProduct.shortName} · {activeProductMedia.fabricSummary}
+                          </span>
                           <button
                             type="button"
-                            aria-pressed={!isKeeper}
-                            title="Jugador de campo"
-                            onClick={() => updateRowAt(idx, { role: 'Jugador' })}
-                            className={`flex-1 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
-                              !isKeeper
-                                ? 'bg-[#111111] text-white'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
+                            onClick={() => {
+                              onSyncPairedColors?.();
+                              onSwitchProduct(pairedProduct.id);
+                              onToast?.(`Cambiado a ${pairedProduct.shortName} con colores sincronizados`);
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
                           >
-                            Jug.
-                          </button>
-                          <button
-                            type="button"
-                            aria-pressed={isKeeper}
-                            title="Portero Manga Larga 3D"
-                            onClick={() => updateRowAt(idx, { role: 'Portero' })}
-                            className={`flex-1 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
-                              isKeeper
-                                ? 'bg-[#C24100] text-white'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Port.
+                            Cambiar a {pairedProduct.shortName}
                           </button>
                         </div>
-                      )}
-
-                      {roster.length > 1 && (
-                        <button
-                          type="button"
-                          aria-label={`Eliminar fila ${idx + 1} (${row.name || 'sin nombre'})`}
-                          onClick={() => handleRemoveRosterRow(idx)}
-                          className="p-1 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer shrink-0"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                        </button>
                       )}
                     </div>
                   );
                 })}
               </div>
+            </div>
 
-              {/* Botones rápidos + Jugador / + Portero Manga Larga / Tabla Completa */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleAddRosterRow('Jugador')}
-                  className="px-2.5 min-h-9 rounded-xl arza-pill-glass-green text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>{isSoccerProduct ? 'Añadir Jugador' : 'Añadir Integrante'}</span>
-                </button>
-                {isSoccerProduct && (
-                  <button
-                    type="button"
-                    onClick={() => handleAddRosterRow('Portero')}
-                    className="px-2.5 min-h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#C24100]" aria-hidden="true" />
-                    <span>Añadir Portero</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={onOpenRosterModal}
-                  className="ml-auto px-2.5 min-h-9 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                  title="Abrir tabla avanzada con número dorsal, corte y cantidad"
-                >
-                  <Users className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
-                  <span>Tabla / Nº</span>
-                </button>
+            {/* 1C: Tarjeta minimalista lanzadora de Ventana Dedicada de Lista de Jugadores y Portero */}
+            <div className="p-3 rounded-2xl arza-glass-card border border-emerald-200/90 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900">
+                    {isSoccerProduct ? 'Lista de Jugadores y Portero' : 'Lista de Integrantes y Tallas'}
+                  </div>
+                  <div className="text-[10px] font-semibold text-slate-600">
+                    {currentTierLabel} · ${unitPrice.toFixed(2)} USD c/u
+                  </div>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 text-[10px] font-black tabular-nums-pro shrink-0">
+                  {totalUnits} {totalUnits === 1 ? 'prenda' : 'prendas'}
+                </span>
               </div>
 
-              {/* Pegado Rápido desde Excel / WhatsApp */}
-              <details className="rounded-xl bg-white/80 border border-slate-200 p-2 group">
-                <summary className="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span>Pegado rápido Excel / WhatsApp</span>
-                  <ChevronRight
-                    className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <div className="mt-2 space-y-2">
-                  <label htmlFor={quickCsvId} className="block text-[10px] text-slate-600">
-                    Una línea por uniforme: <span className="font-mono">NOMBRE, NÚMERO, TALLA, PORTERO/JUGADOR, CANT</span>
-                  </label>
-                  <textarea
-                    id={quickCsvId}
-                    rows={2}
-                    value={inlineCsvDraft}
-                    onChange={(e) => setInlineCsvDraft(e.target.value)}
-                    placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
-                    className="w-full rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
-                  />
+              <div className="flex flex-wrap items-center gap-1">
+                {orderedRoster.slice(0, 6).map((item) => (
                   <button
+                    key={item.row.id || item.origIdx}
                     type="button"
-                    onClick={handleInlineCsvImport}
-                    className="w-full min-h-9 rounded-xl arza-btn-glass-green text-xs font-bold cursor-pointer"
+                    onClick={() => {
+                      onSelectRosterIndex?.(item.origIdx);
+                      if (isSoccerProduct) {
+                        onSwitchKitRole?.(item.isKeeper ? 'goalkeeper' : 'field');
+                      }
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
+                      item.origIdx === activeRosterIndex
+                        ? 'bg-[#111111] text-white border-[#111111]'
+                        : item.isKeeper
+                        ? 'bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400'
+                    }`}
                   >
-                    Importar Filas a la Lista
+                    {item.displayLabel} · {item.row.size || 'L'}
                   </button>
+                ))}
+                {orderedRoster.length > 6 && (
+                  <span className="text-[10px] font-bold text-slate-500 px-1">
+                    +{orderedRoster.length - 6} más
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-1.5 text-[10px] text-slate-600 px-0.5">
+                <span>
+                  {isSoccerProduct
+                    ? `${rosterComposition.playerUnits} Jugadores · ${
+                        rosterComposition.keeperUnits > 0
+                          ? `${rosterComposition.keeperUnits} Portero Manga Larga`
+                          : 'Sin portero agregado'
+                      }${rosterComposition.glovePairs > 0 ? ` · +${rosterComposition.glovePairs} Guantes 3D` : ''}`
+                    : `${totalUnits} Piezas (${rosterSizeSummary || 'L'})`}
+                </span>
+                <strong className="text-slate-900 tabular-nums-pro">
+                  ${displayGrandTotal.toFixed(2)} USD
+                </strong>
+              </div>
+
+              {isSoccerProduct && rosterComposition.keeperUnits > 0 && (
+                <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-amber-50/75 border border-amber-200">
+                  <label
+                    htmlFor={glovesToggleId}
+                    className="text-[11px] font-bold text-amber-950 cursor-pointer select-none flex-1"
+                  >
+                    Incluir Guantes 3D de Portero (${GLOVE_PAIR_UNIT_PRICE} USD)
+                  </label>
+                  <input
+                    id={glovesToggleId}
+                    type="checkbox"
+                    checked={includeGloves}
+                    onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
+                    className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
+                  />
                 </div>
-              </details>
-            </fieldset>
+              )}
+
+              <button
+                type="button"
+                id="btn-open-roster-modal"
+                onClick={onOpenRosterModal}
+                className="w-full min-h-10 px-3 rounded-xl arza-btn-glass-green text-xs font-black inline-flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Users className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {isSoccerProduct
+                    ? 'Abrir Lista de Jugadores y Portero'
+                    : 'Abrir Lista de Nombres y Tallas'}
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* ==================== PASO 2: DISEÑO, TELA Y FORMA ==================== */}
+        {/* ==================== PASO 2: ELEGIR DISEÑO ==================== */}
         {wizardStep === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {renderKitRoleBanner()}
 
             {isEditingKeeper && (
-              <div className="p-3 rounded-2xl bg-amber-50/90 border border-amber-300 space-y-1">
-                <div className="text-xs font-black text-amber-950 flex items-center justify-between gap-2">
-                  <span>Manga Larga Obligatoria (Estándar Portero)</span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-[10px] font-mono">
-                    MANGA LARGA
-                  </span>
-                </div>
-                <p className="text-[11px] text-amber-900 leading-snug">
-                  El jersey de portero siempre se confecciona con manga larga completa, puños elásticos ajustados y colores de alto contraste respecto al equipo de campo.
-                </p>
+              <div className="px-3 py-2 rounded-xl bg-amber-50/90 border border-amber-300 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-black text-amber-950">
+                  Portero · Manga Larga Fija
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-[9px] font-mono font-bold text-amber-950">
+                  MANGA LARGA
+                </span>
               </div>
             )}
 
             {isEditingGloves && glovesDesign ? (
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-black text-slate-900">
-                      1. Corte de Palma Profesional (Látex Contact 4mm)
-                    </span>
-                  </div>
+              <div className="space-y-2.5">
+                <div className="p-3 rounded-2xl arza-glass-card space-y-2">
+                  <span className="text-xs font-black text-slate-900 block">
+                    1. Corte de Palma (Látex Contact 4mm)
+                  </span>
                   <div className="space-y-1.5">
                     {GLOVE_CUT_STYLES.map((cutObj) => {
                       const isSel = (glovesDesign.gloveCut || 'hybrid') === cutObj.id;
@@ -1280,7 +1036,7 @@ export default function GuidedStepWizardPanel({
                             onCommitGlovesDesign?.({ ...glovesDesign, gloveCut: cutObj.id }, true);
                             onToast?.(`Corte ${cutObj.label} seleccionado en Guantes 3D`);
                           }}
-                          className={`w-full p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          className={`w-full p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
                             isSel
                               ? 'arza-btn-glass-green'
                               : 'bg-white/90 hover:bg-white text-slate-900 border-slate-200'
@@ -1303,7 +1059,7 @@ export default function GuidedStepWizardPanel({
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
+                <div className="p-3 rounded-2xl arza-glass-card space-y-2">
                   <span className="text-xs font-black text-slate-900 block">
                     2. Detalles del Dorso y Muñequera
                   </span>
@@ -1351,20 +1107,20 @@ export default function GuidedStepWizardPanel({
               </div>
             ) : (
               <>
-            {/* 2A: Diseño activo + filtros dinámicos envueltos sin recorte */}
-            <div className="space-y-2.5">
+                {/* 2A: Diseño gráfico principal + categorías */}
+                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                       1. Corte gráfico ({availableFishDesigns.length})
                     </span>
                     {activeFishMeta && (
-                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 truncate max-w-[200px]">
-                        Activo: {activeFishMeta.name} ({activeFishMeta.baseColors?.length || 3} zonas)
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 truncate max-w-[180px]">
+                        {activeFishMeta.name} ({activeFishMeta.baseColors?.length || 3} zonas)
                       </span>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     {step2Categories.map((cat) => {
                       const active = activePatternCategory === cat.id;
                       return (
@@ -1373,7 +1129,7 @@ export default function GuidedStepWizardPanel({
                           type="button"
                           aria-pressed={active}
                           onClick={() => onChangePatternCategoryFilter(cat.id)}
-                          className={`px-2.5 min-h-8 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
+                          className={`px-2.5 min-h-7 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border inline-flex items-center gap-1 ${
                             active
                               ? 'bg-[#111111] text-white border-[#111111]'
                               : 'bg-white/85 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -1392,7 +1148,7 @@ export default function GuidedStepWizardPanel({
                     })}
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[215px] lg:overflow-y-auto lg:pr-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[240px] lg:overflow-y-auto lg:pr-1">
                     {filteredStep2Designs.map((dMeta) => {
                       const isSel = design.patternId === dMeta.id;
                       const zones = dMeta.baseColors?.length ? dMeta.baseColors : ['A', 'B', 'C'];
@@ -1449,17 +1205,12 @@ export default function GuidedStepWizardPanel({
                   </div>
                 </div>
 
-                {/* 2B: Forma de cuello (solo jerseys con cuello; especificación para taller) */}
+                {/* 2B: Forma de cuello (minimalista) */}
                 {hasCollar && (
-                  <div className="p-3 rounded-2xl arza-glass-card space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black text-slate-900">
-                        2. Forma de cuello
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-500">
-                        Especificación de taller (visor de referencia)
-                      </span>
-                    </div>
+                  <div className="p-2.5 rounded-2xl arza-glass-card space-y-1.5">
+                    <span className="text-xs font-black text-slate-900 block">
+                      2. Forma de cuello
+                    </span>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
                         { id: 'v_neck', label: 'Cuello V', desc: 'Deportivo' },
@@ -1476,7 +1227,7 @@ export default function GuidedStepWizardPanel({
                               onCommitDesign({ ...design, proCollar: col.id }, true);
                               onToast?.(`Cuello ${col.label} guardado en ficha`);
                             }}
-                            className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                            className={`p-1.5 rounded-xl border text-center transition-all cursor-pointer ${
                               isSel
                                 ? 'arza-btn-glass-green'
                                 : 'bg-white/85 hover:bg-white text-slate-800 border-slate-200'
@@ -1484,7 +1235,7 @@ export default function GuidedStepWizardPanel({
                           >
                             <div className="text-xs font-black truncate">{col.label}</div>
                             <div
-                              className={`text-[10px] mt-0.5 ${
+                              className={`text-[10px] ${
                                 isSel ? 'text-emerald-100' : 'text-slate-500'
                               }`}
                             >
@@ -1497,151 +1248,166 @@ export default function GuidedStepWizardPanel({
                   </div>
                 )}
 
-                {/* 2C: Texturas Reales de Tela y Trama Sublimada */}
-                <div className="p-3.5 rounded-2xl arza-glass-card space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
+                {/* 2C: Textura de Tela y Trama (colapsado por defecto para vista limpia) */}
+                <details className="rounded-2xl arza-glass-card p-3 group">
+                  <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-xs font-black text-slate-900">
+                    <span className="inline-flex items-center gap-1.5">
                       <Layers className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                      <span>Textura de Tela (Tejido Real)</span>
+                      <span>Tela, micro-relieve y trama (opcional)</span>
                     </span>
-                    <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Micro-relieve
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ACTIVE_FABRIC_WEAVES.map((w, idx) => {
-                      const isWeaveSel =
-                        (design.fabricWeaveId || currentProduct?.defaultFabricId || 'ts_tex_football') ===
-                        w.id;
-                      const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
-                      const spanFullOnLastOdd =
-                        idx === ACTIVE_FABRIC_WEAVES.length - 1 &&
-                        ACTIVE_FABRIC_WEAVES.length % 2 === 1;
-                      return (
-                        <button
-                          key={w.id}
-                          type="button"
-                          aria-pressed={isWeaveSel}
-                          onClick={() => {
-                            onCommitDesign({ ...design, fabricWeaveId: w.id }, true);
-                            onToast?.(`Tela ${w.shortName || w.name} aplicada`);
-                          }}
-                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                            spanFullOnLastOdd ? 'sm:col-span-2' : ''
-                          } ${
-                            isWeaveSel
-                              ? 'border-2 border-emerald-600 bg-emerald-50/70 shadow-xs'
-                              : 'bg-white/90 border-slate-200 hover:border-emerald-300'
-                          }`}
-                        >
-                          <FabricSwatchThumb
-                            bumpUrl={w.bumpUrl}
-                            tintHex={swatchBg}
-                            tileSize={36}
-                            className="w-11 h-11 rounded-lg"
-                          />
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-[11px] font-black text-slate-900 truncate">
-                                {w.shortName || w.name}
-                              </span>
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
-                                {w.gsm || 150}g
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-600 truncate mt-0.5">
-                              {w.subtitle || w.desc}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-800">
-                        Trama geométrica sublimada
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span>
+                        {ACTIVE_FABRIC_WEAVES.find(
+                          (w) =>
+                            w.id ===
+                            (design.fabricWeaveId ||
+                              currentProduct?.defaultFabricId ||
+                              'ts_tex_football')
+                        )?.shortName || 'ProMesh'}
                       </span>
-                      {design.surfacePatternId && design.surfacePatternId !== 'none' && (
-                        <span className="text-[10px] font-mono font-bold text-emerald-700">
-                          {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
+                      <ChevronRight
+                        className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </summary>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ACTIVE_FABRIC_WEAVES.map((w, idx) => {
+                        const isWeaveSel =
+                          (design.fabricWeaveId ||
+                            currentProduct?.defaultFabricId ||
+                            'ts_tex_football') === w.id;
+                        const swatchBg = design.colorZones?.primary?.hex || '#1e293b';
+                        const spanFullOnLastOdd =
+                          idx === ACTIVE_FABRIC_WEAVES.length - 1 &&
+                          ACTIVE_FABRIC_WEAVES.length % 2 === 1;
+                        return (
+                          <button
+                            key={w.id}
+                            type="button"
+                            aria-pressed={isWeaveSel}
+                            onClick={() => {
+                              onCommitDesign({ ...design, fabricWeaveId: w.id }, true);
+                              onToast?.(`Tela ${w.shortName || w.name} aplicada`);
+                            }}
+                            className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                              spanFullOnLastOdd ? 'sm:col-span-2' : ''
+                            } ${
+                              isWeaveSel
+                                ? 'border-2 border-emerald-600 bg-emerald-50/70 shadow-xs'
+                                : 'bg-white/90 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            <FabricSwatchThumb
+                              bumpUrl={w.bumpUrl}
+                              tintHex={swatchBg}
+                              tileSize={36}
+                              className="w-11 h-11 rounded-lg"
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[11px] font-black text-slate-900 truncate">
+                                  {w.shortName || w.name}
+                                </span>
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
+                                  {w.gsm || 150}g
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">
+                                {w.subtitle || w.desc}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-800">
+                          Trama geométrica sublimada
                         </span>
+                        {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                          <span className="text-[10px] font-mono font-bold text-emerald-700">
+                            {Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}%
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {ZONE_SURFACE_PATTERNS.map((pat) => (
+                          <button
+                            key={pat.id}
+                            type="button"
+                            aria-pressed={(design.surfacePatternId || 'none') === pat.id}
+                            onClick={() => {
+                              onCommitDesign({ ...design, surfacePatternId: pat.id }, true);
+                              onToast?.(`Trama ${pat.name} aplicada`);
+                            }}
+                            className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
+                              (design.surfacePatternId || 'none') === pat.id
+                                ? 'arza-btn-glass-green'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            {pat.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {design.surfacePatternId && design.surfacePatternId !== 'none' && (
+                        <input
+                          type="range"
+                          min="5"
+                          max="55"
+                          aria-label="Intensidad de trama sublimada"
+                          value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
+                          style={wizardRangeVars(
+                            Math.round((design.surfacePatternOpacity ?? 0.16) * 100),
+                            5,
+                            55
+                          )}
+                          onChange={(e) =>
+                            onCommitDesign(
+                              { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
+                              false
+                            )
+                          }
+                          className="studio-range w-full"
+                        />
+                      )}
+
+                      {!isShorts && !isJacket && (
+                        <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs font-bold text-slate-800 cursor-pointer">
+                          <span>Inserciones de Malla Mesh Lateral</span>
+                          <input
+                            type="checkbox"
+                            {...{ switch: '' }}
+                            checked={Boolean(design.hasMeshPanels)}
+                            onChange={(e) => {
+                              onCommitDesign({ ...design, hasMeshPanels: e.target.checked }, true);
+                            }}
+                          />
+                        </label>
                       )}
                     </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {ZONE_SURFACE_PATTERNS.map((pat) => (
-                        <button
-                          key={pat.id}
-                          type="button"
-                          aria-pressed={(design.surfacePatternId || 'none') === pat.id}
-                          onClick={() => {
-                            onCommitDesign({ ...design, surfacePatternId: pat.id }, true);
-                            onToast?.(`Trama ${pat.name} aplicada`);
-                          }}
-                          className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border truncate cursor-pointer transition-colors ${
-                            (design.surfacePatternId || 'none') === pat.id
-                              ? 'arza-btn-glass-green'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
-                          }`}
-                        >
-                          {pat.name}
-                        </button>
-                      ))}
-                    </div>
-
-                    {design.surfacePatternId && design.surfacePatternId !== 'none' && (
-                      <input
-                        type="range"
-                        min="5"
-                        max="55"
-                        aria-label="Intensidad de trama sublimada"
-                        value={Math.round((design.surfacePatternOpacity ?? 0.16) * 100)}
-                        style={wizardRangeVars(
-                          Math.round((design.surfacePatternOpacity ?? 0.16) * 100),
-                          5,
-                          55
-                        )}
-                        onChange={(e) =>
-                          onCommitDesign(
-                            { ...design, surfacePatternOpacity: Number(e.target.value) / 100 },
-                            false
-                          )
-                        }
-                        className="studio-range w-full"
-                      />
-                    )}
-
-                    {!isShorts && !isJacket && (
-                      <label className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs font-bold text-slate-800 cursor-pointer">
-                        <span>Inserciones de Malla Mesh Lateral</span>
-                        <input
-                          type="checkbox"
-                          {...{ switch: '' }}
-                          checked={Boolean(design.hasMeshPanels)}
-                          onChange={(e) => {
-                            onCommitDesign({ ...design, hasMeshPanels: e.target.checked }, true);
-                          }}
-                        />
-                      </label>
-                    )}
                   </div>
-                </div>
+                </details>
               </>
             )}
           </div>
         )}
 
-        {/* ==================== PASO 3: PALETA DE COLORES ==================== */}
+        {/* ==================== PASO 3: ELEGIR COLORES ==================== */}
         {wizardStep === 3 && (
-          <div className="space-y-3.5">
+          <div className="space-y-2.5">
             {renderKitRoleBanner()}
 
             {!isEditingGloves && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   Combinaciones listas ARZA ({COLOR_HARMONY_SUGGESTIONS.length})
@@ -1650,7 +1416,7 @@ export default function GuidedStepWizardPanel({
                   1 clic
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5 max-h-[158px] overflow-y-auto pr-0.5">
+              <div className="grid grid-cols-2 gap-1.5 max-h-[132px] overflow-y-auto pr-0.5">
                 {COLOR_HARMONY_SUGGESTIONS.map((h) => {
                   const pHex = h.zones?.primary?.hex || '#111111';
                   const sHex = h.zones?.secondary?.hex || '#fa5400';
@@ -1667,7 +1433,7 @@ export default function GuidedStepWizardPanel({
                         onApplyColorHarmony(h);
                         onToast?.(`Paleta ${h.name} aplicada`);
                       }}
-                      className={`p-2 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`p-1.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
                         isMatch
                           ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs'
                           : 'bg-white/85 border-slate-200 hover:border-emerald-400'
@@ -1675,15 +1441,15 @@ export default function GuidedStepWizardPanel({
                     >
                       <div className="flex -space-x-1.5 shrink-0" aria-hidden="true">
                         <span
-                          className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                          className="w-3.5 h-3.5 rounded-full border border-white shadow-2xs"
                           style={{ backgroundColor: pHex }}
                         />
                         <span
-                          className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                          className="w-3.5 h-3.5 rounded-full border border-white shadow-2xs"
                           style={{ backgroundColor: sHex }}
                         />
                         <span
-                          className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs"
+                          className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs"
                           style={{ backgroundColor: aHex }}
                         />
                       </div>
@@ -1697,7 +1463,7 @@ export default function GuidedStepWizardPanel({
             </div>
             )}
 
-            <div className="p-3.5 rounded-2xl arza-glass-card space-y-2.5">
+            <div className="p-3 rounded-2xl arza-glass-card space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-slate-900">
                   {isEditingGloves ? 'Colores de Guantes 3D' : 'Ajustar por zona'}
@@ -2159,37 +1925,36 @@ export default function GuidedStepWizardPanel({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {roster.length > 0 && (
+                <div className="space-y-2.5">
+                  {orderedRoster.length > 0 && (
                     <div className="space-y-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                        Previsualizar de tu lista ({roster.length}):
+                        Lista en visor 3D ({orderedRoster.length}):
                       </span>
                       <div className="flex flex-wrap gap-1">
-                        {roster.slice(0, 8).map((r, rIdx) => {
-                          const keeper = isGoalkeeperRole(r.role);
-                          const isCur = rIdx === activeRosterIndex;
+                        {orderedRoster.slice(0, 8).map((item) => {
+                          const isCur = item.origIdx === activeRosterIndex;
                           return (
                             <button
-                              key={r.id || rIdx}
+                              key={item.row.id || item.origIdx}
                               type="button"
                               aria-pressed={isCur}
-                              onClick={() => onSelectRosterIndex?.(rIdx)}
+                              onClick={() => {
+                                onSelectRosterIndex?.(item.origIdx);
+                                if (isSoccerProduct) {
+                                  onSwitchKitRole?.(item.isKeeper ? 'goalkeeper' : 'field');
+                                }
+                              }}
                               className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${
                                 isCur
                                   ? 'bg-[#111111] text-white border-[#111111]'
-                                  : keeper
+                                  : item.isKeeper
                                   ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
                                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              {[
-                                r.number ? `#${r.number}` : '',
-                                r.name || `Prenda ${rIdx + 1}`,
-                                keeper ? '· Port.' : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
+                              {item.row.number ? `#${item.row.number} · ` : ''}
+                              {item.displayLabel}
                             </button>
                           );
                         })}
@@ -2234,47 +1999,6 @@ export default function GuidedStepWizardPanel({
                       />
                     </div>
                   </div>
-
-                  {/* Interruptores rápidos para encender/apagar dorsales visibles */}
-                  <div className="flex flex-wrap items-center gap-1">
-                    {[
-                      { key: 'playerNameBack', label: 'Nombre espalda', cam: 'back' },
-                      { key: 'playerNumberBack', label: 'Nº espalda', cam: 'back' },
-                      { key: 'playerNumberFront', label: 'Nº pecho', cam: 'front' },
-                      ...(hasSleeves
-                        ? [{ key: 'playerNumberSleeve', label: 'Nº manga', cam: 'right_sleeve' }]
-                        : []),
-                    ]
-                      .filter((item) => Boolean(design.variableSlots?.[item.key]))
-                      .map((item) => {
-                        const enabled = Boolean(design.variableSlots?.[item.key]?.enabled);
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            aria-pressed={enabled}
-                            onClick={() => {
-                              onUpdateVariableSlot(
-                                item.key,
-                                { ...design.variableSlots[item.key], enabled: !enabled },
-                                true
-                              );
-                              if (!enabled && !isAccessory) {
-                                onCameraFocus?.(item.cam);
-                              }
-                            }}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                              enabled
-                                ? 'bg-emerald-50 text-emerald-900 border-emerald-400'
-                                : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
-                            }`}
-                          >
-                            {enabled && <Check className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />}
-                            <span>{item.label}</span>
-                          </button>
-                        );
-                      })}
-                  </div>
                 </div>
               )}
 
@@ -2318,55 +2042,110 @@ export default function GuidedStepWizardPanel({
                 </div>
               </div>
 
-              <div>
-                <span className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Tipografía deportiva ({SPORT_FONTS.length})
-                </span>
-                <div className="grid grid-cols-3 gap-1.5 max-h-[82px] overflow-y-auto pr-0.5">
-                  {SPORT_FONTS.map((f) => {
-                    const isFontSel = activeDorsalFont === f.family;
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        aria-pressed={isFontSel}
-                        style={{ fontFamily: f.family }}
-                        onClick={() => applyDorsalFont(f.family)}
-                        className={`py-1.5 px-1.5 rounded-xl text-xs font-black border truncate cursor-pointer ${
-                          isFontSel
-                            ? 'arza-btn-glass-green'
-                            : 'bg-white text-slate-900 border-slate-200 hover:border-emerald-300'
-                        }`}
-                      >
-                        {f.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmitQuickText} className="pt-2 border-t border-slate-200/70 space-y-1.5">
-                <label htmlFor={customTextInputId} className="text-[11px] font-bold text-slate-700 block">
-                  {isShorts ? 'Añadir texto o sponsor al short' : 'Añadir texto o sponsor al pecho'}
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    id={customTextInputId}
-                    type="text"
-                    value={customTextDraft}
-                    onChange={(e) => setCustomTextDraft(e.target.value)}
-                    placeholder="Ej: GRUPO ZAVA o TU CLUB"
-                    className="flex-1 px-3 min-h-9 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900"
+              {/* Opciones avanzadas de dorsal/tipografía/texto en desplegable compacto */}
+              <details className="rounded-xl bg-white/75 border border-slate-200 p-2 group">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-[11px] font-bold text-slate-800">
+                  <span>Tipografía ({SPORT_FONTS.length}), visibilidad y texto extra</span>
+                  <ChevronRight
+                    className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90"
+                    aria-hidden="true"
                   />
-                  <button
-                    type="submit"
-                    className="px-3 min-h-9 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>Añadir</span>
-                  </button>
+                </summary>
+
+                <div className="mt-2 pt-2 border-t border-slate-200/70 space-y-2.5">
+                  {!isShorts && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {[
+                        { key: 'playerNameBack', label: 'Nombre espalda', cam: 'back' },
+                        { key: 'playerNumberBack', label: 'Nº espalda', cam: 'back' },
+                        { key: 'playerNumberFront', label: 'Nº pecho', cam: 'front' },
+                        ...(hasSleeves
+                          ? [{ key: 'playerNumberSleeve', label: 'Nº manga', cam: 'right_sleeve' }]
+                          : []),
+                      ]
+                        .filter((item) => Boolean(design.variableSlots?.[item.key]))
+                        .map((item) => {
+                          const enabled = Boolean(design.variableSlots?.[item.key]?.enabled);
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              aria-pressed={enabled}
+                              onClick={() => {
+                                onUpdateVariableSlot(
+                                  item.key,
+                                  { ...design.variableSlots[item.key], enabled: !enabled },
+                                  true
+                                );
+                                if (!enabled && !isAccessory) {
+                                  onCameraFocus?.(item.cam);
+                                }
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                                enabled
+                                  ? 'bg-emerald-50 text-emerald-900 border-emerald-400'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                              }`}
+                            >
+                              {enabled && <Check className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />}
+                              <span>{item.label}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Tipografía deportiva ({SPORT_FONTS.length})
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5 max-h-[82px] overflow-y-auto pr-0.5">
+                      {SPORT_FONTS.map((f) => {
+                        const isFontSel = activeDorsalFont === f.family;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            aria-pressed={isFontSel}
+                            style={{ fontFamily: f.family }}
+                            onClick={() => applyDorsalFont(f.family)}
+                            className={`py-1.5 px-1.5 rounded-xl text-xs font-black border truncate cursor-pointer ${
+                              isFontSel
+                                ? 'arza-btn-glass-green'
+                                : 'bg-white text-slate-900 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            {f.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSubmitQuickText} className="pt-2 border-t border-slate-200/70 space-y-1.5">
+                    <label htmlFor={customTextInputId} className="text-[11px] font-bold text-slate-700 block">
+                      {isShorts ? 'Añadir texto o sponsor al short' : 'Añadir texto o sponsor al pecho'}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        id={customTextInputId}
+                        type="text"
+                        value={customTextDraft}
+                        onChange={(e) => setCustomTextDraft(e.target.value)}
+                        placeholder="Ej: GRUPO ZAVA o TU CLUB"
+                        className="flex-1 px-3 min-h-9 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 min-h-9 rounded-xl arza-pill-glass-green text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Añadir</span>
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              </form>
+              </details>
 
               {textDecals.length > 0 && (
                 <div className="space-y-1.5">
@@ -2470,7 +2249,7 @@ export default function GuidedStepWizardPanel({
             </div>
 
             {/* 4C: Resumen Completo Equipación + Portero Manga Larga + Guantes 3D */}
-            <div className="p-3 rounded-2xl arza-pill-glass-green flex flex-col gap-2">
+            <div className="p-2.5 rounded-2xl arza-pill-glass-green flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 w-full">
                   <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
@@ -2482,7 +2261,7 @@ export default function GuidedStepWizardPanel({
                         : ''}
                     </span>
                   </div>
-                  <div className="mt-1.5 space-y-0.5 text-[11px] text-emerald-900">
+                  <div className="mt-1 space-y-0.5 text-[11px] text-emerald-900">
                     <div>
                       • <strong>{rosterComposition.playerUnits}</strong> Uniforme Campo ({currentProduct.shortName}) · ${(unitPrice * rosterComposition.playerUnits).toFixed(2)} USD
                     </div>
@@ -2505,10 +2284,10 @@ export default function GuidedStepWizardPanel({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 <button
                   type="button"
-                  onClick={() => navigateToStep(1)}
+                  onClick={() => requestStepTransition(1)}
                   className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-slate-900 border border-emerald-300 text-xs font-bold cursor-pointer"
                 >
                   ← Editar en Paso 1
@@ -2518,7 +2297,7 @@ export default function GuidedStepWizardPanel({
                   onClick={onOpenRosterModal}
                   className="px-3 min-h-9 rounded-xl bg-white/90 hover:bg-white text-emerald-900 border border-emerald-300 text-xs font-bold cursor-pointer"
                 >
-                  Editar Tallas →
+                  Editar Jugadores y Tallas →
                 </button>
               </div>
             </div>
@@ -2542,7 +2321,8 @@ export default function GuidedStepWizardPanel({
           {wizardStep > 1 && (
             <button
               type="button"
-              onClick={() => navigateToStep(wizardStep - 1)}
+              id="btn-wizard-prev-step"
+              onClick={() => requestStepTransition(wizardStep - 1)}
               className="px-3.5 min-h-11 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
             >
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
@@ -2554,12 +2334,12 @@ export default function GuidedStepWizardPanel({
             <button
               type="button"
               id={`btn-wizard-next-step-${wizardStep}`}
-              onClick={() => navigateToStep(wizardStep + 1)}
+              onClick={() => requestStepTransition(wizardStep + 1)}
               className="flex-1 min-h-11 px-4 rounded-xl arza-btn-glass-green text-xs font-black uppercase tracking-wider inline-flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span>
                 {wizardStep === 1
-                  ? 'Siguiente: Diseño y Tela'
+                  ? 'Siguiente: Elegir Diseño'
                   : wizardStep === 2
                   ? 'Siguiente: Elegir Colores'
                   : 'Siguiente: Logos y Pedido'}
@@ -2591,6 +2371,151 @@ export default function GuidedStepWizardPanel({
           )}
         </div>
       </div>
+
+      {/* Modal Obligatorio de Confirmación Bidireccional al Avanzar o Regresar */}
+      <dialog
+        ref={confirmDialogRef}
+        id="wizard-step-confirm-dialog"
+        aria-labelledby={confirmTitleId}
+        closedby="any"
+        className="m-auto w-[min(92vw,420px)] rounded-3xl border border-slate-200 bg-white/95 backdrop:bg-slate-950/45 backdrop:backdrop-blur-xs p-5 shadow-2xl text-slate-900"
+      >
+        {pendingStepConfirm && (() => {
+          const isBack = pendingStepConfirm.direction === 'back';
+          const targetMeta =
+            WIZARD_STEPS.find((s) => s.step === pendingStepConfirm.targetStep) || WIZARD_STEPS[0];
+          const collarLabel =
+            (design.proCollar || 'v_neck') === 'round'
+              ? 'Cuello Redondo'
+              : (design.proCollar || 'v_neck') === 'polo'
+              ? 'Cuello Polo'
+              : 'Cuello V';
+          return (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-black">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                  <span>
+                    {isBack
+                      ? `Regresar al Paso ${pendingStepConfirm.targetStep}`
+                      : `Paso ${wizardStep} → Paso ${pendingStepConfirm.targetStep}`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingStepConfirm(null)}
+                  aria-label="Cerrar ventana de confirmación"
+                  className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <h3
+                  id={confirmTitleId}
+                  className="text-base font-black text-slate-950 leading-snug"
+                >
+                  {isBack
+                    ? `¿Seguro que quieres volver al Paso ${pendingStepConfirm.targetStep}?`
+                    : wizardStep === 1
+                    ? '¿Confirmas tu prenda y lista de jugadores?'
+                    : wizardStep === 2
+                    ? '¿Estás seguro de avanzar con este diseño?'
+                    : '¿Confirmas los colores de tu uniforme?'}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {isBack
+                    ? `Tus cambios actuales se mantendrán guardados. Puedes regresar a «${targetMeta.shortLabel}» para modificarlos o quedarte aquí.`
+                    : `Revisa cómo luce tu diseño en el visor 3D. Si todo se ve correcto, autoriza el cambio a «${targetMeta.shortLabel}».`}
+                </p>
+              </div>
+
+              {!isBack && (
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  {wizardStep === 1 && (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <div className="min-w-0">
+                        <div className="font-black text-slate-900 truncate">
+                          {currentProduct?.shortName}
+                        </div>
+                        <div className="text-[11px] text-slate-600">
+                          {isSoccerProduct
+                            ? `${rosterComposition.playerUnits} Jugadores · ${rosterComposition.keeperUnits} Portero M.L.`
+                            : `${totalUnits} prendas (${rosterSizeSummary || 'L'})`}
+                        </div>
+                      </div>
+                      <strong className="text-emerald-800 font-black shrink-0 tabular-nums-pro">
+                        ${displayGrandTotal.toFixed(2)} USD
+                      </strong>
+                    </div>
+                  )}
+
+                  {wizardStep === 2 && (
+                    <div className="flex items-center gap-2.5">
+                      {activeFishMeta && (
+                        <FishPatternThumb
+                          fileUrl={activeFishMeta.fileUrl}
+                          colorZones={design.colorZones}
+                          className="w-10 h-11 rounded-lg shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-slate-900 truncate">
+                          Diseño: {activeFishMeta?.name || design.patternId}
+                        </div>
+                        <div className="text-[11px] text-slate-600">
+                          {hasCollar ? `${collarLabel} · ` : ''}
+                          {activeProductMedia.fitLabel}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {wizardStep === 3 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-slate-700">
+                        Colores confirmados:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {visibleZoneButtons.slice(0, 4).map((z) => (
+                          <span
+                            key={z.id}
+                            title={`${z.label}: ${z.hex}`}
+                            className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs"
+                            style={{ backgroundColor: z.hex }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  id="btn-cancel-step-transition"
+                  onClick={() => setPendingStepConfirm(null)}
+                  className="flex-1 min-h-11 px-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold cursor-pointer"
+                >
+                  {isBack ? 'Quedarme aquí' : 'Volver a elegir'}
+                </button>
+                <button
+                  type="button"
+                  id="btn-confirm-step-transition"
+                  onClick={executeConfirmedStepTransition}
+                  className="flex-1 min-h-11 px-3 rounded-xl arza-btn-glass-green text-xs font-black cursor-pointer"
+                >
+                  {isBack
+                    ? `Sí, regresar al Paso ${pendingStepConfirm.targetStep}`
+                    : 'Sí, siguiente paso'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </dialog>
     </div>
   );
 }
