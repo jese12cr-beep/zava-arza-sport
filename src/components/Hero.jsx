@@ -104,10 +104,11 @@ export default function Hero({ onStartDesigning }) {
 
       {/* Fotografía Editorial Full-Bleed sin esquinas redondeadas */}
       <div className="w-full max-w-[1440px] mx-auto lg:px-12">
-        <div className="w-full bg-[#111111] overflow-hidden rounded-none">
+        <div className="w-full bg-[#F5F5F5] overflow-hidden rounded-none">
           <img
             src={resolveAssetUrl('assets/showcase/campaign_hero_wide.jpg')}
             alt="Campaña oficial ARZA SPORT by Grupo Zava — Kits sublimados para fútbol y baloncesto"
+            fetchPriority="high"
             className="w-full h-[280px] sm:h-[360px] lg:h-[390px] object-cover object-center"
           />
         </div>

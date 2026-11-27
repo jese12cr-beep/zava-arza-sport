@@ -234,9 +234,17 @@ export default function GuidedStepWizardPanel({
   const requestStepTransition = (nextStep) => {
     const clamped = Math.max(1, Math.min(4, nextStep));
     if (clamped === wizardStep) return;
+    if (clamped < wizardStep) {
+      didUserSwitchStepRef.current = true;
+      onStepChange(clamped);
+      if (!isAccessory) {
+        onCameraFocus?.(clamped === 4 ? 'front' : 'three_quarter');
+      }
+      return;
+    }
     setPendingStepConfirm({
       targetStep: clamped,
-      direction: clamped > wizardStep ? 'next' : 'back',
+      direction: 'next',
     });
   };
 
@@ -656,39 +664,68 @@ export default function GuidedStepWizardPanel({
     setCustomTextDraft('');
   };
 
-  const renderKitRoleBanner = () =>
-    isSoccerProduct ? (
-      <div className="flex items-center justify-between gap-2 p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80">
-        <div
-          role="group"
-          aria-label="Cambiar prenda activa entre Campo, Portero Manga Larga y Guantes 3D"
-          className="grid grid-cols-3 gap-1 w-full"
-        >
-          {[
-            { id: 'field', label: 'Campo' },
-            { id: 'goalkeeper', label: 'Portero M.L.' },
-            { id: 'gloves', label: 'Guantes 3D' },
-          ].map((item) => {
-            const active = activeKitRole === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onSwitchKitRole?.(item.id)}
-                className={`min-h-8 px-2 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                  active
-                    ? 'arza-btn-glass-green shadow-2xs'
-                    : 'text-slate-700 hover:bg-white/80'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+  const renderKitRoleBanner = () => {
+    if (!isSoccerProduct) return null;
+    const roleMeta =
+      activeKitRole === 'goalkeeper'
+        ? {
+            badge: 'Portero · Manga Larga',
+            desc: 'Editando uniforme de portero',
+            chipClass: 'bg-amber-100 text-amber-950 border-amber-300',
+          }
+        : activeKitRole === 'gloves'
+        ? {
+            badge: 'Guantes Pro 3D',
+            desc: 'Editando látex, dorso y correa',
+            chipClass: 'bg-slate-900 text-white border-slate-900',
+          }
+        : {
+            badge: 'Uniforme Campo',
+            desc: 'Editando equipación de jugadores',
+            chipClass: 'bg-emerald-100 text-emerald-950 border-emerald-300',
+          };
+    return (
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-100/85 border border-slate-200/80 text-[11px]">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`px-2 py-0.5 rounded-md font-black border shrink-0 ${roleMeta.chipClass}`}>
+            {roleMeta.badge}
+          </span>
+          <span className="text-slate-600 font-medium truncate">{roleMeta.desc}</span>
         </div>
+        {onSwitchKitRole && (
+          <div className="flex items-center gap-1 shrink-0 text-[10px] font-bold">
+            {activeKitRole !== 'field' && (
+              <button
+                type="button"
+                onClick={() => onSwitchKitRole('field')}
+                className="px-1.5 py-0.5 rounded bg-white text-slate-700 border border-slate-200 hover:border-slate-400 cursor-pointer"
+              >
+                Campo
+              </button>
+            )}
+            {activeKitRole !== 'goalkeeper' && (
+              <button
+                type="button"
+                onClick={() => onSwitchKitRole('goalkeeper')}
+                className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 hover:border-amber-400 cursor-pointer"
+              >
+                Portero
+              </button>
+            )}
+            {activeKitRole !== 'gloves' && (
+              <button
+                type="button"
+                onClick={() => onSwitchKitRole('gloves')}
+                className="px-1.5 py-0.5 rounded bg-slate-800 text-white border border-slate-800 hover:bg-black cursor-pointer"
+              >
+                Guantes
+              </button>
+            )}
+          </div>
+        )}
       </div>
-    ) : null;
+    );
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -1148,7 +1185,7 @@ export default function GuidedStepWizardPanel({
                     })}
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:max-h-[240px] lg:overflow-y-auto lg:pr-1">
+                  <div className="grid grid-cols-2 gap-2 lg:max-h-[260px] lg:overflow-y-auto lg:pr-1">
                     {filteredStep2Designs.map((dMeta) => {
                       const isSel = design.patternId === dMeta.id;
                       const zones = dMeta.baseColors?.length ? dMeta.baseColors : ['A', 'B', 'C'];
@@ -1205,11 +1242,11 @@ export default function GuidedStepWizardPanel({
                   </div>
                 </div>
 
-                {/* 2B: Forma de cuello (minimalista) */}
+                {/* 2B: Forma de cuello (especificación técnica) */}
                 {hasCollar && (
                   <div className="p-2.5 rounded-2xl arza-glass-card space-y-1.5">
                     <span className="text-xs font-black text-slate-900 block">
-                      2. Forma de cuello
+                      2. Forma de cuello · En ficha técnica (base visor Cuello V)
                     </span>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
@@ -1568,7 +1605,7 @@ export default function GuidedStepWizardPanel({
                       Tono exacto de tu club
                     </label>
                     <span className="text-[10px] font-mono text-slate-500 block truncate">
-                      {activeZoneColorObj?.code || 'ARZA'} ·{' '}
+                      {activeZoneColorObj?.name || activeZoneColorObj?.code || 'ARZA'} ·{' '}
                       {(activeZoneColorObj?.hex || '#FA5400').toUpperCase()}
                     </span>
                   </div>
@@ -1621,9 +1658,9 @@ export default function GuidedStepWizardPanel({
                       onSyncPairedColors?.();
                       onToast?.(`Paleta sincronizada con ${pairedProduct.shortName}`);
                     }}
-                    className="w-full py-1.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
+                    className="w-full py-1 px-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-semibold transition-colors cursor-pointer text-center"
                   >
-                    Copiar estos colores al {pairedProduct.shortName} →
+                    Replicar colores si agregas {pairedProduct.shortName} →
                   </button>
                 )}
               </div>
@@ -1942,7 +1979,10 @@ export default function GuidedStepWizardPanel({
                               onClick={() => {
                                 onSelectRosterIndex?.(item.origIdx);
                                 if (isSoccerProduct) {
-                                  onSwitchKitRole?.(item.isKeeper ? 'goalkeeper' : 'field');
+                                  onSwitchKitRole?.(
+                                    item.isKeeper ? 'goalkeeper' : 'field',
+                                    item.origIdx
+                                  );
                                 }
                               }}
                               className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer transition-colors ${

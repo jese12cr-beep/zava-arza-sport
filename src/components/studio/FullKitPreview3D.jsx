@@ -14,6 +14,7 @@ import {
   createGarmentSurfaceSet,
   createGlovesSurfaceSet,
   createSoftFloorShadowMesh,
+  markGlovesTexturesDirty,
   paintGarmentSurfaceSet,
   paintGlovesCanvases,
 } from '../../engine/viewer3d/garmentMaterials3D';
@@ -114,10 +115,11 @@ export default function FullKitPreview3D({
     : null;
 
   const activePlayer = useMemo(() => {
+    const wantsKeeper = effectiveViewMode === 'goalkeeper' || effectiveViewMode === 'gloves';
     const matched = (item?.roster || []).find((r) =>
-      effectiveViewMode === 'goalkeeper'
-        ? /portero|arquero/i.test(r.role || '')
-        : !/portero|arquero/i.test(r.role || '')
+      wantsKeeper
+        ? /portero|arquero|keeper|\bgk\b/i.test(r.role || '')
+        : !/portero|arquero|keeper|\bgk\b/i.test(r.role || '')
     );
     return (
       matched ||
@@ -372,18 +374,18 @@ export default function FullKitPreview3D({
         .then(({ modelGroup, meshManifest }) => {
           if (cancelled || !sceneRef.current) return;
           const gColors = item.glovesFullDesign.colorZones || {};
-          st.gloveSurface.gloveMaterials.palm.color.set(gColors.palm?.hex || '#ffffff');
+          st.gloveSurface.gloveMaterials.palm.color.set('#ffffff');
           st.gloveSurface.gloveMaterials.accents.color.set(gColors.accents?.hex || '#fa5400');
+          st.gloveSurface.gloveMaterials.palm.roughness =
+            item.glovesFullDesign.gloveCut === 'negative' ? 0.72 : 0.62;
           paintGlovesCanvases(
-            st.gloveSurface.gloveBackCanvas,
-            st.gloveSurface.gloveStrapCanvas,
+            st.gloveSurface,
             item.glovesFullDesign,
             activeTopDesign,
             activePlayer,
             artworkRegistry
           );
-          st.gloveSurface.gloveBackTex.needsUpdate = true;
-          st.gloveSurface.gloveStrapTex.needsUpdate = true;
+          markGlovesTexturesDirty(st.gloveSurface);
 
           st.ensembleGroup.position.set(0, 0, 0);
           st.ensembleGroup.add(modelGroup);
@@ -582,7 +584,7 @@ export default function FullKitPreview3D({
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                Camisa + Short
+                {botProdMeta ? 'Camisa + Short' : 'Uniforme Campo'}
               </button>
             )}
             {hasKeeperOption && (

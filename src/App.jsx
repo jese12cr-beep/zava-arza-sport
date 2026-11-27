@@ -28,6 +28,7 @@ import {
   createDefaultDesignForProduct,
   createDefaultGoalkeeperDesign,
   createDefaultGlovesDesign,
+  isGoalkeeperRole,
   summarizeRosterComposition,
 } from './engine/core/designStore';
 
@@ -40,7 +41,7 @@ function createInitialKitSnapshot() {
   return {
     activeProductId: 'futbol_jersey_pro_vneck',
     activeKitRole: 'field',
-    includeGloves: true,
+    includeGloves: false,
     editedProductIds: {},
     designsByProduct,
     goalkeeperDesign: createDefaultGoalkeeperDesign('futbol_jersey_pro_vneck', baseField),
@@ -117,6 +118,7 @@ export default function App() {
   const [trackingState, setTrackingState] = useState({ open: false, folio: '' });
   const [isStorefrontGalleryOpen, setIsStorefrontGalleryOpen] = useState(false);
   const [isPreStudioRosterOpen, setIsPreStudioRosterOpen] = useState(false);
+  const [preStudioOpenedFromKeeper, setPreStudioOpenedFromKeeper] = useState(false);
   const [catalogSport, setCatalogSport] = useState('all');
   const [catalogGender, setCatalogGender] = useState('all');
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -380,11 +382,8 @@ export default function App() {
         return {
           topProductId: targetProd.id,
           topDesign: fieldDesign,
-          bottomProductId: pairedBotId,
-          bottomDesign:
-            hasEditedBot && botRaw
-              ? botRaw
-              : createDefaultDesignForProduct(pairedBotId, fieldDesign.colorZones),
+          bottomProductId: hasEditedBot && botRaw ? pairedBotId : null,
+          bottomDesign: hasEditedBot && botRaw ? botRaw : null,
         };
       };
       const kitVisuals = resolveCheckoutKitVisuals();
@@ -477,6 +476,7 @@ export default function App() {
   const handleSelectGoalkeeperKit = useCallback(() => {
     handleSwitchProduct('futbol_jersey_pro_vneck');
     handleSwitchKitRole('goalkeeper');
+    setPreStudioOpenedFromKeeper(true);
     setStudioInitialStep(1);
     setIsPreStudioRosterOpen(true);
   }, [handleSwitchProduct, handleSwitchKitRole]);
@@ -525,19 +525,24 @@ export default function App() {
 
   const handleSelectCatalogProduct = (engineId) => {
     handleSwitchProduct(engineId);
+    setPreStudioOpenedFromKeeper(false);
     setStudioInitialStep(1);
     setIsPreStudioRosterOpen(true);
   };
 
   const handleConfirmPreStudioToDesign = useCallback(() => {
     setIsPreStudioRosterOpen(false);
+    const hasFieldPlayers = roster.some((r) => !isGoalkeeperRole(r.role));
+    if (!preStudioOpenedFromKeeper && hasFieldPlayers) {
+      handleSwitchKitRole('field');
+    }
     setStudioInitialStep(2);
     setAppMode('studio');
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
       window.location.hash = '#studio';
     }
-  }, []);
+  }, [preStudioOpenedFromKeeper, roster, handleSwitchKitRole]);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">

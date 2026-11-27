@@ -43,6 +43,7 @@ import {
   createGarmentSurfaceSet,
   createGlovesSurfaceSet,
   createSoftFloorShadowMesh,
+  markGlovesTexturesDirty,
   paintGarmentSurfaceSet,
   paintGlovesCanvases,
 } from './garmentMaterials3D';
@@ -444,13 +445,7 @@ export default function GarmentCanvas3D({
     const garmentSurface = createGarmentSurfaceSet(maxAniso, activePlayer?.size || 'L');
     const glovesSurface = createGlovesSurfaceSet(maxAniso);
     const { partCanvases, partTextures, partMaterials, neckLabelMat, hemFlagMat } = garmentSurface;
-    const {
-      gloveBackCanvas,
-      gloveBackTex,
-      gloveStrapCanvas,
-      gloveStrapTex,
-      gloveMaterials,
-    } = glovesSurface;
+    const { gloveMaterials } = glovesSurface;
 
     const jerseyContainer = new THREE.Group();
     scene.add(jerseyContainer);
@@ -492,10 +487,7 @@ export default function GarmentCanvas3D({
       partMaterials,
       neckLabelMat,
       hemFlagMat,
-      gloveBackCanvas,
-      gloveBackTex,
-      gloveStrapCanvas,
-      gloveStrapTex,
+      glovesSurface,
       gloveMaterials,
       jerseyContainer,
       targetCamPos,
@@ -644,15 +636,13 @@ export default function GarmentCanvas3D({
             curSt.floorShadow.position.y = -1.32;
           }
           paintGlovesCanvases(
-            curSt.gloveBackCanvas,
-            curSt.gloveStrapCanvas,
+            curSt.glovesSurface,
             glovesDesign,
             design,
             activePlayer,
             artworkRegistry
           );
-          curSt.gloveBackTex.needsUpdate = true;
-          curSt.gloveStrapTex.needsUpdate = true;
+          markGlovesTexturesDirty(curSt.glovesSurface);
 
           const totalVerts = meshManifest.reduce((acc, m) => acc + (m.vertexCount || 0), 0);
           setModelStats({
@@ -727,19 +717,17 @@ export default function GarmentCanvas3D({
     const st = sceneStateRef.current;
     if (!st || activeKitRole !== 'gloves') return;
     const gColors = glovesDesign?.colorZones || {};
-    st.gloveMaterials.palm.color.set(gColors.palm?.hex || '#ffffff');
+    st.gloveMaterials.palm.color.set('#ffffff');
     st.gloveMaterials.accents.color.set(gColors.accents?.hex || '#fa5400');
-    st.gloveMaterials.palm.roughness = glovesDesign?.gloveCut === 'negative' ? 0.78 : 0.68;
+    st.gloveMaterials.palm.roughness = glovesDesign?.gloveCut === 'negative' ? 0.72 : 0.62;
     paintGlovesCanvases(
-      st.gloveBackCanvas,
-      st.gloveStrapCanvas,
+      st.glovesSurface,
       glovesDesign,
       design,
       activePlayer,
       artworkRegistry
     );
-    st.gloveBackTex.needsUpdate = true;
-    st.gloveStrapTex.needsUpdate = true;
+    markGlovesTexturesDirty(st.glovesSurface);
     st.renderNow?.();
   }, [activeKitRole, glovesDesign, design, activePlayer, artworkRegistry]);
 

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import FullKitPreview3D from './studio/FullKitPreview3D';
+import { formatPatternDisplayName } from '../engine/core/designStore';
 import {
   ARZA_CONTACT,
   buildFactoryOrderSummaryText,
@@ -809,7 +810,7 @@ export default function CartDrawer({
                             className="w-2.5 h-2.5 rounded-full border border-slate-300"
                             style={{ backgroundColor: item.design.baseColor }}
                           />
-                          <span>{item.design.pattern || 'Tackle'} · {formatCollarLabel(item.design.collarStyle)}</span>
+                          <span>{formatPatternDisplayName(item.design.pattern || 'tackle')} · {formatCollarLabel(item.design.collarStyle)}</span>
                         </span>
                         {item.goalkeeperSpec && (
                           <span className="bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1.5 font-bold">
@@ -827,9 +828,11 @@ export default function CartDrawer({
                             </span>
                           </span>
                         )}
-                        <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono font-medium">
-                          #{item.design.playerNumber || '10'} {item.design.playerName || 'PRO'}
-                        </span>
+                        {(!item.roster || item.roster.length === 0) && (
+                          <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono font-medium">
+                            #{item.design.playerNumber || '10'} {item.design.playerName || 'PRO'}
+                          </span>
+                        )}
                         {item.design.sponsorText && (
                           <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-medium">
                             Sponsor: {item.design.sponsorText}
@@ -852,7 +855,7 @@ export default function CartDrawer({
                               >
                                 {[
                                   isKeeper
-                                    ? `[PORT M.L.${item.glovePairs > 0 && r.gloveSize ? ` · G${r.gloveSize}` : ''}]`
+                                    ? `Portero M.L.${item.glovePairs > 0 && r.gloveSize ? ` · Guante T${r.gloveSize}` : ''}`
                                     : '',
                                   r.number ? `#${r.number}` : '',
                                   r.name || 'Sin nombre',

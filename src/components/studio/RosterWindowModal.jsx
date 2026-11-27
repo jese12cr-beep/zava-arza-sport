@@ -38,13 +38,14 @@ export default function RosterWindowModal({
   activeRosterIndex = 0,
   onSelectRosterIndex,
   onSwitchKitRole,
-  includeGloves = true,
+  includeGloves = false,
   glovesUnitPrice = GLOVE_PAIR_UNIT_PRICE,
   onToggleIncludeGloves,
   onConfirmGoToDesign,
   onToast,
 }) {
   const [confirmStep, setConfirmStep] = useState('edit'); // 'edit' | 'confirm' (pre_studio)
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [csvQuickInput, setCsvQuickInput] = useState('');
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -223,6 +224,11 @@ export default function RosterWindowModal({
                       <div className="text-[10px] font-semibold text-slate-500">
                         {totals.totalUnits} {totals.totalUnits === 1 ? 'prenda' : 'prendas'}
                       </div>
+                      {totals.glovePairs > 0 && (
+                        <div className="text-[10px] font-bold text-amber-800 tabular-nums-pro">
+                          ${Math.max(0, totals.grandTotal - totals.glovePairs * glovesUnitPrice).toFixed(2)} prendas + ${(totals.glovePairs * glovesUnitPrice).toFixed(2)} guantes
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -322,25 +328,58 @@ export default function RosterWindowModal({
               </div>
 
               {isSoccerProduct && totals.keeperUnits > 0 && (
-                <label className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-bold text-amber-950 cursor-pointer">
-                  <span>Incluir Guantes 3D de Portero (+${GLOVE_PAIR_UNIT_PRICE} USD / par)</span>
-                  <input
-                    type="checkbox"
-                    checked={includeGloves}
-                    onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
-                    className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
-                  />
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-bold text-amber-950">
+                  <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={includeGloves}
+                      onChange={(e) => onToggleIncludeGloves?.(e.target.checked)}
+                      className="w-4 h-4 accent-[#fa5400] cursor-pointer shrink-0"
+                    />
+                    <span className="truncate">
+                      Incluir Guantes 3D de Portero (+${GLOVE_PAIR_UNIT_PRICE} USD / par)
+                    </span>
+                  </label>
+                  {includeGloves && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-bold uppercase text-amber-900">Talla:</span>
+                      <select
+                        aria-label="Talla guantes portero"
+                        value={
+                          roster.find((r) => (r?.role || '').toLowerCase() === 'portero')?.gloveSize || '9'
+                        }
+                        onChange={(e) => {
+                          const nextSize = e.target.value;
+                          onUpdateRoster?.(
+                            roster.map((r) =>
+                              (r?.role || '').toLowerCase() === 'portero'
+                                ? { ...r, gloveSize: nextSize }
+                                : r
+                            )
+                          );
+                        }}
+                        className="h-7 px-1.5 rounded-lg bg-white border border-amber-300 text-[11px] font-black text-amber-950 cursor-pointer"
+                      >
+                        {GLOVE_SIZE_OPTIONS.map((gs) => (
+                          <option key={gs} value={gs}>
+                            T{gs}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Lista minimalista en 1 sola hilera (Jugadores primero -> Portero al final) */}
+              {/* Lista minimalista en 1 sola hilera: Participante | Nombre | Nº | Talla | Rol | Vista/Quitar */}
               <div className="space-y-1.5 max-h-[38dvh] overflow-y-auto pr-0.5">
-                <div className="flex items-center gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  <span className="w-20 shrink-0">Participante</span>
+                <div className="flex items-center gap-1.5 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className="w-24 sm:w-28 shrink-0">Participante</span>
                   <span className="flex-1">Nombre en camisa</span>
-                  <span className="w-[74px] shrink-0">Talla</span>
-                  {isSoccerProduct && <span className="w-[92px] shrink-0 text-center">Rol</span>}
-                  <span className="w-12 shrink-0 text-right">{isPreStudio ? 'Quitar' : 'Vista'}</span>
+                  <span className="w-12 sm:w-14 shrink-0 text-center">Nº</span>
+                  <span className="w-[66px] sm:w-[70px] shrink-0">Talla</span>
+                  {isSoccerProduct && <span className="w-[84px] sm:w-[90px] shrink-0 text-center">Rol</span>}
+                  <span className="w-10 shrink-0 text-right">{isPreStudio ? 'Quitar' : 'Vista'}</span>
                 </div>
 
                 {orderedRoster.map(({ row, origIdx, isKeeper, displayLabel }) => {
@@ -348,7 +387,7 @@ export default function RosterWindowModal({
                   return (
                     <div
                       key={row.id || origIdx}
-                      className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${
+                      className={`flex items-center gap-1.5 p-2 rounded-xl border transition-colors ${
                         isKeeper
                           ? 'bg-amber-50/75 border-amber-300'
                           : isPreviewed
@@ -357,7 +396,7 @@ export default function RosterWindowModal({
                       }`}
                     >
                       <span
-                        className={`w-20 shrink-0 text-[11px] font-black truncate ${
+                        className={`w-24 sm:w-28 shrink-0 text-[11px] font-black truncate ${
                           isKeeper ? 'text-[#C24100]' : 'text-slate-700'
                         }`}
                       >
@@ -377,7 +416,25 @@ export default function RosterWindowModal({
                           )
                         }
                         placeholder="En blanco"
-                        className="flex-1 min-w-0 px-2.5 h-9 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
+                        className="flex-1 min-w-0 px-2 h-9 rounded-lg bg-white border border-slate-300 text-xs font-extrabold uppercase text-slate-900 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        aria-label={`Número ${displayLabel}`}
+                        value={row.number || ''}
+                        onFocus={() => onSelectRosterIndex?.(origIdx)}
+                        onChange={(e) =>
+                          onUpdateRoster?.(
+                            roster.map((r, i) =>
+                              i === origIdx ? { ...r, number: e.target.value.slice(0, 3) } : r
+                            )
+                          )
+                        }
+                        placeholder="Nº"
+                        className="w-12 sm:w-14 h-9 px-1 rounded-lg bg-white border border-slate-300 text-xs font-black text-center text-slate-900 placeholder:font-semibold placeholder:text-slate-400 shrink-0"
                       />
 
                       <select
@@ -388,7 +445,7 @@ export default function RosterWindowModal({
                             roster.map((r, i) => (i === origIdx ? { ...r, size: e.target.value } : r))
                           )
                         }
-                        className="w-[74px] px-1.5 h-9 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900 shrink-0 cursor-pointer"
+                        className="w-[66px] sm:w-[70px] px-1 h-9 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-900 shrink-0 cursor-pointer"
                       >
                         {ROSTER_SIZE_OPTIONS.map((s) => (
                           <option key={s} value={s}>
@@ -398,7 +455,7 @@ export default function RosterWindowModal({
                       </select>
 
                       {isSoccerProduct && (
-                        <div className="w-[92px] shrink-0 inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+                        <div className="w-[84px] sm:w-[90px] shrink-0 inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
                           <button
                             type="button"
                             aria-pressed={!isKeeper}
@@ -406,7 +463,7 @@ export default function RosterWindowModal({
                               onUpdateRoster?.(
                                 roster.map((r, i) => (i === origIdx ? { ...r, role: 'Jugador' } : r))
                               );
-                              onSwitchKitRole?.('field');
+                              onSwitchKitRole?.('field', origIdx);
                               onSelectRosterIndex?.(origIdx);
                             }}
                             className={`flex-1 py-1.5 rounded-md text-[10px] font-bold cursor-pointer ${
@@ -426,7 +483,7 @@ export default function RosterWindowModal({
                                     : r
                                 )
                               );
-                              onSwitchKitRole?.('goalkeeper');
+                              onSwitchKitRole?.('goalkeeper', origIdx);
                               onSelectRosterIndex?.(origIdx);
                             }}
                             className={`flex-1 py-1.5 rounded-md text-[10px] font-bold cursor-pointer ${
@@ -504,141 +561,128 @@ export default function RosterWindowModal({
                 )}
               </div>
 
-              {/* Opciones avanzadas colapsadas (Nº dorsal, corte anatómico, cantidad o pegado Excel) */}
-              <details className="rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 group">
+              {/* Opciones avanzadas colapsadas y montadas bajo demanda (corte anatómico, cantidad, talla guante o Excel) */}
+              <details
+                onToggle={(e) => setIsAdvancedOpen(e.currentTarget.open)}
+                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 group"
+              >
                 <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span>Opciones avanzadas (Nº dorsal, corte, cantidad o Excel)</span>
+                  <span>Opciones avanzadas (corte, cantidad, guantes o Excel)</span>
                   <ChevronDown
                     className="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180"
                     aria-hidden="true"
                   />
                 </summary>
-                <div className="mt-3 space-y-3">
-                  <div className="roster-table-wrapper rounded-xl border border-slate-200 bg-white">
-                    <table className="roster-data-table text-xs text-left">
-                      <thead className="bg-slate-50 text-slate-700 text-[10px] uppercase border-b border-slate-200">
-                        <tr>
-                          <th className="p-2">Participante</th>
-                          <th className="p-2">Corte</th>
-                          <th className="p-2">Cant.</th>
-                          <th className="p-2">Nº Dorsal</th>
-                          {isSoccerProduct && includeGloves && <th className="p-2">Guante</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {orderedRoster.map(({ row, origIdx, isKeeper, displayLabel }) => (
-                          <tr key={row.id || origIdx}>
-                            <td className="p-2 font-bold text-slate-800">{displayLabel}</td>
-                            <td className="p-2">
-                              <select
-                                aria-label={`Corte ${displayLabel}`}
-                                value={row.cut}
-                                onChange={(e) =>
-                                  onUpdateRoster?.(
-                                    roster.map((r, i) =>
-                                      i === origIdx ? { ...r, cut: e.target.value } : r
-                                    )
-                                  )
-                                }
-                                className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
-                              >
-                                {ROSTER_CUT_OPTIONS.map((c) => (
-                                  <option key={c.value} value={c.value}>
-                                    {c.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="p-2">
-                              <input
-                                type="number"
-                                aria-label={`Cantidad ${displayLabel}`}
-                                min="1"
-                                max="999"
-                                value={row.qty}
-                                onChange={(e) =>
-                                  onUpdateRoster?.(
-                                    roster.map((r, i) =>
-                                      i === origIdx
-                                        ? { ...r, qty: Math.max(1, Number(e.target.value) || 1) }
-                                        : r
-                                    )
-                                  )
-                                }
-                                className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-mono"
-                              />
-                            </td>
-                            <td className="p-2">
-                              <input
-                                type="text"
-                                aria-label={`Número dorsal ${displayLabel}`}
-                                maxLength={3}
-                                value={row.number || ''}
-                                onChange={(e) =>
-                                  onUpdateRoster?.(
-                                    roster.map((r, i) =>
-                                      i === origIdx ? { ...r, number: e.target.value } : r
-                                    )
-                                  )
-                                }
-                                placeholder="10"
-                                className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900 font-black text-center"
-                              />
-                            </td>
-                            {isSoccerProduct && includeGloves && (
-                              <td className="p-2">
-                                {isKeeper ? (
-                                  <select
-                                    aria-label={`Talla guante ${displayLabel}`}
-                                    value={row.gloveSize || '9'}
-                                    onChange={(e) =>
-                                      onUpdateRoster?.(
-                                        roster.map((r, i) =>
-                                          i === origIdx ? { ...r, gloveSize: e.target.value } : r
-                                        )
-                                      )
-                                    }
-                                    className="bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 text-amber-950 font-bold"
-                                  >
-                                    {GLOVE_SIZE_OPTIONS.map((gs) => (
-                                      <option key={gs} value={gs}>
-                                        T{gs}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <span className="text-slate-400">—</span>
-                                )}
-                              </td>
-                            )}
+                {isAdvancedOpen && (
+                  <div className="mt-3 space-y-3">
+                    <div className="roster-table-wrapper rounded-xl border border-slate-200 bg-white">
+                      <table className="roster-data-table text-xs text-left">
+                        <thead className="bg-slate-50 text-slate-700 text-[10px] uppercase border-b border-slate-200">
+                          <tr>
+                            <th className="p-2">Participante</th>
+                            <th className="p-2">Corte</th>
+                            <th className="p-2">Cant.</th>
+                            {isSoccerProduct && includeGloves && <th className="p-2">Guante</th>}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {orderedRoster.map(({ row, origIdx, isKeeper, displayLabel }) => (
+                            <tr key={row.id || origIdx}>
+                              <td className="p-2 font-bold text-slate-800">{displayLabel}</td>
+                              <td className="p-2">
+                                <select
+                                  aria-label={`Corte ${displayLabel}`}
+                                  value={row.cut}
+                                  onChange={(e) =>
+                                    onUpdateRoster?.(
+                                      roster.map((r, i) =>
+                                        i === origIdx ? { ...r, cut: e.target.value } : r
+                                      )
+                                    )
+                                  }
+                                  className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
+                                >
+                                  {ROSTER_CUT_OPTIONS.map((c) => (
+                                    <option key={c.value} value={c.value}>
+                                      {c.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="number"
+                                  aria-label={`Cantidad ${displayLabel}`}
+                                  min="1"
+                                  max="999"
+                                  value={row.qty}
+                                  onChange={(e) =>
+                                    onUpdateRoster?.(
+                                      roster.map((r, i) =>
+                                        i === origIdx
+                                          ? { ...r, qty: Math.max(1, Number(e.target.value) || 1) }
+                                          : r
+                                      )
+                                    )
+                                  }
+                                  className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-mono"
+                                />
+                              </td>
+                              {isSoccerProduct && includeGloves && (
+                                <td className="p-2">
+                                  {isKeeper ? (
+                                    <select
+                                      aria-label={`Talla guante ${displayLabel}`}
+                                      value={row.gloveSize || '9'}
+                                      onChange={(e) =>
+                                        onUpdateRoster?.(
+                                          roster.map((r, i) =>
+                                            i === origIdx ? { ...r, gloveSize: e.target.value } : r
+                                          )
+                                        )
+                                      }
+                                      className="bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 text-amber-950 font-bold"
+                                    >
+                                      {GLOVE_SIZE_OPTIONS.map((gs) => (
+                                        <option key={gs} value={gs}>
+                                          T{gs}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span className="text-slate-400">—</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-700 block">
-                      Pegado rápido desde Excel / WhatsApp
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <textarea
-                        rows={2}
-                        value={csvQuickInput}
-                        onChange={(e) => setCsvQuickInput(e.target.value)}
-                        placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
-                        className="flex-1 rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleImportCsvRoster}
-                        className="px-4 py-2 rounded-xl arza-btn-glass-green font-black text-xs shrink-0 cursor-pointer"
-                      >
-                        Importar Filas
-                      </button>
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-bold text-slate-700 block">
+                        Pegado rápido desde Excel / WhatsApp
+                      </span>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <textarea
+                          rows={2}
+                          value={csvQuickInput}
+                          onChange={(e) => setCsvQuickInput(e.target.value)}
+                          placeholder={'PEREZ, 10, L, Jugador, 1\nLOPEZ, 1, XL, Portero, 1'}
+                          className="flex-1 rounded-xl bg-white border border-slate-300 p-2 text-xs font-mono text-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleImportCsvRoster}
+                          className="px-4 py-2 rounded-xl arza-btn-glass-green font-black text-xs shrink-0 cursor-pointer"
+                        >
+                          Importar Filas
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </details>
 
               {isPreStudio ? (

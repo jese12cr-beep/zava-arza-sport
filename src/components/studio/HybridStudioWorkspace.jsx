@@ -504,6 +504,7 @@ export default function HybridStudioWorkspace({
     number: '',
     size: 'L',
   };
+  const activeGlovesKeeperPlayer = roster.find((r) => isGoalkeeperRole(r.role)) || activePlayer;
   const totalRawUnits = useMemo(
     () => roster.reduce((s, r) => s + Math.max(1, Number(r?.qty) || 1), 0),
     [roster]
@@ -534,14 +535,23 @@ export default function HybridStudioWorkspace({
   const glovesTotal = unifiedTotals.glovesTotal;
   const grandTotalPrice = unifiedTotals.grandTotal;
 
-  const handleRoleSwitch = (nextRole) => {
+  const handleRoleSwitch = (nextRole, explicitIdx = null) => {
     onSwitchKitRole?.(nextRole);
+    if (typeof explicitIdx === 'number' && roster[explicitIdx]) {
+      setActiveRosterIndex(explicitIdx);
+      return;
+    }
+    const curIsKeeper = isGoalkeeperRole(roster[activeRosterIndex]?.role);
     if (nextRole === 'goalkeeper' || nextRole === 'gloves') {
-      const gkIdx = roster.findIndex((r) => isGoalkeeperRole(r.role));
-      if (gkIdx >= 0) setActiveRosterIndex(gkIdx);
+      if (!curIsKeeper) {
+        const gkIdx = roster.findIndex((r) => isGoalkeeperRole(r.role));
+        if (gkIdx >= 0) setActiveRosterIndex(gkIdx);
+      }
     } else if (nextRole === 'field') {
-      const fpIdx = roster.findIndex((r) => !isGoalkeeperRole(r.role));
-      if (fpIdx >= 0) setActiveRosterIndex(fpIdx);
+      if (curIsKeeper) {
+        const fpIdx = roster.findIndex((r) => !isGoalkeeperRole(r.role));
+        if (fpIdx >= 0) setActiveRosterIndex(fpIdx);
+      }
     }
   };
 
@@ -1848,9 +1858,9 @@ export default function HybridStudioWorkspace({
         </>
       )}
 
-      {/* Toast flotante de confirmación instantánea */}
+      {/* Toast flotante de confirmación instantánea (parte inferior limpia sin cubrir marca ni cámara) */}
       {toastMessage && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-emerald-500 text-slate-950 text-xs font-black shadow-xl flex items-center gap-1.5">
+        <div className="fixed bottom-20 lg:bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-emerald-500 text-slate-950 text-xs font-black shadow-xl flex items-center gap-1.5 pointer-events-none">
           <Check className="w-3.5 h-3.5" />
           <span>{toastMessage}</span>
         </div>
@@ -1873,7 +1883,11 @@ export default function HybridStudioWorkspace({
                 design={design}
                 activeKitRole={isSoccerProduct ? activeKitRole : 'field'}
                 glovesDesign={glovesDesign}
-                activePlayer={activePlayer}
+                activePlayer={
+                  isSoccerProduct && activeKitRole === 'gloves'
+                    ? activeGlovesKeeperPlayer
+                    : activePlayer
+                }
                 artworkRegistry={artworkRegistry}
                 cameraPreset={cameraPreset}
                 cameraPulse={cameraPulse}
@@ -1903,10 +1917,10 @@ export default function HybridStudioWorkspace({
             />
           )}
 
-          {/* Marca de agua oficial ARZA SPORT en esquina superior derecha del lienzo */}
+          {/* Marca de agua oficial ARZA SPORT en esquina superior derecha (solo escritorios amplios) */}
           <div
             aria-hidden="true"
-            className="pointer-events-none select-none absolute z-[15] top-14 right-3 sm:top-16 sm:right-5 xl:top-4 xl:right-5 opacity-35 sm:opacity-40 transition-opacity duration-200"
+            className="hidden xl:block pointer-events-none select-none absolute z-[15] top-4 right-5 opacity-40 transition-opacity duration-200"
           >
             <ArzaLogo
               theme="light"

@@ -1094,6 +1094,27 @@ export function parseRosterQuickLines(rawText = '', defaultCut = 'MEN_PRO_SLIM')
   });
 }
 
+export function formatPatternDisplayName(patternId = 'tackle') {
+  const key = String(patternId || 'tackle').trim();
+  const pools = [
+    FOOTBALL_FISH_DESIGNS,
+    FOOTBALL_SHORTS_FISH_DESIGNS,
+    BASKETBALL_FISH_DESIGNS,
+    BASKETBALL_SHORTS_FISH_DESIGNS,
+    BASKETBALL_WOMEN_FISH_DESIGNS,
+    BASKETBALL_SHORTS_WOMEN_FISH_DESIGNS,
+    JACKET_MEN_FISH_DESIGNS,
+    JACKET_WOMEN_FISH_DESIGNS,
+  ];
+  for (const list of pools) {
+    const found = list.find((d) => d.id === key);
+    if (found?.name) return found.name;
+  }
+  return key
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 export const INITIAL_TEAM_ROSTER = [
   { id: 'r1', cut: 'MEN_PRO_SLIM', size: 'L', qty: 1, name: '', number: '', role: 'Jugador' },
 ];
